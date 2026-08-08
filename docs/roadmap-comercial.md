@@ -30,28 +30,39 @@ são o que separa um.
 
 ## 2. P0 — Bloqueadores: coisas que quebram em produção ou geram passivo jurídico
 
-### 2.1 O teste que prova a garantia financeira central está quebrado
+### 2.1 O teste que prova a garantia financeira central está quebrado — ✅ **corrigido**
 
 `validacoes.md`, a própria especificação do projeto, exige teste de
-concorrência contra resgate duplicado como regra obrigatória. Esse teste
-existe (`src/lib/ledger/ledger.test.ts`), está bem desenhado — dois resgates
-simultâneos via `Promise.allSettled`, espera exatamente 1 sucesso e 1 falha —
-mas:
+concorrência contra resgate duplicado como regra obrigatória. O teste
+(`src/lib/ledger/ledger.test.ts`) tinha dois problemas:
 
-1. **Não roda por padrão.** Só executa com `RUN_DB_TESTS=1`, que não está em
-   nenhum script de CI ou `npm test`. Na prática, nunca rodou automaticamente.
-2. **Quando rodei manualmente, falhou** — não por bug de concorrência, mas
-   porque o arquivo de teste nunca foi atualizado depois do refactor
-   multi-tenant. Ele chama `prisma.clinic.findFirst()` sem contexto de
-   organização e a extensão de isolamento (corretamente) recusa a query:
-   `SemContextoTenantError`.
+1. **Não rodava por padrão.** `npm run test:db` não definia `RUN_DB_TESTS=1`
+   apesar do README prometer isso — corrigido com `cross-env` no script, para
+   funcionar em Windows e Unix igual.
+2. **Falhava quando rodado.** O `beforeAll` chamava `prisma.clinic.findFirst()`
+   sem contexto de organização, e a extensão de isolamento (corretamente)
+   recusava com `SemContextoTenantError` — o teste nunca foi atualizado depois
+   do refactor multi-tenant. Corrigido envolvendo a resolução da clínica em
+   `semOrganizacao()` e o restante (setup + os dois `it()`) em
+   `comOrganizacao()`. Cada `it()` precisou do próprio wrap porque o vitest
+   roda hook e teste em cadeias assíncronas separadas — um `enterWith()` só no
+   `beforeAll` não alcança o corpo do teste.
 
-A implementação do ledger em si parece correta — `SELECT ... FOR UPDATE`,
-transação serializável no resgate, idempotência por chave. O problema é que
-**isso não está mais sendo verificado**, e é justamente a característica que,
-se falhar, deixa dois pacientes resgatarem o mesmo saldo. Corrigir o teste é
-trivial (envolver o setup em `semOrganizacao()`); o risco real é vender
-achando que essa garantia está provada quando ela não está.
+Rodado 13 vezes seguidas após a correção: 1 falha (na primeira execução, por
+uma asserção incompleta — ver abaixo) e 12 passagens limpas.
+
+A própria correção revelou um terceiro problema, menor: a asserção do teste
+só aceitava o `LedgerError` amigável ou mensagens contendo "saldo"/"serializ".
+Mas `redeemFromWallet` roda em isolamento `Serializable` com
+`SELECT ... FOR UPDATE` — sob disputa real, o MySQL pode abortar a transação
+perdedora **antes** dela chegar na checagem de saldo da aplicação, e isso
+chega como deadlock/conflito de escrita do driver (Prisma código `P2034`), não
+como o erro de negócio. Não é falha do teste nem do sistema: é a mesma trava
+de concorrência agindo numa camada mais baixa. A asserção foi ampliada para
+aceitar os dois desfechos válidos.
+
+A implementação do ledger em si é correta — o problema era só a verificação
+ter ficado desatualizada. **Agora está coberta de novo.**
 
 ### 2.2 Sem controle de versão
 

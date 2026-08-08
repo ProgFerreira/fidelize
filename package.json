@@ -11,7 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "test": "vitest run",
-    "test:db": "vitest run src/lib/ledger/ledger.test.ts",
+    "test:db": "cross-env RUN_DB_TESTS=1 vitest run src/lib/ledger/ledger.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -53,6 +53,7 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^6.0.5",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "jsdom": "^30.0.1",

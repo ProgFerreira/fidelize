@@ -1,0 +1,29 @@
+# Next.js
+/.next/
+/out/
+
+# Dependencies
+/node_modules/
+
+# Env
+.env
+.env*.local
+
+# Debug / OS
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Tests / coverage
+/coverage
+/test-results
+/playwright-report
+
+# Prisma client gerado — recriado por `npm run db:generate`
+/src/generated
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Misc
+*.pem

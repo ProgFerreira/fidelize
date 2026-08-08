@@ -1,0 +1,67 @@
+import { redirect } from "next/navigation";
+import { getPatientSession } from "@/lib/otp/session";
+import { isModuleEnabled } from "@/lib/modules";
+import { listRaffles, buyRaffleTicket } from "@/lib/raffles";
+import { PageHeader, Card, Button, Badge } from "@/components/ui";
+import { revalidatePath } from "next/cache";
+
+async function buyTicketAction(formData: FormData) {
+  "use server";
+  const session = await getPatientSession();
+  if (!session) redirect("/paciente");
+  await buyRaffleTicket({
+    clinicId: session.clinicId,
+    raffleId: String(formData.get("raffleId")),
+    patientId: session.patientId,
+    quantity: 1,
+  });
+  revalidatePath("/p/sorteios");
+}
+
+export default async function PortalSorteiosPage() {
+  const session = await getPatientSession();
+  if (!session) redirect("/paciente");
+  if (!(await isModuleEnabled(session.clinicId, "RAFFLES"))) {
+    return (
+      <div>
+        <PageHeader title="Sorteios" description="Módulo desativado." />
+      </div>
+    );
+  }
+
+  const raffles = (await listRaffles(session.clinicId)).filter(
+    (r) => r.status === "ACTIVE",
+  );
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-3xl text-slate-900">Sorteios</h1>
+      {raffles.length === 0 ? (
+        <Card>
+          <p className="text-sm text-slate-500">Nenhum sorteio ativo.</p>
+        </Card>
+      ) : (
+        raffles.map((r) => (
+          <Card key={r.id}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold">{r.name}</p>
+                <p className="text-sm text-slate-500">{r.prizeDescription}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {r.ticketCostPoints} pontos por bilhete · {r.ticketCount} inscritos
+                </p>
+              </div>
+              <Badge tone="success">Ativo</Badge>
+            </div>
+            <form action={buyTicketAction} className="mt-3">
+              <input type="hidden" name="raffleId" value={r.id} />
+              <Button type="submit" variant="gold">
+                Comprar bilhete
+              </Button>
+            </form>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,93 @@
+import { Loader2 } from "lucide-react";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+type Variante = "primario" | "secundario" | "perigo" | "fantasma" | "contorno";
+type Tamanho = "sm" | "md" | "lg" | "icone";
+
+const VARIANTES: Record<Variante, string> = {
+  primario:
+    "bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600",
+  secundario:
+    "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+  perigo: "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600",
+  fantasma:
+    "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+  contorno:
+    "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800",
+};
+
+const TAMANHOS: Record<Tamanho, string> = {
+  sm: "h-8 px-3 text-sm gap-1.5",
+  md: "h-10 px-4 text-sm gap-2",
+  lg: "h-11 px-6 text-base gap-2",
+  icone: "h-10 w-10 justify-center",
+};
+
+const VARIANT_ALIAS: Record<string, Variante> = {
+  primary: "primario",
+  gold: "primario",
+  ghost: "fantasma",
+  danger: "perigo",
+  outline: "contorno",
+  secondary: "secundario",
+  primario: "primario",
+  secundario: "secundario",
+  perigo: "perigo",
+  fantasma: "fantasma",
+  contorno: "contorno",
+};
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variante?: Variante;
+  /** Alias compatível com código anterior */
+  variant?: string;
+  tamanho?: Tamanho;
+  /** Alias inglês */
+  size?: Tamanho;
+  carregando?: boolean;
+}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variante,
+      variant,
+      tamanho,
+      size,
+      carregando = false,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    const resolved =
+      variante ??
+      VARIANT_ALIAS[variant ?? "primario"] ??
+      ("primario" as Variante);
+    const sizeResolved = tamanho ?? size ?? "md";
+
+    return (
+      <button
+        ref={ref}
+        disabled={disabled || carregando}
+        className={cn(
+          "inline-flex items-center rounded-md font-medium transition-colors",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+          "disabled:pointer-events-none disabled:opacity-50",
+          VARIANTES[resolved],
+          TAMANHOS[sizeResolved],
+          className,
+        )}
+        {...props}
+      >
+        {carregando && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+        {children}
+      </button>
+    );
+  },
+);
+Button.displayName = "Button";

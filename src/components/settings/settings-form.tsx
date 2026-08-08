@@ -1,0 +1,93 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button, Input, Label } from "@/components/ui";
+import { saveSettingsAction } from "@/app/actions";
+import type { BenefitSettings } from "@/lib/cashback";
+
+export function SettingsForm({ initial }: { initial: BenefitSettings }) {
+  const [settings, setSettings] = useState(initial);
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+
+  function update<K extends keyof BenefitSettings>(
+    key: K,
+    value: BenefitSettings[K],
+  ) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSaved(false);
+  }
+
+  return (
+    <form
+      className="mt-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        startTransition(async () => {
+          await saveSettingsAction(settings);
+          setSaved(true);
+        });
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label>Cashback padrão %</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={settings.defaultCashbackPercent}
+            onChange={(e) =>
+              update("defaultCashbackPercent", Number(e.target.value))
+            }
+          />
+        </div>
+        <div>
+          <Label>Pontos por real</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={settings.pointsPerReal}
+            onChange={(e) => update("pointsPerReal", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label>Dias para liberação</Label>
+          <Input
+            type="number"
+            value={settings.releaseDays}
+            onChange={(e) => update("releaseDays", Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label>Validade (dias)</Label>
+          <Input
+            type="number"
+            value={settings.validityDays}
+            onChange={(e) => update("validityDays", Number(e.target.value))}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Label>Limite de resgate no atendimento %</Label>
+          <Input
+            type="number"
+            value={settings.maxRedemptionPercent ?? ""}
+            onChange={(e) =>
+              update(
+                "maxRedemptionPercent",
+                e.target.value === "" ? null : Number(e.target.value),
+              )
+            }
+          />
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Salvando..." : "Salvar regras"}
+        </Button>
+        {saved ? (
+          <p className="text-sm text-green-700">Configurações salvas.</p>
+        ) : null}
+      </div>
+    </form>
+  );
+}

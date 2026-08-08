@@ -1,0 +1,2080 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum WalletStatus {
+  ACTIVE
+  BLOCKED
+  CLOSED
+}
+
+enum CardStatus {
+  AVAILABLE
+  ACTIVE
+  BLOCKED
+  REPLACED
+  CANCELLED
+}
+
+enum CreditLotStatus {
+  PENDING
+  AVAILABLE
+  PARTIALLY_USED
+  USED
+  EXPIRED
+  CANCELLED
+  BLOCKED
+}
+
+enum LedgerType {
+  CREDIT_APPOINTMENT
+  CREDIT_CAMPAIGN
+  CREDIT_ADJUSTMENT
+  CREDIT_REFERRAL
+  CREDIT_BIRTHDAY
+  CREDIT_AUTOMATION
+  CREDIT_ACCELERATOR
+  DEBIT_REDEMPTION
+  DEBIT_EXPIRATION
+  DEBIT_REWARD
+  DEBIT_VOUCHER
+  GIFT_CARD_ISSUE
+  GIFT_CARD_REDEEM
+  VOUCHER_ISSUE
+  REVERSAL_CREDIT
+  REVERSAL_REDEMPTION
+  ADJUSTMENT
+}
+
+enum LedgerStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REVERSED
+}
+
+enum AppointmentStatus {
+  DRAFT
+  SIMULATED
+  CONFIRMED
+  CANCELLED
+  REVERSED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum ProgressionMode {
+  SPEND
+  POINTS
+  APPOINTMENTS
+  COMBINED
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  PATIENT_CREATE
+  PATIENT_UPDATE
+  RULE_CHANGE
+  CATEGORY_CHANGE
+  CARD_LINK
+  CARD_BLOCK
+  CREDIT
+  REDEMPTION
+  ADJUSTMENT
+  REVERSAL
+  REPORT_EXPORT
+  PERMISSION_CHANGE
+  SETTINGS_CHANGE
+  OTP_REQUEST
+  MODULE_TOGGLE
+  TAG_ASSIGN
+  TAG_REMOVE
+  SEGMENT_CHANGE
+  TEMPLATE_CHANGE
+  COMMUNICATION_SEND
+  AUTOMATION_RUN
+  AUTOMATION_CHANGE
+  REFERRAL_CREATE
+  REFERRAL_CONVERT
+  NPS_RESPONSE
+  REWARD_REDEEM
+  VOUCHER_ISSUE
+  VOUCHER_REDEEM
+  GIFT_CARD
+  CONSENT_CHANGE
+  ACCELERATOR_CHANGE
+  API_KEY_CHANGE
+  WEBHOOK_DELIVERY
+  ONBOARDING_STEP
+  RAFFLE_CHANGE
+  RECEIPT_REVIEW
+  PREDICTION_RUN
+  PUSH_DEVICE
+  OTHER
+}
+
+enum ModuleCode {
+  CASHBACK
+  POINTS
+  CATEGORIES
+  REFERRAL
+  REWARDS
+  VOUCHERS
+  GIFT_CARD
+  NPS
+  BIRTHDAY
+  AUTOMATIONS
+  WHATSAPP
+  EMAIL
+  SMS
+  PUSH
+  ACCELERATORS
+  RAFFLES
+  RECEIPTS
+  PREDICTIVE
+  TAGS
+  SEGMENTS
+  COMMUNICATIONS
+  CONSENT
+}
+
+enum CommunicationChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  PUSH
+  INTERNAL
+}
+
+enum CommunicationStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  CLICKED
+  FAILED
+  CANCELLED
+  BLOCKED_CONSENT
+}
+
+enum ConsentPurpose {
+  TRANSACTIONAL
+  SERVICE
+  MARKETING
+  SURVEY
+  REFERRAL
+}
+
+enum TagSource {
+  MANUAL
+  AUTOMATIC
+  IMPORT
+  AUTOMATION
+}
+
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AutomationTrigger {
+  PATIENT_REGISTERED
+  FIRST_APPOINTMENT
+  PAYMENT_CONFIRMED
+  CASHBACK_RELEASED
+  POINTS_GRANTED
+  CATEGORY_CHANGED
+  BALANCE_EXPIRING
+  BALANCE_EXPIRED
+  BIRTHDAY
+  PATIENT_INACTIVE
+  NPS_RESPONDED
+  REFERRAL_CREATED
+  REFERRAL_CONVERTED
+  VOUCHER_ISSUED
+  VOUCHER_EXPIRING
+  CAMPAIGN_STARTED
+  SCHEDULED
+}
+
+enum ReferralStatus {
+  LINK_OPENED
+  SIGNUP_STARTED
+  LEAD
+  APPOINTMENT_SCHEDULED
+  CONVERTED
+  BENEFIT_PENDING
+  BENEFIT_GRANTED
+  REJECTED
+  EXPIRED
+  SUSPICIOUS
+}
+
+enum RewardStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum RewardRedemptionStatus {
+  RESERVED
+  PENDING_FULFILLMENT
+  FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum VoucherType {
+  FIXED_VALUE
+  PERCENT
+  PROCEDURE
+  GIFT
+  COURTESY
+  FEE
+  RECOVERY
+  BIRTHDAY
+}
+
+enum VoucherStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
+}
+
+enum GiftCardStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PARTIALLY_USED
+  USED
+  CANCELLED
+  EXPIRED
+}
+
+enum RecoveryStatus {
+  ATTENTION
+  RISK
+  INACTIVE
+  RECOVERED
+  CLOSED
+}
+
+enum SurveyResponseClass {
+  DETRACTOR
+  PASSIVE
+  PROMOTER
+}
+
+enum TemplateApprovalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum OnboardingStepCode {
+  CLINIC_IDENTITY
+  UNITS
+  PATIENT_IMPORT
+  BENEFIT_MODE
+  CATEGORIES
+  VALIDITY_LIMITS
+  COMMUNICATIONS
+  FIRST_CAMPAIGN
+  STAFF_INVITE
+  OPERATION_SIMULATION
+  PUBLISH_CHECKLIST
+}
+
+
+model Organization {
+  id               String    @id @default(cuid())
+  slug             String    @unique
+  name             String
+  tradeName        String?
+  document         String?   @unique
+  plan             String    @default("trial")
+  active           Boolean   @default(true)
+  suspendedAt      DateTime?
+  suspensionReason String?   @db.Text
+  trialEndsAt      DateTime?
+  maxUsers         Int?
+  maxClinics       Int?
+  maxPatients      Int?
+  contactEmail     String?
+  contactPhone     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  clinics          Clinic[]
+  users            User[]
+  platformAccesses PlatformAccess[]
+
+  @@index([active])
+  @@index([deletedAt])
+}
+
+model PlatformAccess {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  reason         String    @db.Text
+  ip             String?
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, startedAt])
+  @@index([userId])
+}
+
+model Clinic {
+  id             String   @id @default(cuid())
+  organizationId String?
+  slug           String?
+  customDomain   String?
+  name      String
+  tradeName String?
+  document  String?
+  email     String?
+  phone     String?
+  logoUrl   String?
+  timezone  String   @default("America/Sao_Paulo")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization         Organization? @relation(fields: [organizationId], references: [id])
+  units                 Unit[]
+  users                 User[]
+  roles                 Role[]
+  patients              Patient[]
+  wallets               Wallet[]
+  cards                 Card[]
+  categories            Category[]
+  procedures            Procedure[]
+  appointments          Appointment[]
+  payments              Payment[]
+  ledgerEntries         LedgerEntry[]
+  creditLots            CreditLot[]
+  redemptions           Redemption[]
+  campaigns             Campaign[]
+  coupons               Coupon[]
+  settings              Setting[]
+  auditLogs             AuditLog[]
+  notificationTemplates NotificationTemplate[]
+  idempotencyKeys       IdempotencyKey[]
+  patientOtps           PatientOtp[]
+  featureModules        FeatureModule[]
+  moduleConfigurations  ModuleConfiguration[]
+  onboardingChecklists  OnboardingChecklist[]
+  customerTags          CustomerTag[]
+  dynamicSegments       DynamicSegment[]
+  automations           Automation[]
+  messageTemplates      MessageTemplate[]
+  communications        Communication[]
+  consentRecords        ConsentRecord[]
+  communicationPreferences CommunicationPreference[]
+  referralPrograms      ReferralProgram[]
+  referrals             Referral[]
+  satisfactionSurveys   SatisfactionSurvey[]
+  recoveryCases         RecoveryCase[]
+  rewards               Reward[]
+  vouchers              Voucher[]
+  giftCards             GiftCard[]
+  acceleratorRules      AcceleratorRule[]
+  campaignAttributions  CampaignAttribution[]
+  apiCredentials        ApiCredential[]
+  webhookEndpoints      WebhookEndpoint[]
+  integrationLogs       IntegrationLog[]
+  pushDevices           PushDevice[]
+  receiptSubmissions    ReceiptSubmission[]
+  raffles               Raffle[]
+  predictionScores      PredictionScore[]
+  revenueForecasts      RevenueForecast[]
+  widgetOrigins         WidgetOrigin[]
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([organizationId, active])
+  @@index([customDomain])
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  name      String
+  code      String?
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic       Clinic         @relation(fields: [clinicId], references: [id])
+  patients     Patient[]
+  users        User[]
+  appointments Appointment[]
+  cards        Card[]
+  campaigns    CampaignUnit[]
+
+  @@unique([clinicId, code])
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  organizationId String?
+  clinicId    String?
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic      Clinic?           @relation(fields: [clinicId], references: [id])
+  users       User[]
+  permissions RolePermission[]
+
+  @@unique([clinicId, code])
+  @@index([code])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id             String     @id @default(cuid())
+  organizationId String?
+  clinicId       String?
+  unitId         String?
+  roleId         String
+  name           String
+  email          String
+  passwordHash   String
+  phone          String?
+  status         UserStatus @default(ACTIVE)
+  mfaEnabled     Boolean    @default(false)
+  mfaSecret      String?
+  lastLoginAt    DateTime?
+  resetToken     String?
+  resetExpiresAt DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization     Organization?   @relation(fields: [organizationId], references: [id])
+  clinic           Clinic?         @relation(fields: [clinicId], references: [id])
+  unit             Unit?           @relation(fields: [unitId], references: [id])
+  role             Role            @relation(fields: [roleId], references: [id])
+  accounts         Account[]
+  sessions         Session[]
+  auditLogs        AuditLog[]
+  appointments     Appointment[]   @relation("AppointmentOperator")
+  ledgerEntries    LedgerEntry[]   @relation("LedgerOperator")
+  redemptions      Redemption[]
+  platformAccesses PlatformAccess[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@index([clinicId, status])
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Patient {
+  id                String        @id @default(cuid())
+  organizationId String?
+  clinicId          String
+  unitId            String?
+  fullName          String
+  cpf               String
+  birthDate         DateTime?     @db.Date
+  phone             String
+  email             String?
+  gender            String?
+  address           String?       @db.Text
+  externalCode      String?
+  status            PatientStatus @default(ACTIVE)
+  commercialNotes   String?       @db.Text
+  regulationConsent Boolean       @default(false)
+  marketingConsent  Boolean       @default(false)
+  registeredAt      DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id])
+  unit          Unit?          @relation(fields: [unitId], references: [id])
+  consents      Consent[]
+  wallets       Wallet[]
+  appointments  Appointment[]
+  patientOtps   PatientOtp[]
+  campaignUses  CampaignUse[]
+  tagAssignments CustomerTagAssignment[]
+  consentRecords ConsentRecord[]
+  communicationPreferences CommunicationPreference[]
+  communications Communication[]
+  referralsMade  Referral[] @relation("ReferralReferrer")
+  referralsReceived Referral[] @relation("ReferralReferred")
+  surveyResponses SurveyResponse[]
+  recoveryCases  RecoveryCase[]
+  rewardRedemptions RewardRedemption[]
+  voucherRedemptions VoucherRedemption[]
+  giftCardsBought GiftCard[] @relation("GiftCardBuyer")
+  giftCardsReceived GiftCard[] @relation("GiftCardBeneficiary")
+  campaignAttributions CampaignAttribution[]
+  automationExecutions AutomationExecution[]
+  pushDevices PushDevice[]
+  receiptSubmissions ReceiptSubmission[]
+  raffleTickets RaffleTicket[]
+  predictionScores PredictionScore[]
+
+  @@unique([clinicId, cpf])
+  @@index([clinicId, phone])
+  @@index([clinicId, externalCode])
+  @@index([clinicId, status])
+  @@index([clinicId, fullName])
+  @@index([clinicId, birthDate])
+  @@index([organizationId])
+}
+
+model Consent {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  patientId String
+  type      String
+  accepted  Boolean
+  version   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, type])
+  @@index([organizationId])
+}
+
+model Category {
+  id               String          @id @default(cuid())
+  organizationId String?
+  clinicId         String
+  name             String
+  slug             String
+  color            String
+  icon             String?
+  minAnnualSpend   Decimal         @default(0) @db.Decimal(19, 4)
+  minPoints        Int             @default(0)
+  minAppointments  Int             @default(0)
+  cashbackPercent  Decimal         @default(0) @db.Decimal(8, 4)
+  discountPercent  Decimal         @default(0) @db.Decimal(8, 4)
+  benefits         String?         @db.Text
+  sortOrder        Int             @default(0)
+  progressionMode  ProgressionMode @default(SPEND)
+  active           Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  clinic  Clinic   @relation(fields: [clinicId], references: [id])
+  wallets Wallet[]
+
+  @@unique([clinicId, slug])
+  @@index([clinicId, active, sortOrder])
+  @@index([organizationId])
+}
+
+model Wallet {
+  id                 String       @id @default(cuid())
+  organizationId String?
+  clinicId           String
+  patientId          String
+  categoryId         String?
+  status             WalletStatus @default(ACTIVE)
+  availableBalance   Decimal      @default(0) @db.Decimal(19, 4)
+  pendingBalance     Decimal      @default(0) @db.Decimal(19, 4)
+  pointsBalance      Int          @default(0)
+  annualSpend        Decimal      @default(0) @db.Decimal(19, 4)
+  appointmentCount   Int          @default(0)
+  version            Int          @default(0)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  cards         Card[]
+  ledgerEntries LedgerEntry[]
+  creditLots    CreditLot[]
+  redemptions   Redemption[]
+  appointments  Appointment[]
+
+  @@unique([clinicId, patientId])
+  @@index([clinicId, status])
+  @@index([categoryId])
+  @@index([organizationId])
+}
+
+model Card {
+  id           String     @id @default(cuid())
+  organizationId String?
+  clinicId     String
+  unitId       String?
+  walletId     String?
+  publicToken  String     @unique
+  cardNumber   String
+  status       CardStatus @default(AVAILABLE)
+  expiresAt    DateTime?
+  linkedAt     DateTime?
+  blockedAt    DateTime?
+  blockedReason String?
+  replacedById String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  clinic Clinic  @relation(fields: [clinicId], references: [id])
+  unit   Unit?   @relation(fields: [unitId], references: [id])
+  wallet Wallet? @relation(fields: [walletId], references: [id])
+
+  @@unique([clinicId, cardNumber])
+  @@index([clinicId, status])
+  @@index([walletId])
+  @@index([organizationId])
+}
+
+model Procedure {
+  id              String   @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  code            String
+  name            String
+  description     String?
+  basePrice       Decimal  @default(0) @db.Decimal(19, 4)
+  cashbackPercent Decimal? @db.Decimal(8, 4)
+  pointsPerReal   Decimal? @db.Decimal(8, 4)
+  eligible        Boolean  @default(true)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  appointments Appointment[]
+  campaigns    CampaignProcedure[]
+
+  @@unique([clinicId, code])
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  organizationId String?
+  clinicId         String
+  unitId           String?
+  patientId        String
+  walletId         String
+  procedureId      String?
+  operatorId       String?
+  professionalName String?
+  status           AppointmentStatus @default(DRAFT)
+  grossAmount      Decimal           @db.Decimal(19, 4)
+  discountAmount   Decimal           @default(0) @db.Decimal(19, 4)
+  benefitUsed      Decimal           @default(0) @db.Decimal(19, 4)
+  paidAmount       Decimal           @default(0) @db.Decimal(19, 4)
+  cashbackGenerated Decimal          @default(0) @db.Decimal(19, 4)
+  pointsGenerated  Int               @default(0)
+  idempotencyKey   String?
+  notes            String?           @db.Text
+  occurredAt       DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id])
+  unit          Unit?          @relation(fields: [unitId], references: [id])
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  wallet        Wallet         @relation(fields: [walletId], references: [id])
+  procedure     Procedure?     @relation(fields: [procedureId], references: [id])
+  operator      User?          @relation("AppointmentOperator", fields: [operatorId], references: [id])
+  payments      Payment[]
+  ledgerEntries LedgerEntry[]
+  redemptions   Redemption[]
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, occurredAt])
+  @@index([clinicId, status])
+  @@index([patientId])
+  @@index([walletId])
+  @@index([organizationId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  organizationId String?
+  clinicId       String
+  appointmentId  String
+  amount         Decimal       @db.Decimal(19, 4)
+  method         String?
+  status         PaymentStatus @default(PENDING)
+  confirmedAt    DateTime?
+  idempotencyKey String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, status])
+  @@index([appointmentId])
+  @@index([organizationId])
+}
+
+model LedgerEntry {
+  id              String       @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  unitId          String?
+  patientId       String
+  walletId        String
+  type            LedgerType
+  status          LedgerStatus @default(COMPLETED)
+  amount          Decimal      @db.Decimal(19, 4)
+  points          Int          @default(0)
+  balanceBefore   Decimal      @db.Decimal(19, 4)
+  balanceAfter    Decimal      @db.Decimal(19, 4)
+  origin          String?
+  appointmentId   String?
+  campaignId      String?
+  creditLotId     String?
+  operatorId      String?
+  originalEntryId String?
+  expiresAt       DateTime?
+  reason          String?
+  metadata        Json?
+  idempotencyKey  String?
+  createdAt       DateTime     @default(now())
+
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  wallet      Wallet       @relation(fields: [walletId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
+  operator    User?        @relation("LedgerOperator", fields: [operatorId], references: [id])
+  creditLot   CreditLot?   @relation(fields: [creditLotId], references: [id])
+  originalEntry LedgerEntry?  @relation("LedgerReversal", fields: [originalEntryId], references: [id])
+  reversals     LedgerEntry[] @relation("LedgerReversal")
+  redemptionItems RedemptionItem[]
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, createdAt])
+  @@index([clinicId, type])
+  @@index([walletId, createdAt])
+  @@index([patientId, createdAt])
+  @@index([originalEntryId])
+  @@index([organizationId])
+}
+
+model CreditLot {
+  id              String          @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  walletId        String
+  appointmentId   String?
+  campaignId      String?
+  originalAmount  Decimal         @db.Decimal(19, 4)
+  remainingAmount Decimal         @db.Decimal(19, 4)
+  status          CreditLotStatus @default(PENDING)
+  availableAt     DateTime
+  expiresAt       DateTime?
+  blockedReason   String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  clinic          Clinic           @relation(fields: [clinicId], references: [id])
+  wallet          Wallet           @relation(fields: [walletId], references: [id])
+  ledgerEntries   LedgerEntry[]
+  redemptionItems RedemptionItem[]
+
+  @@index([clinicId, status, expiresAt])
+  @@index([walletId, status, expiresAt])
+  @@index([status, availableAt])
+  @@index([organizationId])
+}
+
+model Redemption {
+  id             String   @id @default(cuid())
+  organizationId String?
+  clinicId       String
+  walletId       String
+  appointmentId  String?
+  operatorId     String?
+  amount         Decimal  @db.Decimal(19, 4)
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+
+  clinic      Clinic           @relation(fields: [clinicId], references: [id])
+  wallet      Wallet           @relation(fields: [walletId], references: [id])
+  appointment Appointment?     @relation(fields: [appointmentId], references: [id])
+  operator    User?            @relation(fields: [operatorId], references: [id])
+  items       RedemptionItem[]
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([walletId])
+  @@index([appointmentId])
+  @@index([organizationId])
+}
+
+model RedemptionItem {
+  id            String  @id @default(cuid())
+  redemptionId  String
+  creditLotId   String
+  ledgerEntryId String?
+  amount        Decimal @db.Decimal(19, 4)
+
+  redemption  Redemption   @relation(fields: [redemptionId], references: [id], onDelete: Cascade)
+  creditLot   CreditLot    @relation(fields: [creditLotId], references: [id])
+  ledgerEntry LedgerEntry? @relation(fields: [ledgerEntryId], references: [id])
+
+  @@index([redemptionId])
+  @@index([creditLotId])
+}
+
+model Campaign {
+  id                 String         @id @default(cuid())
+  organizationId String?
+  clinicId           String
+  name               String
+  description        String?        @db.Text
+  imageUrl           String?
+  status             CampaignStatus @default(DRAFT)
+  startsAt           DateTime?
+  endsAt             DateTime?
+  extraCashbackPct   Decimal        @default(0) @db.Decimal(8, 4)
+  extraPoints        Int            @default(0)
+  benefitDescription String?        @db.Text
+  couponCode         String?
+  totalLimit         Int?
+  perPatientLimit    Int?           @default(1)
+  segmentRules       Json?
+  combineWithDiscount Boolean       @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  clinic       Clinic              @relation(fields: [clinicId], references: [id])
+  units        CampaignUnit[]
+  procedures   CampaignProcedure[]
+  coupons      Coupon[]
+  uses         CampaignUse[]
+  ledgerEntries LedgerEntry[]
+  attributions CampaignAttribution[]
+
+  @@index([clinicId, status])
+  @@index([clinicId, startsAt, endsAt])
+  @@index([organizationId])
+}
+
+model CampaignUnit {
+  campaignId String
+  unitId     String
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, unitId])
+}
+
+model CampaignProcedure {
+  campaignId  String
+  procedureId String
+
+  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  procedure Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+
+  @@id([campaignId, procedureId])
+}
+
+model Coupon {
+  id         String    @id @default(cuid())
+  organizationId String?
+  clinicId   String
+  campaignId String?
+  code       String
+  active     Boolean   @default(true)
+  maxUses    Int?
+  usedCount  Int       @default(0)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  clinic   Clinic    @relation(fields: [clinicId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@unique([clinicId, code])
+  @@index([organizationId])
+}
+
+model CampaignUse {
+  id         String   @id @default(cuid())
+  campaignId String
+  patientId  String
+  usedAt     DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  patient  Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, patientId])
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, key])
+  @@index([organizationId])
+}
+
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  key       String
+  operation String
+  response  Json?
+  createdAt DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, key])
+  @@index([clinicId, operation])
+  @@index([organizationId])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  organizationId String?
+  clinicId   String?
+  unitId     String?
+  userId     String?
+  action     AuditAction
+  entityType String?
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?
+  beforeData Json?
+  afterData  Json?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([clinicId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([organizationId])
+}
+
+model NotificationTemplate {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  code      String
+  channel   String
+  subject   String?
+  body      String   @db.Text
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, code, channel])
+  @@index([organizationId])
+}
+
+model PatientOtp {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  patientId String
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, phone])
+  @@index([patientId, expiresAt])
+  @@index([organizationId])
+}
+
+// --- FIDELIZE v2 ---
+
+model FeatureModule {
+  id        String     @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  code      ModuleCode
+  enabled   Boolean    @default(false)
+  config    Json?
+  enabledAt DateTime?
+  disabledAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+  configs ModuleConfiguration[]
+
+  @@unique([clinicId, code])
+  @@index([clinicId, enabled])
+  @@index([organizationId])
+}
+
+model ModuleConfiguration {
+  id              String   @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  featureModuleId String
+  key             String
+  value           Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clinic        Clinic        @relation(fields: [clinicId], references: [id])
+  featureModule FeatureModule @relation(fields: [featureModuleId], references: [id], onDelete: Cascade)
+
+  @@unique([featureModuleId, key])
+  @@index([clinicId])
+  @@index([organizationId])
+}
+
+model OnboardingChecklist {
+  id          String             @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  step        OnboardingStepCode
+  completed   Boolean            @default(false)
+  completedAt DateTime?
+  notes       String?            @db.Text
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, step])
+  @@index([clinicId, completed])
+  @@index([organizationId])
+}
+
+model CustomerTag {
+  id          String   @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  name        String
+  slug        String
+  color       String   @default("#64748b")
+  description String?
+  isSystem    Boolean  @default(false)
+  autoRules   Json?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic      Clinic                  @relation(fields: [clinicId], references: [id])
+  assignments CustomerTagAssignment[]
+
+  @@unique([clinicId, slug])
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model CustomerTagAssignment {
+  id         String    @id @default(cuid())
+  organizationId String?
+  clinicId   String
+  tagId      String
+  patientId  String
+  source     TagSource @default(MANUAL)
+  assignedAt DateTime  @default(now())
+  removedAt  DateTime?
+  assignedBy String?
+  metadata   Json?
+
+  tag     CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  patient Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, patientId])
+  @@index([clinicId, patientId])
+  @@index([clinicId, tagId])
+  @@index([patientId, removedAt])
+  @@index([organizationId])
+}
+
+model DynamicSegment {
+  id          String   @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  name        String
+  description String?  @db.Text
+  active      Boolean  @default(true)
+  estimatedCount Int?
+  lastCountedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic Clinic        @relation(fields: [clinicId], references: [id])
+  rules  SegmentRule[]
+
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model SegmentRule {
+  id         String @id @default(cuid())
+  segmentId  String
+  field      String
+  operator   String
+  value      Json
+  logicGroup String @default("AND")
+  sortOrder  Int    @default(0)
+
+  segment DynamicSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@index([segmentId])
+}
+
+model MessageTemplate {
+  id             String                 @id @default(cuid())
+  organizationId String?
+  clinicId       String
+  code           String
+  name           String
+  channel        CommunicationChannel
+  subject        String?
+  body           String                 @db.Text
+  variables      Json?
+  language       String                 @default("pt-BR")
+  version        Int                    @default(1)
+  approvalStatus TemplateApprovalStatus @default(DRAFT)
+  approvedAt     DateTime?
+  approvedBy     String?
+  footerOptOut   Boolean                @default(true)
+  active         Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  clinic         Clinic          @relation(fields: [clinicId], references: [id])
+  communications Communication[]
+
+  @@unique([clinicId, code, channel, version])
+  @@index([clinicId, active])
+  @@index([clinicId, approvalStatus])
+  @@index([organizationId])
+}
+
+model Communication {
+  id               String               @id @default(cuid())
+  organizationId String?
+  clinicId         String
+  patientId        String?
+  channel          CommunicationChannel
+  templateId       String?
+  campaignId       String?
+  automationId     String?
+  purpose          ConsentPurpose       @default(SERVICE)
+  status           CommunicationStatus  @default(DRAFT)
+  subject          String?
+  body             String               @db.Text
+  toAddress        String?
+  providerId       String?
+  scheduledAt      DateTime?
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  readAt           DateTime?
+  clickedAt        DateTime?
+  failedAt         DateTime?
+  errorMessage     String?              @db.Text
+  errorReason      String?
+  optOut           Boolean              @default(false)
+  estimatedCost    Decimal?             @db.Decimal(19, 4)
+  idempotencyKey   String?
+  metadata         Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  clinic   Clinic              @relation(fields: [clinicId], references: [id])
+  patient  Patient?            @relation(fields: [patientId], references: [id])
+  template MessageTemplate?    @relation(fields: [templateId], references: [id])
+  events   CommunicationEvent[]
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, status, createdAt])
+  @@index([clinicId, channel, createdAt])
+  @@index([patientId, createdAt])
+  @@index([organizationId])
+}
+
+model CommunicationEvent {
+  id              String   @id @default(cuid())
+  communicationId String
+  eventType       String
+  payload         Json?
+  occurredAt      DateTime @default(now())
+
+  communication Communication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+
+  @@index([communicationId, occurredAt])
+}
+
+model CommunicationPreference {
+  id        String               @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  patientId String
+  channel   CommunicationChannel
+  purpose   ConsentPurpose
+  allowed   Boolean              @default(true)
+  updatedAt DateTime             @updatedAt
+  createdAt DateTime             @default(now())
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, channel, purpose])
+  @@index([clinicId, patientId])
+  @@index([organizationId])
+}
+
+model ConsentRecord {
+  id           String         @id @default(cuid())
+  organizationId String?
+  clinicId     String
+  patientId    String
+  channel      CommunicationChannel?
+  purpose      ConsentPurpose
+  origin       String?
+  accepted     Boolean
+  textAccepted String?        @db.Text
+  version      String?
+  ipAddress    String?
+  revokedAt    DateTime?
+  createdAt    DateTime       @default(now())
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, patientId, purpose])
+  @@index([patientId, purpose, accepted])
+  @@index([organizationId])
+}
+
+model Automation {
+  id          String            @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  name        String
+  description String?           @db.Text
+  trigger     AutomationTrigger
+  status      AutomationStatus  @default(DRAFT)
+  conditions  Json?
+  currentVersion Int            @default(1)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  clinic     Clinic              @relation(fields: [clinicId], references: [id])
+  versions   AutomationVersion[]
+  executions AutomationExecution[]
+
+  @@index([clinicId, status])
+  @@index([clinicId, trigger])
+  @@index([organizationId])
+}
+
+model AutomationVersion {
+  id           String   @id @default(cuid())
+  automationId String
+  version      Int
+  snapshot     Json
+  publishedAt  DateTime @default(now())
+  publishedBy  String?
+
+  automation Automation       @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  steps      AutomationStep[]
+
+  @@unique([automationId, version])
+}
+
+model AutomationStep {
+  id         String @id @default(cuid())
+  versionId  String
+  sortOrder  Int    @default(0)
+  actionType String
+  config     Json
+  delayMinutes Int  @default(0)
+
+  version AutomationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  actionExecutions AutomationActionExecution[]
+
+  @@index([versionId, sortOrder])
+}
+
+model AutomationExecution {
+  id             String   @id @default(cuid())
+  organizationId String?
+  clinicId       String
+  automationId   String
+  patientId      String
+  triggerRef     String
+  status         String   @default("RUNNING")
+  startedAt      DateTime @default(now())
+  finishedAt     DateTime?
+  errorMessage   String?  @db.Text
+  idempotencyKey String?
+
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  patient    Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  actions    AutomationActionExecution[]
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, automationId, patientId])
+  @@index([automationId, startedAt])
+  @@index([organizationId])
+}
+
+model AutomationActionExecution {
+  id          String   @id @default(cuid())
+  executionId String
+  stepId      String
+  status      String   @default("PENDING")
+  result      Json?
+  ranAt       DateTime?
+  errorMessage String? @db.Text
+  idempotencyKey String?
+
+  execution AutomationExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  step      AutomationStep      @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, stepId])
+  @@index([idempotencyKey])
+}
+
+model ReferralProgram {
+  id                    String   @id @default(cuid())
+  organizationId String?
+  clinicId              String
+  name                  String
+  active                Boolean  @default(true)
+  referrerCashback      Decimal  @default(0) @db.Decimal(19, 4)
+  referrerPoints        Int      @default(0)
+  referredCashback      Decimal  @default(0) @db.Decimal(19, 4)
+  referredPoints        Int      @default(0)
+  minFirstAppointment   Decimal  @default(0) @db.Decimal(19, 4)
+  conversionDays        Int      @default(90)
+  maxReferralsPerPeriod Int?
+  periodDays            Int      @default(30)
+  benefitValidityDays   Int      @default(90)
+  unitId                String?
+  campaignId            String?
+  procedureIds          Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  clinic    Clinic     @relation(fields: [clinicId], references: [id])
+  referrals Referral[]
+
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model Referral {
+  id              String         @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  programId       String
+  referrerId      String
+  referredId      String?
+  code            String
+  shortCode       String
+  status          ReferralStatus @default(LEAD)
+  leadName        String?
+  leadPhone       String?
+  leadConsent     Boolean        @default(false)
+  openedAt        DateTime?
+  convertedAt     DateTime?
+  benefitGrantedAt DateTime?
+  appointmentId   String?
+  fraudFlags      Json?
+  expiresAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  clinic   Clinic          @relation(fields: [clinicId], references: [id])
+  program  ReferralProgram @relation(fields: [programId], references: [id])
+  referrer Patient         @relation("ReferralReferrer", fields: [referrerId], references: [id])
+  referred Patient?        @relation("ReferralReferred", fields: [referredId], references: [id])
+
+  @@unique([clinicId, code])
+  @@unique([clinicId, shortCode])
+  @@index([clinicId, status])
+  @@index([referrerId])
+  @@index([referredId])
+  @@index([organizationId])
+}
+
+model SatisfactionSurvey {
+  id           String   @id @default(cuid())
+  organizationId String?
+  clinicId     String
+  name         String
+  active       Boolean  @default(true)
+  validityDays Int      @default(7)
+  extraQuestions Json?
+  unitId       String?
+  procedureId  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clinic    Clinic           @relation(fields: [clinicId], references: [id])
+  responses SurveyResponse[]
+
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model SurveyResponse {
+  id            String              @id @default(cuid())
+  organizationId String?
+  clinicId      String
+  surveyId      String
+  patientId     String
+  appointmentId String?
+  score         Int
+  classification SurveyResponseClass
+  comment       String?             @db.Text
+  answers       Json?
+  token         String              @unique
+  respondedAt   DateTime?
+  expiresAt     DateTime
+  recoveryTaskCreated Boolean       @default(false)
+  createdAt     DateTime            @default(now())
+
+  survey  SatisfactionSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  patient Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyId, appointmentId])
+  @@index([clinicId, respondedAt])
+  @@index([patientId])
+  @@index([classification])
+  @@index([organizationId])
+}
+
+model RecoveryCase {
+  id            String         @id @default(cuid())
+  organizationId String?
+  clinicId      String
+  patientId     String
+  status        RecoveryStatus @default(ATTENTION)
+  inactiveDays  Int            @default(30)
+  lastContactAt DateTime?
+  recoveredAt   DateTime?
+  closedAt      DateTime?
+  notes         String?        @db.Text
+  ruleConfig    Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, status])
+  @@index([patientId, status])
+  @@index([organizationId])
+}
+
+model Reward {
+  id              String       @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  name            String
+  description     String?      @db.Text
+  imageUrl        String?
+  pointsCost      Int
+  minCategoryId   String?
+  stockTotal      Int?
+  stockReserved   Int          @default(0)
+  stockFulfilled  Int          @default(0)
+  limitPerPatient Int?
+  availableFrom   DateTime?
+  availableTo     DateTime?
+  unitIds         Json?
+  rules           String?      @db.Text
+  status          RewardStatus @default(DRAFT)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  clinic      Clinic             @relation(fields: [clinicId], references: [id])
+  stockLogs   RewardStock[]
+  redemptions RewardRedemption[]
+
+  @@index([clinicId, status])
+  @@index([organizationId])
+}
+
+model RewardStock {
+  id        String   @id @default(cuid())
+  rewardId  String
+  delta     Int
+  reason    String?
+  actorId   String?
+  createdAt DateTime @default(now())
+
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
+  @@index([rewardId, createdAt])
+}
+
+model RewardRedemption {
+  id             String                 @id @default(cuid())
+  organizationId String?
+  clinicId       String
+  rewardId       String
+  patientId      String
+  walletId       String
+  pointsSpent    Int
+  code           String
+  status         RewardRedemptionStatus @default(RESERVED)
+  reservedAt     DateTime               @default(now())
+  fulfilledAt    DateTime?
+  fulfilledBy    String?
+  unitId         String?
+  cancelledAt    DateTime?
+  idempotencyKey String?
+  createdAt      DateTime               @default(now())
+
+  reward  Reward  @relation(fields: [rewardId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@unique([clinicId, code])
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, status])
+  @@index([patientId])
+  @@index([rewardId])
+  @@index([organizationId])
+}
+
+model Voucher {
+  id                 String       @id @default(cuid())
+  organizationId String?
+  clinicId           String
+  code               String
+  type               VoucherType
+  name               String
+  description        String?      @db.Text
+  valueAmount        Decimal?     @db.Decimal(19, 4)
+  valuePercent       Decimal?     @db.Decimal(8, 4)
+  procedureId        String?
+  quantity           Int?
+  usedCount          Int          @default(0)
+  maxUsesPerPatient  Int          @default(1)
+  multiUse           Boolean      @default(false)
+  patientId          String?
+  unitId             String?
+  minAmount          Decimal?     @db.Decimal(19, 4)
+  allowedHours       Json?
+  combineCashback    Boolean      @default(true)
+  combineDiscount    Boolean      @default(false)
+  status             VoucherStatus @default(DRAFT)
+  startsAt           DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  clinic      Clinic              @relation(fields: [clinicId], references: [id])
+  redemptions VoucherRedemption[]
+
+  @@unique([clinicId, code])
+  @@index([clinicId, status])
+  @@index([clinicId, expiresAt])
+  @@index([organizationId])
+}
+
+model VoucherRedemption {
+  id         String   @id @default(cuid())
+  organizationId String?
+  clinicId   String
+  voucherId  String
+  patientId  String
+  amount     Decimal? @db.Decimal(19, 4)
+  unitId     String?
+  redeemedAt DateTime @default(now())
+  actorId    String?
+  metadata   Json?
+
+  voucher Voucher @relation(fields: [voucherId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([voucherId, patientId])
+  @@index([clinicId, redeemedAt])
+  @@index([organizationId])
+}
+
+model GiftCard {
+  id              String         @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  code            String
+  buyerPatientId  String?
+  beneficiaryPatientId String?
+  buyerName       String?
+  beneficiaryName String?
+  message         String?        @db.Text
+  initialAmount   Decimal        @db.Decimal(19, 4)
+  remainingAmount Decimal        @db.Decimal(19, 4)
+  status          GiftCardStatus @default(PENDING_PAYMENT)
+  sendAt          DateTime?
+  expiresAt       DateTime?
+  allowPartial    Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  clinic      Clinic               @relation(fields: [clinicId], references: [id])
+  buyer       Patient?             @relation("GiftCardBuyer", fields: [buyerPatientId], references: [id])
+  beneficiary Patient?             @relation("GiftCardBeneficiary", fields: [beneficiaryPatientId], references: [id])
+  transactions GiftCardTransaction[]
+
+  @@unique([clinicId, code])
+  @@index([clinicId, status])
+  @@index([organizationId])
+}
+
+model GiftCardTransaction {
+  id         String   @id @default(cuid())
+  giftCardId String
+  type       String
+  amount     Decimal  @db.Decimal(19, 4)
+  actorId    String?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  giftCard GiftCard @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+
+  @@index([giftCardId, createdAt])
+}
+
+model AcceleratorRule {
+  id              String   @id @default(cuid())
+  organizationId String?
+  clinicId        String
+  name            String
+  description     String?  @db.Text
+  multiplierPoints Decimal? @db.Decimal(8, 4)
+  extraCashbackPct Decimal? @db.Decimal(8, 4)
+  bonusFixed      Decimal? @db.Decimal(19, 4)
+  startsAt        DateTime
+  endsAt          DateTime
+  daysOfWeek      Json?
+  hours           Json?
+  procedureIds    Json?
+  unitIds         Json?
+  categoryIds     Json?
+  limitPerPatient Int?
+  financialCap    Decimal? @db.Decimal(19, 4)
+  spentAmount     Decimal  @default(0) @db.Decimal(19, 4)
+  priority        Int      @default(0)
+  stackable       Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@index([clinicId, active, startsAt, endsAt])
+  @@index([organizationId])
+}
+
+model CampaignAttribution {
+  id            String   @id @default(cuid())
+  organizationId String?
+  clinicId      String
+  campaignId    String
+  patientId     String
+  appointmentId String?
+  revenue       Decimal  @default(0) @db.Decimal(19, 4)
+  benefitCost   Decimal  @default(0) @db.Decimal(19, 4)
+  commCost      Decimal  @default(0) @db.Decimal(19, 4)
+  isPrimary     Boolean  @default(true)
+  attributedAt  DateTime @default(now())
+  windowDays    Int      @default(30)
+
+  clinic   Clinic   @relation(fields: [clinicId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  patient  Patient  @relation(fields: [patientId], references: [id])
+
+  @@index([clinicId, campaignId])
+  @@index([patientId, attributedAt])
+  @@index([appointmentId])
+  @@index([organizationId])
+}
+
+model ApiCredential {
+  id           String    @id @default(cuid())
+  organizationId String?
+  clinicId     String
+  name         String
+  keyPrefix    String
+  keyHash      String
+  environment  String    @default("live")
+  scopes       Json?
+  rateLimitRpm Int       @default(60)
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@index([clinicId, revokedAt])
+  @@index([keyPrefix])
+  @@index([organizationId])
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  url       String
+  secret    String
+  events    Json
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic    Clinic            @relation(fields: [clinicId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  endpointId   String
+  eventType    String
+  payload      Json
+  status       String   @default("PENDING")
+  attempts     Int      @default(0)
+  lastError    String?  @db.Text
+  nextRetryAt  DateTime?
+  deliveredAt  DateTime?
+  idempotencyKey String?
+  createdAt    DateTime @default(now())
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, idempotencyKey])
+  @@index([status, nextRetryAt])
+}
+
+model IntegrationLog {
+  id           String   @id @default(cuid())
+  organizationId String?
+  clinicId     String
+  direction    String
+  method       String?
+  path         String?
+  statusCode   Int?
+  durationMs   Int?
+  requestMeta  Json?
+  responseMeta Json?
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@index([clinicId, createdAt])
+  @@index([clinicId, path])
+  @@index([organizationId])
+}
+
+// --- Extensões v2.1 (§22) ---
+
+enum ReceiptStatus {
+  UPLOADED
+  PROCESSING
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+  CREDITED
+}
+
+enum RaffleStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  DRAWN
+  CANCELLED
+}
+
+model PushDevice {
+  id          String    @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  patientId   String
+  platform    String
+  token       String
+  appId       String?
+  active      Boolean   @default(true)
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, token])
+  @@index([patientId, active])
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model ReceiptSubmission {
+  id               String        @id @default(cuid())
+  organizationId String?
+  clinicId         String
+  patientId        String
+  imageUrl         String?       @db.Text
+  imageHash        String
+  ocrText          String?       @db.Text
+  extractedAmount  Decimal?      @db.Decimal(19, 4)
+  extractedDate    DateTime?
+  merchantName     String?
+  status           ReceiptStatus @default(UPLOADED)
+  fraudFlags       Json?
+  fraudScore       Int           @default(0)
+  reviewNotes      String?       @db.Text
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  creditAmount     Decimal?      @db.Decimal(19, 4)
+  ledgerEntryId    String?
+  idempotencyKey   String?
+  metadata         Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, idempotencyKey])
+  @@index([clinicId, status, createdAt])
+  @@index([patientId, createdAt])
+  @@index([clinicId, imageHash])
+  @@index([organizationId])
+}
+
+model Raffle {
+  id                   String       @id @default(cuid())
+  organizationId String?
+  clinicId             String
+  name                 String
+  description          String?      @db.Text
+  status               RaffleStatus @default(DRAFT)
+  ticketCostPoints     Int          @default(50)
+  maxTicketsPerPatient Int?
+  maxTicketsTotal      Int?
+  startsAt             DateTime
+  endsAt               DateTime
+  drawnAt              DateTime?
+  winnerTicketId       String?
+  prizeDescription     String
+  prizeCashback        Decimal?     @db.Decimal(19, 4)
+  prizePoints          Int?
+  ticketCount          Int          @default(0)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  clinic  Clinic         @relation(fields: [clinicId], references: [id])
+  tickets RaffleTicket[]
+
+  @@index([clinicId, status])
+  @@index([clinicId, startsAt, endsAt])
+  @@index([organizationId])
+}
+
+model RaffleTicket {
+  id            String   @id @default(cuid())
+  organizationId String?
+  raffleId      String
+  clinicId      String
+  patientId     String
+  ticketNumber  Int
+  pointsSpent   Int
+  ledgerEntryId String?
+  createdAt     DateTime @default(now())
+
+  raffle  Raffle  @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([raffleId, ticketNumber])
+  @@index([clinicId, patientId])
+  @@index([raffleId, patientId])
+  @@index([organizationId])
+}
+
+model PredictionScore {
+  id          String   @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  patientId   String
+  scoreType   String
+  score       Decimal  @db.Decimal(12, 4)
+  band        String?
+  factors     Json?
+  computedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, patientId, scoreType])
+  @@index([clinicId, scoreType, score])
+  @@index([organizationId])
+}
+
+model RevenueForecast {
+  id                String   @id @default(cuid())
+  organizationId String?
+  clinicId          String
+  periodStart       DateTime @db.Date
+  periodEnd         DateTime @db.Date
+  predictedRevenue  Decimal  @db.Decimal(19, 4)
+  confidence        Decimal? @db.Decimal(8, 4)
+  method            String
+  breakdown         Json?
+  computedAt        DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, periodStart, periodEnd, method])
+  @@index([clinicId, computedAt])
+  @@index([organizationId])
+}
+
+model WidgetOrigin {
+  id        String   @id @default(cuid())
+  organizationId String?
+  clinicId  String
+  origin    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, origin])
+  @@index([organizationId])
+}

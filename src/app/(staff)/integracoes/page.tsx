@@ -1,0 +1,161 @@
+import { requirePermission } from "@/lib/auth/guards";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { listIntegrations } from "@/lib/integrations";
+import { PageHeader, Card, Badge, Button, Input, Label, Select } from "@/components/ui";
+import {
+  createApiKeyAction,
+  revokeApiKeyAction,
+  createWebhookAction,
+  addWidgetOriginAction,
+} from "@/app/v2-actions";
+import { labelPt } from "@/lib/i18n/labels";
+import { getProvidersConfig, providersStatusSummary } from "@/lib/providers";
+import { listWidgetOrigins, widgetEmbedSnippet } from "@/lib/widget";
+import { describeMobileWhiteLabel } from "@/lib/mobile/contract";
+
+export default async function IntegracoesPage() {
+  const session = await requirePermission(PERMISSIONS.INTEGRATIONS_MANAGE);
+  const clinicId = session.clinicId;
+  const [data, providers, origins] = await Promise.all([
+    listIntegrations(clinicId),
+    getProvidersConfig(clinicId),
+    listWidgetOrigins(clinicId),
+  ]);
+  const status = providersStatusSummary(providers);
+  const mobile = describeMobileWhiteLabel();
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "http://localhost:3000";
+  const snippet = widgetEmbedSnippet(baseUrl);
+
+  return (
+    <div>
+      <PageHeader
+        title="Integrações"
+        description="Chaves de API, webhooks, provedores de mensagem, widget e contrato mobile."
+      />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <p className="text-xs uppercase text-slate-400">E-mail</p>
+          <p className="font-semibold">{status.email}</p>
+        </Card>
+        <Card>
+          <p className="text-xs uppercase text-slate-400">SMS</p>
+          <p className="font-semibold">{status.sms}</p>
+        </Card>
+        <Card>
+          <p className="text-xs uppercase text-slate-400">WhatsApp</p>
+          <p className="font-semibold">{status.whatsapp}</p>
+        </Card>
+        <Card>
+          <p className="text-xs uppercase text-slate-400">Push</p>
+          <p className="font-semibold">{status.push}</p>
+        </Card>
+      </div>
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+        <Card>
+          <h2 className="text-lg font-semibold">Nova chave de API</h2>
+          <form action={createApiKeyAction} className="mt-3 grid gap-3">
+            <div>
+              <Label>Nome</Label>
+              <Input name="name" required defaultValue="Integração ERP" />
+            </div>
+            <div>
+              <Label>Ambiente</Label>
+              <Select name="environment" defaultValue="test">
+                <option value="test">Teste</option>
+                <option value="live">Produção</option>
+              </Select>
+            </div>
+            <Button type="submit" variant="gold">Gerar chave</Button>
+            <p className="text-xs text-slate-500">
+              A chave completa é gravada apenas como hash. Prefixos ficam listados abaixo após a criação.
+            </p>
+          </form>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold">Webhook</h2>
+          <form action={createWebhookAction} className="mt-3 grid gap-3">
+            <div>
+              <Label>URL</Label>
+              <Input name="url" type="url" required placeholder="https://..." />
+            </div>
+            <div>
+              <Label>Eventos (separados por vírgula)</Label>
+              <Input name="events" defaultValue="appointment.confirmed,*,referral.converted" />
+            </div>
+            <Button type="submit">Salvar endpoint</Button>
+          </form>
+        </Card>
+      </div>
+
+      <h2 className="mb-3 text-lg font-semibold">Credenciais</h2>
+      <div className="mb-8 space-y-3">
+        {data.credentials.map((cred) => (
+          <Card key={cred.id}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-semibold">{cred.name}</p>
+                <p className="text-sm text-slate-500">
+                  {cred.keyPrefix}… · {labelPt(cred.environment)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge tone={cred.revokedAt ? "danger" : "success"}>
+                  {cred.revokedAt ? "Revogada" : "Ativa"}
+                </Badge>
+                {!cred.revokedAt && (
+                  <form action={revokeApiKeyAction}>
+                    <input type="hidden" name="credentialId" value={cred.id} />
+                    <Button type="submit" size="sm" variant="perigo">Revogar</Button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <h2 className="mb-3 text-lg font-semibold">Webhooks</h2>
+      <div className="mb-8 space-y-3">
+        {data.webhooks.map((wh) => (
+          <Card key={wh.id}>
+            <p className="font-semibold">{wh.url}</p>
+            <p className="text-sm text-slate-500">
+              {(wh.events as string[]).join(", ")} · {wh._count.deliveries} entregas
+            </p>
+          </Card>
+        ))}
+      </div>
+
+      <h2 className="mb-3 text-lg font-semibold">Widget incorporável</h2>
+      <Card className="mb-8">
+        <form action={addWidgetOriginAction} className="mb-4 flex flex-wrap gap-2">
+          <Input name="origin" placeholder="https://seusite.com.br" required className="max-w-md" />
+          <Button type="submit" variant="secondary">Permitir origem</Button>
+        </form>
+        <p className="mb-2 text-sm text-slate-500">
+          Origens: {origins.map((o) => o.origin).join(", ") || "nenhuma"}
+        </p>
+        <pre className="overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+          {snippet}
+        </pre>
+        <p className="mt-2 text-xs text-slate-400">
+          API: GET /api/v1/widget?key=...&patientId=... · Contrato mobile v{mobile.version}
+        </p>
+      </Card>
+
+      <h2 className="mb-3 text-lg font-semibold">Logs recentes</h2>
+      <div className="space-y-2">
+        {data.logs.map((log) => (
+          <Card key={log.id}>
+            <p className="text-sm">
+              {labelPt(log.direction)} {log.method} {log.path} · {log.statusCode ?? "—"}
+            </p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}

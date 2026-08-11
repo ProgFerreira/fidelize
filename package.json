@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "test": "vitest run",
     "test:db": "cross-env RUN_DB_TESTS=1 vitest run src/lib/ledger/ledger.test.ts",

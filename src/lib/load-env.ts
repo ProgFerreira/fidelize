@@ -4,10 +4,15 @@ import { config as loadEnv } from "dotenv";
 
 /**
  * Hostinger roda em `hbuilds/versions/<id>/nodejs` (efêmero).
- * Procuramos `.env*` subindo até a raiz do domínio para sobreviver a redeploys.
+ * Procuramos env subindo até a raiz do domínio para sobreviver a redeploys.
+ *
+ * Inclui `hostinger.env` / `fidelize.env` (sem ponto) porque o File Manager
+ * costuma ocultar arquivos `.env`.
  */
 function collectEnvCandidates(startDir: string): string[] {
   const names = [
+    "hostinger.env",
+    "fidelize.env",
     ".env",
     ".env.production",
     ".env.local",

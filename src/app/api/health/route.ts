@@ -21,8 +21,15 @@ export async function GET() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || null;
 
   const searchRoots = getEnvSearchRoots();
+  const names = [
+    "hostinger.env",
+    "fidelize.env",
+    ".env",
+    ".env.production",
+    ".env.local",
+  ];
   const envFiles = searchRoots.flatMap((root) =>
-    [".env", ".env.production", ".env.local"].map((name) => {
+    names.map((name) => {
       const path = resolve(root, name);
       return { path, exists: existsSync(path) };
     }),
@@ -57,12 +64,12 @@ export async function GET() {
       hints: ok
         ? []
         : [
-            "No File Manager, crie o arquivo .env na pasta do domínio (não dentro de hbuilds/versions).",
+            "Crie o arquivo hostinger.env (sem ponto) na raiz do domínio via File Manager.",
             domainRootHint
-              ? `Caminho sugerido: ${domainRootHint}/.env`
-              : "Caminho tipico: domains/aqua-owl-999948.hostingersite.com/.env",
-            "Cole o conteúdo do hostinger.env, salve, reinicie o app Node.js e recarregue /api/health.",
-            "Ou use hPanel → Environment variables → Import .env → Save (redeploy).",
+              ? `Caminho: ${domainRootHint}/hostinger.env`
+              : "Caminho: domains/aqua-owl-999948.hostingersite.com/hostinger.env",
+            "Não use a pasta hbuilds/versions — ela muda a cada deploy.",
+            "Depois: Restart do app Node.js e recarregue /api/health.",
           ],
     },
     { status: ok ? 200 : 503 },

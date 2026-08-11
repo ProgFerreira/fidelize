@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import type { PermissionCode } from "@/lib/auth/permissions";
 
 /**
- * Config edge-safe compartilhada com o proxy (sem Prisma).
+ * Config edge-safe compartilhada com o proxy (sem Prisma / sem dotenv).
  * Não passe `secret: undefined` — o Auth.js lê AUTH_SECRET do ambiente.
  */
 export const authConfig = {

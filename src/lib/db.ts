@@ -1,3 +1,4 @@
+import "@/lib/load-env";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@/generated/prisma/client";
 import { extensaoTenant } from "@/lib/prisma-tenant";

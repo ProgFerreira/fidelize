@@ -1,3 +1,4 @@
+import "@/lib/load-env";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
@@ -16,8 +17,13 @@ import {
   organizacaoOperante,
 } from "@/lib/organization";
 
+function authSecret() {
+  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+}
+
 const nextAuth = NextAuth({
   ...authConfig,
+  ...(authSecret() ? { secret: authSecret() } : {}),
   providers: [
     Credentials({
       name: "Credentials",

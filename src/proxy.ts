@@ -12,6 +12,8 @@ const { auth } = NextAuth(authConfig);
 const ROTAS_PUBLICAS = [
   "/login",
   "/api/auth",
+  "/api/health",
+  "/api/setup",
   "/paciente",
   "/p",
   "/embed",

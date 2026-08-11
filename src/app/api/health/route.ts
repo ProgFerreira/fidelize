@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import "@/lib/load-env";
+import {
+  getEnvSearchRoots,
+  getLoadedEnvFiles,
+} from "@/lib/load-env";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +20,13 @@ export async function GET() {
   const authUrl = process.env.AUTH_URL || null;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || null;
 
-  const envFiles = [".env", ".env.production", ".env.local"].map((name) => ({
-    name,
-    exists: existsSync(resolve(process.cwd(), name)),
-  }));
+  const searchRoots = getEnvSearchRoots();
+  const envFiles = searchRoots.flatMap((root) =>
+    [".env", ".env.production", ".env.local"].map((name) => {
+      const path = resolve(root, name);
+      return { path, exists: existsSync(path) };
+    }),
+  );
 
   const interestingKeys = Object.keys(process.env)
     .filter((k) =>
@@ -29,6 +35,9 @@ export async function GET() {
     .sort();
 
   const ok = authSecret && databaseUrl;
+  const domainRootHint = searchRoots.find((r) =>
+    /\/domains\/[^/]+\.hostingersite\.com$/.test(r),
+  );
 
   return NextResponse.json(
     {
@@ -41,19 +50,20 @@ export async function GET() {
         AUTH_URL: Boolean(authUrl),
         NEXT_PUBLIC_APP_URL: Boolean(appUrl),
       },
-      envFiles,
+      loadedEnvFiles: getLoadedEnvFiles(),
+      envFilesExisting: envFiles.filter((f) => f.exists),
+      domainRootHint: domainRootHint ?? null,
       interestingKeys,
       hints: ok
         ? []
         : [
-            !authSecret
-              ? "Defina AUTH_SECRET no hPanel → Environment variables e salve (redeploy automático)."
-              : null,
-            !databaseUrl
-              ? "Defina DATABASE_URL apontando para o MySQL da Hostinger."
-              : null,
-            "Se interestingKeys estiver vazio, as variáveis não foram salvas no painel deste site.",
-          ].filter(Boolean),
+            "No File Manager, crie o arquivo .env na pasta do domínio (não dentro de hbuilds/versions).",
+            domainRootHint
+              ? `Caminho sugerido: ${domainRootHint}/.env`
+              : "Caminho tipico: domains/aqua-owl-999948.hostingersite.com/.env",
+            "Cole o conteúdo do hostinger.env, salve, reinicie o app Node.js e recarregue /api/health.",
+            "Ou use hPanel → Environment variables → Import .env → Save (redeploy).",
+          ],
     },
     { status: ok ? 200 : 503 },
   );

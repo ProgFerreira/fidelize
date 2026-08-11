@@ -3,10 +3,15 @@ import type { PermissionCode } from "@/lib/auth/permissions";
 
 /**
  * Config edge-safe compartilhada com o proxy (sem Prisma).
+ * Não passe `secret: undefined` — o Auth.js lê AUTH_SECRET do ambiente.
  */
 export const authConfig = {
   trustHost: true,
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  ...(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+    ? {
+        secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+      }
+    : {}),
   session: {
     strategy: "jwt" as const,
     maxAge: 8 * 60 * 60,

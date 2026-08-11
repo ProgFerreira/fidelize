@@ -31,6 +31,7 @@ Thumbs.db
 
 # Credenciais locais (não versionar)
 credenciais.md
+hostinger.env
 
 # Misc
 *.pem

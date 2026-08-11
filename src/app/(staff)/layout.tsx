@@ -3,6 +3,8 @@ import { menusAgrupados } from "@/lib/menus";
 import { requireSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export default async function StaffLayout({
   children,
 }: {

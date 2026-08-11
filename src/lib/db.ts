@@ -19,7 +19,9 @@ const globalForPrisma = globalThis as unknown as {
 function criarPrisma() {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error("DATABASE_URL is not set");
+    throw new Error(
+      "DATABASE_URL is not set. Configure a variável no hPanel da Hostinger (Environment variables).",
+    );
   }
 
   const parsed = new URL(url);
@@ -73,14 +75,29 @@ function obterPrisma() {
   }
 
   const novo = criarPrisma();
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = novo;
-    globalForPrisma.prismaRev = PRISMA_CLIENT_REV;
-  }
+  globalForPrisma.prisma = novo;
+  globalForPrisma.prismaRev = PRISMA_CLIENT_REV;
   return novo;
 }
 
-export const prisma = obterPrisma();
+type PrismaEstendidoClient = ReturnType<typeof criarPrisma>;
+
+/**
+ * Proxy lazy: o client só é criado no primeiro uso.
+ * Evita quebrar `next build` só por importar o módulo sem DATABASE_URL.
+ */
+export const prisma: PrismaEstendidoClient = new Proxy(
+  {} as PrismaEstendidoClient,
+  {
+    get(_target, prop, receiver) {
+      const client = obterPrisma();
+      const value = Reflect.get(client as object, prop, receiver);
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(client)
+        : value;
+    },
+  },
+);
 
 export type PrismaEstendido = typeof prisma;
 

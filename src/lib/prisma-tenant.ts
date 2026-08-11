@@ -23,7 +23,10 @@ const MODELOS_TENANT: ReadonlySet<string> = new Set([
   "Wallet",
   "Card",
   "Procedure",
+  "Professional",
   "Appointment",
+  "AppointmentItem",
+  "ScheduleEvent",
   "Payment",
   "LedgerEntry",
   "CreditLot",
@@ -63,6 +66,14 @@ const MODELOS_TENANT: ReadonlySet<string> = new Set([
   "WebhookEndpoint",
   "IntegrationLog",
   "PlatformAccess",
+  "WidgetOrigin",
+  "PushDevice",
+  "ReceiptSubmission",
+  "Raffle",
+  "RaffleTicket",
+  "PredictionScore",
+  "RevenueForecast",
+  "MobileSession",
 ]);
 
 /**

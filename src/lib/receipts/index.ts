@@ -194,10 +194,19 @@ export async function submitReceipt(input: {
     ocrFailed: !ocr.amount,
   });
 
-  const status: ReceiptStatus =
-    fraud.score >= 40 ? "NEEDS_REVIEW" : ocr.amount ? "NEEDS_REVIEW" : "NEEDS_REVIEW";
+  // Antifraude real: baixo risco + OCR com valor → crédito automático;
+  // score alto ou OCR sem valor → revisão humana.
+  const lowRisk =
+    fraud.score < 25 &&
+    ocr.amount != null &&
+    ocr.amount > 0 &&
+    !fraud.flags.includes("DUPLICATE_IMAGE") &&
+    !fraud.flags.includes("BURST_UPLOADS");
 
-  const updated = await prisma.receiptSubmission.update({
+  let status: ReceiptStatus = lowRisk ? "APPROVED" : "NEEDS_REVIEW";
+  if (!ocr.amount) status = "NEEDS_REVIEW";
+
+  let updated = await prisma.receiptSubmission.update({
     where: { id: row.id },
     data: {
       ocrText: ocr.text.slice(0, 20000),
@@ -207,9 +216,28 @@ export async function submitReceipt(input: {
       fraudFlags: fraud.flags as Prisma.InputJsonValue,
       fraudScore: fraud.score,
       status,
-      metadata: { ocrProvider: ocr.provider },
+      metadata: { ocrProvider: ocr.provider, autoDecision: lowRisk },
     },
   });
+
+  if (status === "APPROVED" && ocr.amount != null && ocr.amount > 0) {
+    try {
+      updated = await reviewReceipt({
+        clinicId: input.clinicId,
+        receiptId: updated.id,
+        actorId: input.actorId ?? "system-antifraud",
+        decision: "APPROVED",
+        creditAmount: ocr.amount,
+        notes: "Aprovação automática (antifraude baixo risco)",
+      });
+    } catch {
+      updated = await prisma.receiptSubmission.update({
+        where: { id: updated.id },
+        data: { status: "NEEDS_REVIEW" },
+      });
+      status = "NEEDS_REVIEW";
+    }
+  }
 
   await writeAuditLog({
     clinicId: input.clinicId,
@@ -217,7 +245,12 @@ export async function submitReceipt(input: {
     action: "RECEIPT_REVIEW",
     entityType: "ReceiptSubmission",
     entityId: updated.id,
-    afterData: { status, fraudScore: fraud.score, flags: fraud.flags },
+    afterData: {
+      status: updated.status,
+      fraudScore: fraud.score,
+      flags: fraud.flags,
+      autoApproved: lowRisk && updated.status === "CREDITED",
+    },
   });
 
   return updated;
@@ -236,7 +269,7 @@ export async function reviewReceipt(input: {
     where: { id: input.receiptId, clinicId: input.clinicId },
   });
   if (!receipt) throw new Error("Comprovante não encontrado");
-  if (!["NEEDS_REVIEW", "PROCESSING", "UPLOADED"].includes(receipt.status)) {
+  if (!["NEEDS_REVIEW", "PROCESSING", "UPLOADED", "APPROVED"].includes(receipt.status)) {
     throw new Error("Comprovante já revisado");
   }
 

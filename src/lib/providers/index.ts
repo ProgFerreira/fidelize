@@ -22,7 +22,7 @@ export type ProvidersConfig = {
   email?: { provider: "resend" | "smtp" | "simulated"; from?: string };
   sms?: { provider: "twilio" | "simulated"; from?: string };
   whatsapp?: { provider: "meta" | "simulated"; phoneNumberId?: string };
-  push?: { provider: "fcm" | "simulated" };
+  push?: { provider: "fcm" | "fcm_v1" | "simulated" };
 };
 
 export async function getProvidersConfig(clinicId: string): Promise<ProvidersConfig> {
@@ -47,7 +47,12 @@ export async function getProvidersConfig(clinicId: string): Promise<ProvidersCon
       phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
     },
     push: clinic.push ?? {
-      provider: process.env.FCM_SERVER_KEY ? "fcm" : "simulated",
+      provider:
+        process.env.FCM_SERVICE_ACCOUNT_JSON || process.env.FCM_PROJECT_ID
+          ? "fcm_v1"
+          : process.env.FCM_SERVER_KEY
+            ? "fcm"
+            : "simulated",
     },
   };
 }
@@ -195,7 +200,134 @@ async function sendMetaWhatsApp(input: ProviderSendInput, phoneNumberId?: string
   };
 }
 
-async function sendFcmPush(input: ProviderSendInput) {
+type ServiceAccount = {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+  token_uri?: string;
+};
+
+function readFcmServiceAccount(): ServiceAccount | null {
+  const raw = process.env.FCM_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as ServiceAccount;
+  } catch {
+    return null;
+  }
+}
+
+/** Access token OAuth2 via JWT (FCM HTTP v1). Sem libs externas. */
+async function getFcmAccessToken(sa: ServiceAccount): Promise<string | null> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(
+    JSON.stringify({ alg: "RS256", typ: "JWT" }),
+  ).toString("base64url");
+  const claim = Buffer.from(
+    JSON.stringify({
+      iss: sa.client_email,
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
+      aud: sa.token_uri || "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    }),
+  ).toString("base64url");
+
+  const { createSign } = await import("crypto");
+  const signer = createSign("RSA-SHA256");
+  signer.update(`${header}.${claim}`);
+  signer.end();
+  const signature = signer
+    .sign(sa.private_key.replace(/\\n/g, "\n"))
+    .toString("base64url");
+
+  const assertion = `${header}.${claim}.${signature}`;
+  const res = await fetch(sa.token_uri || "https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    access_token?: string;
+    error?: string;
+  };
+  return json.access_token ?? null;
+}
+
+async function sendFcmHttpV1(input: ProviderSendInput) {
+  const sa = readFcmServiceAccount();
+  const projectId = sa?.project_id || process.env.FCM_PROJECT_ID;
+  if (!sa || !projectId) {
+    return {
+      ok: false,
+      provider: "fcm_v1",
+      simulated: false,
+      error: "FCM_SERVICE_ACCOUNT_JSON / FCM_PROJECT_ID ausente",
+    } satisfies ProviderSendResult;
+  }
+
+  const accessToken = await getFcmAccessToken(sa);
+  if (!accessToken) {
+    return {
+      ok: false,
+      provider: "fcm_v1",
+      simulated: false,
+      error: "Falha ao obter access token FCM",
+    } satisfies ProviderSendResult;
+  }
+
+  const dataEntries = Object.fromEntries(
+    Object.entries(input.metadata ?? {}).map(([k, v]) => [k, String(v)]),
+  );
+
+  const res = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          token: input.to,
+          notification: {
+            title: input.subject || "Clube de Benefícios",
+            body: input.body.slice(0, 240),
+          },
+          data: dataEntries,
+        },
+      }),
+      signal: AbortSignal.timeout(10000),
+    },
+  );
+  const json = (await res.json().catch(() => ({}))) as {
+    name?: string;
+    error?: { message?: string };
+  };
+  if (!res.ok) {
+    return {
+      ok: false,
+      provider: "fcm_v1",
+      simulated: false,
+      error: json.error?.message || `HTTP ${res.status}`,
+    };
+  }
+  return {
+    ok: true,
+    provider: "fcm_v1",
+    providerId: json.name,
+    simulated: false,
+    delivered: true,
+  };
+}
+
+/** @deprecated API legacy — prefer FCM HTTP v1 */
+async function sendFcmPushLegacy(input: ProviderSendInput) {
   const key = process.env.FCM_SERVER_KEY;
   if (!key) {
     return {
@@ -277,12 +409,20 @@ export async function dispatchProvider(
       return simulate("whatsapp", input.to);
     }
     if (input.channel === "PUSH") {
+      if (config.push?.provider === "fcm_v1") {
+        return sendFcmHttpV1(input);
+      }
       if (config.push?.provider === "fcm") {
-        return sendFcmPush(input);
+        return sendFcmPushLegacy(input);
       }
       return simulate("push", input.to);
     }
   } catch (error) {
+    const { captureException } = await import("@/lib/observability");
+    await captureException(error, {
+      channel: input.channel,
+      clinicId: input.clinicId,
+    });
     return {
       ok: false,
       provider: input.channel.toLowerCase(),

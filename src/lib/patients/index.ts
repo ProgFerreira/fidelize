@@ -77,6 +77,18 @@ export async function createPatient(params: {
   const cpf = onlyDigits(data.cpf);
   const phone = onlyDigits(data.phone);
 
+  const clinic = await prisma.clinic.findUnique({
+    where: { id: params.clinicId },
+    select: { organizationId: true },
+  });
+  if (clinic?.organizationId) {
+    const { assertWithinPlanLimits } = await import("@/lib/billing/enforce");
+    await assertWithinPlanLimits({
+      organizationId: clinic.organizationId,
+      kind: "patients",
+    });
+  }
+
   const dup = await findPatientDuplicates({
     clinicId: params.clinicId,
     cpf,

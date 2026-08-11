@@ -6,6 +6,8 @@ import { getBenefitSettings } from "@/lib/cashback";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { CategoryPlanCard } from "@/components/settings/category-plan-card";
 import { Building2, MapPin } from "lucide-react";
+import { updateCustomDomainAction } from "@/app/v2-actions";
+import { Button, Input, Label } from "@/components/ui";
 
 export default async function ConfiguracoesPage() {
   const session = await requirePermission(PERMISSIONS.SETTINGS_MANAGE);
@@ -50,8 +52,26 @@ export default async function ConfiguracoesPage() {
                 <MapPin className="h-3.5 w-3.5" aria-hidden />
                 {units.length} unidade{units.length === 1 ? "" : "s"}
               </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Slug: {clinic?.slug ?? "—"}
+              </p>
             </div>
           </div>
+          <form action={updateCustomDomainAction} className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+            <Label>Domínio personalizado do portal</Label>
+            <Input
+              name="customDomain"
+              placeholder="fidelidade.suaclinica.com.br"
+              defaultValue={clinic?.customDomain ?? ""}
+            />
+            <p className="text-xs text-slate-500">
+              Aponte o DNS (CNAME) para este host e use HTTPS. O portal do
+              paciente resolve por <code>customDomain</code> ou subdomain do slug.
+            </p>
+            <Button type="submit" size="sm" variant="secondary">
+              Salvar domínio
+            </Button>
+          </form>
         </Card>
 
         <Card className="lg:col-span-2">
@@ -90,21 +110,32 @@ export default async function ConfiguracoesPage() {
       </section>
 
       <section className="settings-section">
-        <div className="mb-4">
-          <h2 className="settings-section__title">Procedimentos</h2>
-          <p className="settings-section__desc">
-            Tabela de referência com preço base e cashback específico, quando
-            houver.
-          </p>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="settings-section__title">Serviços / procedimentos</h2>
+            <p className="settings-section__desc">
+              Catálogo de produtos de atendimento (valor, descrição e validade).
+              Cadastro completo em Serviços.
+            </p>
+          </div>
+          <a
+            href="/servicos"
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            Abrir catálogo →
+          </a>
         </div>
         <Card className="overflow-hidden p-0">
           <div className="divide-y divide-slate-100">
             {procedures.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm text-slate-500">
-                Nenhum procedimento cadastrado.
+                Nenhum serviço cadastrado.{" "}
+                <a href="/servicos" className="text-blue-600 hover:underline">
+                  Cadastrar agora
+                </a>
               </p>
             ) : (
-              procedures.map((procedure) => (
+              procedures.slice(0, 8).map((procedure) => (
                 <div
                   key={procedure.id}
                   className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"
@@ -119,6 +150,11 @@ export default async function ConfiguracoesPage() {
                     <span className="tabular text-slate-700">
                       R$ {Number(procedure.basePrice).toFixed(2)}
                     </span>
+                    {procedure.validityDays != null ? (
+                      <Badge tone="muted">
+                        {procedure.validityDays}d validade
+                      </Badge>
+                    ) : null}
                     {procedure.cashbackPercent != null ? (
                       <Badge tone="gold">
                         {String(procedure.cashbackPercent)}% cashback

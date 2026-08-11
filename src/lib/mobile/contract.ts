@@ -3,29 +3,48 @@
  * O app nativo consome as mesmas rotas HTTP — não há SDK proprietário.
  */
 
-export const MOBILE_CONTRACT_VERSION = "1.0.0";
+export const MOBILE_CONTRACT_VERSION = "1.1.0";
 
 export const mobileAuthFlow = {
   requestOtp: {
     method: "POST",
     path: "/api/v1/mobile/otp/request",
+    headers: { "x-api-key": "clinic_api_key" },
     body: { phone: "string" },
   },
   verifyOtp: {
     method: "POST",
     path: "/api/v1/mobile/otp/verify",
+    headers: { "x-api-key": "clinic_api_key" },
     body: { phone: "string", code: "string" },
-    response: { sessionToken: "string", patientId: "string", clinicId: "string" },
+    response: {
+      sessionToken: "string",
+      expiresAt: "iso8601",
+      patientId: "string",
+      clinicId: "string",
+    },
   },
 } as const;
 
 export const mobileEndpoints = [
-  { method: "GET", path: "/api/v1/balance", auth: "apiKey|session", desc: "Saldo e pontos" },
-  { method: "GET", path: "/api/v1/vouchers", auth: "apiKey|session", desc: "Vouchers" },
-  { method: "GET", path: "/api/v1/referrals", auth: "apiKey|session", desc: "Indicações" },
-  { method: "POST", path: "/api/v1/mobile/push/register", auth: "session", desc: "Registrar device push" },
-  { method: "GET", path: "/api/v1/mobile/home", auth: "session", desc: "Resumo do portal" },
-  { method: "POST", path: "/api/v1/mobile/receipts", auth: "session", desc: "Enviar comprovante" },
+  {
+    method: "POST",
+    path: "/api/v1/mobile/home",
+    auth: "x-api-key + x-session-token",
+    desc: "Resumo do portal",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/mobile/push/register",
+    auth: "x-api-key + x-session-token",
+    desc: "Registrar device push",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/mobile/receipts",
+    auth: "x-api-key + x-session-token",
+    desc: "Enviar comprovante",
+  },
 ] as const;
 
 export const brandingContract = {
@@ -52,7 +71,8 @@ export function describeMobileWhiteLabel() {
     branding: brandingContract,
     notes: [
       "Não armazenar dados clínicos no app.",
-      "Push requer módulo PUSH ativo e consentimento.",
+      "Após OTP, envie x-session-token (ou Authorization: Bearer) em todas as rotas do paciente.",
+      "Push requer módulo PUSH ativo, FCM HTTP v1 (FCM_SERVICE_ACCOUNT_JSON) e consentimento.",
       "White-label: configurar cores/logo via Setting branding.*",
     ],
   };

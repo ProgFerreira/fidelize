@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label } from "@/components/ui";
+import { Button, Input, Label, toast } from "@/components/ui";
 import { saveSettingsAction } from "@/app/actions";
 import type { BenefitSettings } from "@/lib/cashback";
 
@@ -9,6 +9,7 @@ export function SettingsForm({ initial }: { initial: BenefitSettings }) {
   const [settings, setSettings] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function update<K extends keyof BenefitSettings>(
     key: K,
@@ -16,6 +17,7 @@ export function SettingsForm({ initial }: { initial: BenefitSettings }) {
   ) {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
+    setError(null);
   }
 
   return (
@@ -24,8 +26,25 @@ export function SettingsForm({ initial }: { initial: BenefitSettings }) {
       onSubmit={(e) => {
         e.preventDefault();
         startTransition(async () => {
-          await saveSettingsAction(settings);
-          setSaved(true);
+          setError(null);
+          setSaved(false);
+          try {
+            const result = await saveSettingsAction(settings);
+            if (!result.ok) {
+              setError(result.error);
+              toast.error("Falha ao salvar", result.error);
+              return;
+            }
+            setSaved(true);
+            toast.success("Configurações salvas");
+          } catch (err) {
+            const message =
+              err instanceof Error
+                ? err.message
+                : "Não foi possível salvar as configurações.";
+            setError(message);
+            toast.error("Falha ao salvar", message);
+          }
         });
       }}
     >
@@ -86,6 +105,11 @@ export function SettingsForm({ initial }: { initial: BenefitSettings }) {
         </Button>
         {saved ? (
           <p className="text-sm text-green-700">Configurações salvas.</p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
         ) : null}
       </div>
     </form>

@@ -25,5 +25,12 @@ Thumbs.db
 # TypeScript incremental build info
 *.tsbuildinfo
 
+# Uploads locais de serviços (mantém pasta via .gitkeep)
+/public/uploads/services/**
+!/public/uploads/services/.gitkeep
+
+# Credenciais locais (não versionar)
+credenciais.md
+
 # Misc
 *.pem

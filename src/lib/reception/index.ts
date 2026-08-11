@@ -5,10 +5,11 @@ import {
   computeAvailabilityDates,
   getBenefitSettings,
 } from "@/lib/cashback";
-import { creditWallet, redeemFromWallet } from "@/lib/ledger";
+import { creditWallet, redeemFromWallet, reverseLedgerEntry } from "@/lib/ledger";
 import { recalculateCategory } from "@/lib/categories";
 import { writeAuditLog } from "@/lib/audit";
 import { money, moneyToString } from "@/lib/money";
+import { organizacaoAtual } from "@/lib/tenant";
 
 export async function confirmAppointment(params: {
   clinicId: string;
@@ -24,6 +25,13 @@ export async function confirmAppointment(params: {
   campaignId?: string | null;
   idempotencyKey?: string;
   notes?: string;
+  items?: Array<{
+    procedureId?: string | null;
+    name: string;
+    unitPrice: number;
+    quantity: number;
+    professionalName?: string | null;
+  }>;
 }) {
   const key = params.idempotencyKey || randomUUID();
 
@@ -43,11 +51,65 @@ export async function confirmAppointment(params: {
   });
   if (!wallet) throw new Error("Carteira inválida");
 
-  const procedure = params.procedureId
-    ? await prisma.procedure.findFirst({
-        where: { id: params.procedureId, clinicId: params.clinicId },
+  const cartItems = (params.items ?? [])
+    .map((item) => ({
+      procedureId: item.procedureId || null,
+      name: item.name.trim(),
+      unitPrice: Number(item.unitPrice),
+      quantity: Math.max(1, Math.trunc(Number(item.quantity) || 1)),
+      professionalName: item.professionalName || params.professionalName || null,
+    }))
+    .filter((item) => item.name && item.unitPrice >= 0 && item.quantity > 0);
+
+  if (cartItems.length === 0 && !params.procedureId && !(params.grossAmount > 0)) {
+    throw new Error("Adicione ao menos um serviço no carrinho");
+  }
+
+  const procedureIds = [
+    ...new Set(
+      cartItems
+        .map((i) => i.procedureId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (params.procedureId) procedureIds.push(params.procedureId);
+
+  const procedures = procedureIds.length
+    ? await prisma.procedure.findMany({
+        where: { clinicId: params.clinicId, id: { in: [...new Set(procedureIds)] } },
       })
+    : [];
+  const procedureById = Object.fromEntries(procedures.map((p) => [p.id, p]));
+
+  const primaryProcedureId =
+    params.procedureId ||
+    cartItems.find((i) => i.procedureId)?.procedureId ||
+    null;
+  const primaryProcedure = primaryProcedureId
+    ? procedureById[primaryProcedureId] ?? null
     : null;
+
+  let procedureCashbackPercent: number | null = null;
+  if (cartItems.length > 0) {
+    let weight = 0;
+    let total = 0;
+    for (const item of cartItems) {
+      const line = item.unitPrice * item.quantity;
+      total += line;
+      const pct = item.procedureId
+        ? procedureById[item.procedureId]?.cashbackPercent
+        : null;
+      if (pct != null) weight += line * Number(pct);
+    }
+    procedureCashbackPercent = total > 0 && weight > 0 ? weight / total : null;
+  } else if (primaryProcedure?.cashbackPercent != null) {
+    procedureCashbackPercent = Number(primaryProcedure.cashbackPercent);
+  }
+
+  const cartGross =
+    cartItems.length > 0
+      ? cartItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
+      : params.grossAmount;
 
   const campaign = params.campaignId
     ? await prisma.campaign.findFirst({
@@ -60,11 +122,9 @@ export async function confirmAppointment(params: {
     categoryCashbackPercent: wallet.category
       ? Number(wallet.category.cashbackPercent)
       : null,
-    procedureCashbackPercent: procedure?.cashbackPercent
-      ? Number(procedure.cashbackPercent)
-      : null,
+    procedureCashbackPercent,
     campaignExtraPercent: campaign ? Number(campaign.extraCashbackPct) : null,
-    grossAmount: params.grossAmount,
+    grossAmount: cartGross,
     discountAmount: params.discountAmount ?? 0,
     benefitToUse: params.benefitToUse ?? 0,
     availableBalance: Number(wallet.availableBalance),
@@ -81,7 +141,7 @@ export async function confirmAppointment(params: {
         baseCashbackPct: 0,
         basePoints: simulation.points,
         paidAmount: Number(simulation.paidAmount),
-        procedureId: params.procedureId,
+        procedureId: primaryProcedureId,
         unitId: params.unitId,
         categoryId: wallet.categoryId,
       });
@@ -103,15 +163,24 @@ export async function confirmAppointment(params: {
 
   const settings = await getBenefitSettings(params.clinicId);
   const dates = computeAvailabilityDates(settings);
+  const organizationId = wallet.organizationId ?? organizacaoAtual();
+
+  const cartNotes =
+    cartItems.length > 1
+      ? cartItems
+          .map((i) => `${i.quantity}x ${i.name} (${moneyToString(i.unitPrice * i.quantity, 2)})`)
+          .join("; ")
+      : params.notes;
 
   const result = await prisma.$transaction(async (tx) => {
     const appointment = await tx.appointment.create({
       data: {
+        organizationId,
         clinicId: params.clinicId,
         unitId: params.unitId ?? null,
         patientId: params.patientId,
         walletId: params.walletId,
-        procedureId: params.procedureId ?? null,
+        procedureId: primaryProcedureId,
         operatorId: params.operatorId,
         professionalName: params.professionalName,
         status: "CONFIRMED",
@@ -122,8 +191,24 @@ export async function confirmAppointment(params: {
         cashbackGenerated: simulation.cashbackAmount,
         pointsGenerated: simulation.points,
         idempotencyKey: key,
-        notes: params.notes,
+        notes: cartNotes || params.notes,
         occurredAt: new Date(),
+        items:
+          cartItems.length > 0
+            ? {
+                create: cartItems.map((item, index) => ({
+                  organizationId,
+                  clinicId: params.clinicId,
+                  procedureId: item.procedureId,
+                  name: item.name,
+                  unitPrice: moneyToString(item.unitPrice),
+                  quantity: item.quantity,
+                  lineTotal: moneyToString(item.unitPrice * item.quantity),
+                  professionalName: item.professionalName,
+                  sortOrder: index,
+                })),
+              }
+            : undefined,
       },
     });
 
@@ -285,8 +370,373 @@ export async function confirmAppointment(params: {
       patient: true,
       procedure: true,
       wallet: { include: { category: true } },
+      items: { orderBy: { sortOrder: "asc" } },
     },
   });
 
   return { appointment, simulation, reused: false };
+}
+
+export type SaleCartItemInput = {
+  procedureId?: string | null;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+};
+
+export async function getAppointmentSale(params: {
+  clinicId: string;
+  appointmentId: string;
+}) {
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      id: params.appointmentId,
+      clinicId: params.clinicId,
+      status: "CONFIRMED",
+    },
+    include: {
+      items: { orderBy: { sortOrder: "asc" } },
+      procedure: { select: { id: true, name: true, basePrice: true, cashbackPercent: true } },
+      patient: { select: { id: true, fullName: true } },
+    },
+  });
+  if (!appointment) throw new Error("Venda não encontrada ou não editável");
+
+  const items =
+    appointment.items.length > 0
+      ? appointment.items.map((item) => ({
+          procedureId: item.procedureId,
+          name: item.name,
+          unitPrice: Number(item.unitPrice),
+          quantity: item.quantity,
+          lineTotal: Number(item.lineTotal),
+        }))
+      : appointment.procedure
+        ? [
+            {
+              procedureId: appointment.procedure.id,
+              name: appointment.procedure.name,
+              unitPrice: Number(appointment.grossAmount),
+              quantity: 1,
+              lineTotal: Number(appointment.grossAmount),
+            },
+          ]
+        : [];
+
+  return {
+    id: appointment.id,
+    patientId: appointment.patientId,
+    patientName: appointment.patient.fullName,
+    walletId: appointment.walletId,
+    professionalName: appointment.professionalName,
+    discountAmount: Number(appointment.discountAmount),
+    benefitUsed: Number(appointment.benefitUsed),
+    grossAmount: Number(appointment.grossAmount),
+    paidAmount: Number(appointment.paidAmount),
+    items,
+  };
+}
+
+async function undoAppointmentFinancials(params: {
+  clinicId: string;
+  appointmentId: string;
+  operatorId: string;
+  reason: string;
+}) {
+  const entries = await prisma.ledgerEntry.findMany({
+    where: {
+      clinicId: params.clinicId,
+      appointmentId: params.appointmentId,
+      status: "COMPLETED",
+      type: {
+        in: [
+          "CREDIT_APPOINTMENT",
+          "CREDIT_CAMPAIGN",
+          "DEBIT_REDEMPTION",
+          "CREDIT_ACCELERATOR",
+        ],
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  for (const entry of entries) {
+    await reverseLedgerEntry({
+      clinicId: params.clinicId,
+      entryId: entry.id,
+      operatorId: params.operatorId,
+      reason: params.reason,
+      idempotencyKey: `sale-edit-rev:${params.appointmentId}:${entry.id}`,
+    });
+  }
+
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: params.appointmentId, clinicId: params.clinicId },
+  });
+  if (!appointment) throw new Error("Atendimento não encontrado");
+
+  // Pontos concedidos sem lote de cashback (ramo só-pontos do confirm)
+  if (
+    appointment.pointsGenerated > 0 &&
+    money(appointment.cashbackGenerated).eq(0)
+  ) {
+    await prisma.wallet.update({
+      where: { id: appointment.walletId },
+      data: {
+        pointsBalance: { decrement: appointment.pointsGenerated },
+      },
+    });
+  }
+
+  await prisma.wallet.update({
+    where: { id: appointment.walletId },
+    data: {
+      annualSpend: {
+        decrement: moneyToString(appointment.paidAmount),
+      },
+    },
+  });
+
+  return appointment;
+}
+
+export async function updateAppointmentSale(params: {
+  clinicId: string;
+  unitId?: string | null;
+  appointmentId: string;
+  operatorId: string;
+  professionalName?: string | null;
+  discountAmount?: number;
+  benefitToUse?: number;
+  campaignId?: string | null;
+  items: SaleCartItemInput[];
+}) {
+  const existing = await prisma.appointment.findFirst({
+    where: {
+      id: params.appointmentId,
+      clinicId: params.clinicId,
+      status: "CONFIRMED",
+    },
+  });
+  if (!existing) throw new Error("Venda não encontrada ou não editável");
+
+  const cartItems = params.items
+    .map((item) => ({
+      procedureId: item.procedureId || null,
+      name: item.name.trim(),
+      unitPrice: Number(item.unitPrice),
+      quantity: Math.max(1, Math.trunc(Number(item.quantity) || 1)),
+    }))
+    .filter((item) => item.name && item.unitPrice >= 0);
+
+  if (cartItems.length === 0) {
+    throw new Error("A venda precisa de ao menos um serviço");
+  }
+
+  await undoAppointmentFinancials({
+    clinicId: params.clinicId,
+    appointmentId: existing.id,
+    operatorId: params.operatorId,
+    reason: `Edição de venda ${existing.id}`,
+  });
+
+  const wallet = await prisma.wallet.findFirst({
+    where: {
+      id: existing.walletId,
+      clinicId: params.clinicId,
+      status: "ACTIVE",
+    },
+    include: { category: true },
+  });
+  if (!wallet) throw new Error("Carteira inválida");
+
+  const procedureIds = [
+    ...new Set(
+      cartItems
+        .map((i) => i.procedureId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const procedures = procedureIds.length
+    ? await prisma.procedure.findMany({
+        where: { clinicId: params.clinicId, id: { in: procedureIds } },
+      })
+    : [];
+  const procedureById = Object.fromEntries(procedures.map((p) => [p.id, p]));
+
+  let procedureCashbackPercent: number | null = null;
+  let weight = 0;
+  let total = 0;
+  for (const item of cartItems) {
+    const line = item.unitPrice * item.quantity;
+    total += line;
+    const pct = item.procedureId
+      ? procedureById[item.procedureId]?.cashbackPercent
+      : null;
+    if (pct != null) weight += line * Number(pct);
+  }
+  if (total > 0 && weight > 0) procedureCashbackPercent = weight / total;
+
+  const campaign = params.campaignId
+    ? await prisma.campaign.findFirst({
+        where: {
+          id: params.campaignId,
+          clinicId: params.clinicId,
+          status: "ACTIVE",
+        },
+      })
+    : null;
+
+  const baseSimulation = await simulateBenefit({
+    clinicId: params.clinicId,
+    categoryCashbackPercent: wallet.category
+      ? Number(wallet.category.cashbackPercent)
+      : null,
+    procedureCashbackPercent,
+    campaignExtraPercent: campaign ? Number(campaign.extraCashbackPct) : null,
+    grossAmount: total,
+    discountAmount: params.discountAmount ?? 0,
+    benefitToUse: params.benefitToUse ?? 0,
+    availableBalance: Number(wallet.availableBalance),
+  });
+
+  const simulation = { ...baseSimulation };
+  const primaryProcedureId = cartItems.find((i) => i.procedureId)?.procedureId ?? null;
+  const organizationId = wallet.organizationId ?? organizacaoAtual();
+  const settings = await getBenefitSettings(params.clinicId);
+  const dates = computeAvailabilityDates(settings);
+  const cartNotes = cartItems
+    .map(
+      (i) =>
+        `${i.quantity}x ${i.name} (${moneyToString(i.unitPrice * i.quantity, 2)})`,
+    )
+    .join("; ");
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.appointmentItem.deleteMany({
+      where: { appointmentId: existing.id },
+    });
+
+    const appointment = await tx.appointment.update({
+      where: { id: existing.id },
+      data: {
+        procedureId: primaryProcedureId,
+        professionalName: params.professionalName || null,
+        grossAmount: simulation.grossAmount,
+        discountAmount: simulation.discountAmount,
+        benefitUsed: simulation.benefitUsed,
+        paidAmount: simulation.paidAmount,
+        cashbackGenerated: simulation.cashbackAmount,
+        pointsGenerated: simulation.points,
+        notes: cartNotes,
+        items: {
+          create: cartItems.map((item, index) => ({
+            organizationId,
+            clinicId: params.clinicId,
+            procedureId: item.procedureId,
+            name: item.name,
+            unitPrice: moneyToString(item.unitPrice),
+            quantity: item.quantity,
+            lineTotal: moneyToString(item.unitPrice * item.quantity),
+            professionalName: params.professionalName || null,
+            sortOrder: index,
+          })),
+        },
+      },
+      include: {
+        items: true,
+        procedure: true,
+      },
+    });
+
+    const payment = await tx.payment.findFirst({
+      where: { appointmentId: existing.id, clinicId: params.clinicId },
+      orderBy: { createdAt: "asc" },
+    });
+    if (payment) {
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          amount: simulation.paidAmount,
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+        },
+      });
+    }
+
+    return appointment;
+  });
+
+  const editKey = `sale-edit:${existing.id}:${Date.now()}`;
+
+  if (money(simulation.benefitUsed).gt(0)) {
+    await redeemFromWallet({
+      clinicId: params.clinicId,
+      walletId: existing.walletId,
+      patientId: existing.patientId,
+      amount: simulation.benefitUsed,
+      appointmentId: existing.id,
+      operatorId: params.operatorId,
+      unitId: params.unitId ?? existing.unitId,
+      reason: "Resgate em atendimento (edição)",
+      idempotencyKey: `redeem:${editKey}`,
+    });
+  }
+
+  if (money(simulation.cashbackAmount).gt(0)) {
+    await creditWallet({
+      clinicId: params.clinicId,
+      walletId: existing.walletId,
+      patientId: existing.patientId,
+      amount: simulation.cashbackAmount,
+      points: simulation.points + (campaign?.extraPoints ?? 0),
+      type: "CREDIT_APPOINTMENT",
+      origin: "appointment-edit",
+      appointmentId: existing.id,
+      campaignId: campaign?.id,
+      operatorId: params.operatorId,
+      unitId: params.unitId ?? existing.unitId,
+      availableAt: dates.availableAt,
+      expiresAt: dates.expiresAt,
+      pending: settings.releaseDays > 0,
+      idempotencyKey: `credit:${editKey}`,
+      reason: "Cashback de atendimento (edição)",
+    });
+  } else if (simulation.points > 0 || (campaign?.extraPoints ?? 0) > 0) {
+    await prisma.wallet.update({
+      where: { id: existing.walletId },
+      data: {
+        pointsBalance: {
+          increment: simulation.points + (campaign?.extraPoints ?? 0),
+        },
+      },
+    });
+  }
+
+  await prisma.wallet.update({
+    where: { id: existing.walletId },
+    data: {
+      annualSpend: { increment: moneyToString(simulation.paidAmount) },
+    },
+  });
+
+  await recalculateCategory(existing.walletId);
+
+  await writeAuditLog({
+    clinicId: params.clinicId,
+    unitId: params.unitId ?? existing.unitId,
+    userId: params.operatorId,
+    action: "ADJUSTMENT",
+    entityType: "Appointment",
+    entityId: existing.id,
+    beforeData: {
+      grossAmount: Number(existing.grossAmount),
+      paidAmount: Number(existing.paidAmount),
+      benefitUsed: Number(existing.benefitUsed),
+    },
+    afterData: JSON.parse(JSON.stringify(simulation)),
+    metadata: { kind: "sale.update" },
+  });
+
+  return { appointment: updated, simulation };
 }

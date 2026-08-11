@@ -18,7 +18,7 @@ describe("Providers config summary", () => {
 describe("Mobile white-label contract", () => {
   it("exposes versioned endpoints", () => {
     const c = describeMobileWhiteLabel();
-    expect(c.version).toBe("1.0.0");
+    expect(c.version).toBe("1.1.0");
     expect(c.endpoints.some((e) => e.path.includes("push"))).toBe(true);
   });
 });

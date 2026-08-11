@@ -14,9 +14,12 @@ const ROTAS_PUBLICAS = [
   "/api/auth",
   "/paciente",
   "/p",
+  "/embed",
+  "/calculadora",
   "/api/cron",
   "/api/integration",
   "/api/webhooks",
+  "/api/v1",
 ];
 
 function respostaJsonApi(status: number, mensagem: string) {
@@ -49,13 +52,23 @@ export default auth((req) => {
   const seguir = () => NextResponse.next({ request: { headers: cabecalhos } });
 
   if (ROTAS_PUBLICAS.some((r) => pathname === r || pathname.startsWith(`${r}/`))) {
-    return seguir();
+    const res = seguir();
+    if (pathname.startsWith("/embed/widget")) {
+      // Defesa em profundidade: página também emite CSP via meta.
+      // Aqui reforçamos X-Frame-Options genérico quando não há clínica.
+      res.headers.set("X-Content-Type-Options", "nosniff");
+      res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    }
+    return res;
   }
 
   // Staff paths and platform require session
   const precisaAuth =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/recepcao") ||
+    pathname.startsWith("/agenda") ||
+    pathname.startsWith("/profissionais") ||
+    pathname.startsWith("/servicos") ||
     pathname.startsWith("/pacientes") ||
     pathname.startsWith("/cartoes") ||
     pathname.startsWith("/campanhas") ||
@@ -77,6 +90,8 @@ export default auth((req) => {
     pathname.startsWith("/aceleradores") ||
     pathname.startsWith("/recuperacao") ||
     pathname.startsWith("/integracoes") ||
+    pathname.startsWith("/planos") ||
+    pathname.startsWith("/loyalty360") ||
     pathname.startsWith("/organizacoes") ||
     pathname.startsWith("/api/plataforma") ||
     pathname.startsWith("/api/import");

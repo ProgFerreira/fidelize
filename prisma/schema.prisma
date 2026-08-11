@@ -33,6 +33,11 @@ enum CardStatus {
   CANCELLED
 }
 
+enum CardKind {
+  PHYSICAL
+  VIRTUAL
+}
+
 enum CreditLotStatus {
   PENDING
   AVAILABLE
@@ -78,6 +83,15 @@ enum AppointmentStatus {
   REVERSED
 }
 
+enum ScheduleEventStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum PaymentStatus {
   PENDING
   CONFIRMED
@@ -110,6 +124,9 @@ enum AuditAction {
   CATEGORY_CHANGE
   CARD_LINK
   CARD_BLOCK
+  CARD_UNBLOCK
+  CARD_REPLACE
+  CARD_STOCK
   CREDIT
   REDEMPTION
   ADJUSTMENT
@@ -142,6 +159,7 @@ enum AuditAction {
   RECEIPT_REVIEW
   PREDICTION_RUN
   PUSH_DEVICE
+  SCHEDULE_CHANGE
   OTHER
 }
 
@@ -394,7 +412,10 @@ model Clinic {
   cards                 Card[]
   categories            Category[]
   procedures            Procedure[]
+  professionals         Professional[]
   appointments          Appointment[]
+  appointmentItems      AppointmentItem[]
+  scheduleEvents        ScheduleEvent[]
   payments              Payment[]
   ledgerEntries         LedgerEntry[]
   creditLots            CreditLot[]
@@ -434,6 +455,7 @@ model Clinic {
   predictionScores      PredictionScore[]
   revenueForecasts      RevenueForecast[]
   widgetOrigins         WidgetOrigin[]
+  mobileSessions        MobileSession[]
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, active])
@@ -452,12 +474,14 @@ model Unit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  clinic       Clinic         @relation(fields: [clinicId], references: [id])
-  patients     Patient[]
-  users        User[]
-  appointments Appointment[]
-  cards        Card[]
-  campaigns    CampaignUnit[]
+  clinic         Clinic          @relation(fields: [clinicId], references: [id])
+  patients       Patient[]
+  users          User[]
+  appointments   Appointment[]
+  scheduleEvents ScheduleEvent[]
+  professionals  Professional[]
+  cards          Card[]
+  campaigns      CampaignUnit[]
 
   @@unique([clinicId, code])
   @@index([clinicId, active])
@@ -531,6 +555,7 @@ model User {
   sessions         Session[]
   auditLogs        AuditLog[]
   appointments     Appointment[]   @relation("AppointmentOperator")
+  scheduleEvents   ScheduleEvent[] @relation("ScheduleEventCreator")
   ledgerEntries    LedgerEntry[]   @relation("LedgerOperator")
   redemptions      Redemption[]
   platformAccesses PlatformAccess[]
@@ -602,6 +627,7 @@ model Patient {
   consents      Consent[]
   wallets       Wallet[]
   appointments  Appointment[]
+  scheduleEvents ScheduleEvent[]
   patientOtps   PatientOtp[]
   campaignUses  CampaignUse[]
   tagAssignments CustomerTagAssignment[]
@@ -622,6 +648,7 @@ model Patient {
   receiptSubmissions ReceiptSubmission[]
   raffleTickets RaffleTicket[]
   predictionScores PredictionScore[]
+  mobileSessions MobileSession[]
 
   @@unique([clinicId, cpf])
   @@index([clinicId, phone])
@@ -716,6 +743,7 @@ model Card {
   walletId     String?
   publicToken  String     @unique
   cardNumber   String
+  kind         CardKind   @default(PHYSICAL)
   status       CardStatus @default(AVAILABLE)
   expiresAt    DateTime?
   linkedAt     DateTime?
@@ -731,6 +759,7 @@ model Card {
 
   @@unique([clinicId, cardNumber])
   @@index([clinicId, status])
+  @@index([clinicId, kind, status])
   @@index([walletId])
   @@index([organizationId])
 }
@@ -741,8 +770,16 @@ model Procedure {
   clinicId        String
   code            String
   name            String
-  description     String?
+  description     String?  @db.Text
+  /** Foto do serviço/produto (URL pública ou path em /uploads). */
+  imageUrl        String?
   basePrice       Decimal  @default(0) @db.Decimal(19, 4)
+  /** Preço de tabela (“De”) para exibir promoção; venda real é basePrice (“Por”). */
+  compareAtPrice  Decimal? @db.Decimal(19, 4)
+  /** Validade do serviço/produto em dias após a venda ou realização. */
+  validityDays    Int?
+  /** Duração típica do atendimento em minutos (agenda / PDV). */
+  durationMinutes Int?     @default(60)
   cashbackPercent Decimal? @db.Decimal(8, 4)
   pointsPerReal   Decimal? @db.Decimal(8, 4)
   eligible        Boolean  @default(true)
@@ -750,12 +787,85 @@ model Procedure {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  clinic       Clinic        @relation(fields: [clinicId], references: [id])
-  appointments Appointment[]
-  campaigns    CampaignProcedure[]
+  clinic         Clinic          @relation(fields: [clinicId], references: [id])
+  appointments   Appointment[]
+  appointmentItems AppointmentItem[]
+  scheduleEvents ScheduleEvent[]
+  professionalLinks ProfessionalProcedure[]
+  campaigns      CampaignProcedure[]
 
   @@unique([clinicId, code])
   @@index([clinicId, active])
+  @@index([clinicId, name])
+  @@index([organizationId])
+}
+
+model Professional {
+  id             String   @id @default(cuid())
+  organizationId String?
+  clinicId       String
+  unitId         String?
+  name           String
+  /** O que o profissional faz (especialidade / função). */
+  specialty      String
+  notes          String?  @db.Text
+  active         Boolean  @default(true)
+  color          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  clinic         Clinic                   @relation(fields: [clinicId], references: [id])
+  unit           Unit?                    @relation(fields: [unitId], references: [id])
+  procedures     ProfessionalProcedure[]
+  scheduleEvents ScheduleEvent[]
+
+  @@index([clinicId, active])
+  @@index([clinicId, name])
+  @@index([organizationId])
+}
+
+model ProfessionalProcedure {
+  professionalId String
+  procedureId    String
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  procedure    Procedure    @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+
+  @@id([professionalId, procedureId])
+  @@index([procedureId])
+}
+
+model ScheduleEvent {
+  id               String              @id @default(cuid())
+  organizationId   String?
+  clinicId         String
+  unitId           String?
+  patientId        String?
+  procedureId      String?
+  professionalId   String?
+  createdById      String?
+  title            String
+  startsAt         DateTime
+  endsAt           DateTime
+  status           ScheduleEventStatus @default(SCHEDULED)
+  professionalName String?
+  notes            String?             @db.Text
+  color            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  unit         Unit?         @relation(fields: [unitId], references: [id])
+  patient      Patient?      @relation(fields: [patientId], references: [id])
+  procedure    Procedure?    @relation(fields: [procedureId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
+  createdBy    User?         @relation("ScheduleEventCreator", fields: [createdById], references: [id])
+
+  @@index([clinicId, startsAt])
+  @@index([clinicId, status])
+  @@index([clinicId, endsAt])
+  @@index([patientId, startsAt])
+  @@index([professionalId, startsAt])
   @@index([organizationId])
 }
 
@@ -791,12 +901,36 @@ model Appointment {
   payments      Payment[]
   ledgerEntries LedgerEntry[]
   redemptions   Redemption[]
+  items         AppointmentItem[]
 
   @@unique([clinicId, idempotencyKey])
   @@index([clinicId, occurredAt])
   @@index([clinicId, status])
   @@index([patientId])
   @@index([walletId])
+  @@index([organizationId])
+}
+
+model AppointmentItem {
+  id               String   @id @default(cuid())
+  organizationId   String?
+  clinicId         String
+  appointmentId    String
+  procedureId      String?
+  name             String
+  unitPrice        Decimal  @db.Decimal(19, 4)
+  quantity         Int      @default(1)
+  lineTotal        Decimal  @db.Decimal(19, 4)
+  professionalName String?
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  procedure   Procedure?  @relation(fields: [procedureId], references: [id])
+
+  @@index([appointmentId])
+  @@index([clinicId, procedureId])
   @@index([organizationId])
 }
 
@@ -2076,5 +2210,26 @@ model WidgetOrigin {
   clinic Clinic @relation(fields: [clinicId], references: [id])
 
   @@unique([clinicId, origin])
+  @@index([organizationId])
+}
+
+/// Sessão autenticada do app white-label (token opaco; só o hash fica no banco).
+model MobileSession {
+  id         String    @id @default(cuid())
+  organizationId String?
+  clinicId   String
+  patientId  String
+  tokenHash  String
+  expiresAt  DateTime
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, tokenHash])
+  @@index([clinicId, patientId])
+  @@index([expiresAt])
   @@index([organizationId])
 }

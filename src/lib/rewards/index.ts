@@ -14,6 +14,33 @@ export const rewardSchema = z.object({
   rules: z.string().max(2000).optional().nullable(),
 });
 
+export type RewardDTO = {
+  id: string;
+  name: string;
+  description: string | null;
+  pointsCost: number;
+  stockTotal: number | null;
+  stockReserved: number;
+  stockFulfilled: number;
+  limitPerPatient: number | null;
+  rules: string | null;
+  status: "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
+};
+
+export type RewardRedemptionDTO = {
+  id: string;
+  code: string;
+  pointsSpent: number;
+  status: string;
+  reward: { name: string; pointsCost: number };
+  patient: { fullName: string; phone: string | null };
+};
+
+export type RewardPatientOption = {
+  id: string;
+  fullName: string;
+};
+
 export async function createReward(input: {
   clinicId: string;
   actorId?: string;
@@ -21,7 +48,7 @@ export async function createReward(input: {
 }) {
   await requireModule(input.clinicId, "REWARDS");
   const data = rewardSchema.parse(input.data);
-  return prisma.reward.create({
+  const reward = await prisma.reward.create({
     data: {
       clinicId: input.clinicId,
       name: data.name,
@@ -33,6 +60,86 @@ export async function createReward(input: {
       rules: data.rules ?? null,
     },
   });
+
+  await writeAuditLog({
+    clinicId: input.clinicId,
+    userId: input.actorId,
+    action: "OTHER",
+    entityType: "Reward",
+    entityId: reward.id,
+    afterData: { name: reward.name, status: reward.status, op: "CREATE" },
+  });
+
+  return reward;
+}
+
+export async function updateReward(input: {
+  clinicId: string;
+  actorId?: string;
+  id: string;
+  data: z.infer<typeof rewardSchema>;
+}) {
+  await requireModule(input.clinicId, "REWARDS");
+  const data = rewardSchema.parse(input.data);
+  const existing = await prisma.reward.findFirst({
+    where: { id: input.id, clinicId: input.clinicId },
+  });
+  if (!existing) throw new Error("Recompensa não encontrada");
+
+  const reward = await prisma.reward.update({
+    where: { id: existing.id },
+    data: {
+      name: data.name,
+      description: data.description ?? null,
+      pointsCost: data.pointsCost,
+      stockTotal: data.stockTotal ?? null,
+      limitPerPatient: data.limitPerPatient ?? null,
+      status: data.status,
+      rules: data.rules ?? null,
+    },
+  });
+
+  await writeAuditLog({
+    clinicId: input.clinicId,
+    userId: input.actorId,
+    action: "OTHER",
+    entityType: "Reward",
+    entityId: reward.id,
+    beforeData: { name: existing.name, status: existing.status },
+    afterData: { name: reward.name, status: reward.status, op: "UPDATE" },
+  });
+
+  return reward;
+}
+
+export async function setRewardStatus(input: {
+  clinicId: string;
+  actorId?: string;
+  id: string;
+  status: "DRAFT" | "ACTIVE" | "PAUSED" | "ENDED";
+}) {
+  await requireModule(input.clinicId, "REWARDS");
+  const existing = await prisma.reward.findFirst({
+    where: { id: input.id, clinicId: input.clinicId },
+  });
+  if (!existing) throw new Error("Recompensa não encontrada");
+
+  const reward = await prisma.reward.update({
+    where: { id: existing.id },
+    data: { status: input.status },
+  });
+
+  await writeAuditLog({
+    clinicId: input.clinicId,
+    userId: input.actorId,
+    action: "OTHER",
+    entityType: "Reward",
+    entityId: reward.id,
+    beforeData: { status: existing.status },
+    afterData: { status: reward.status, op: "STATUS" },
+  });
+
+  return reward;
 }
 
 export async function redeemReward(input: {

@@ -666,6 +666,62 @@ async function main() {
         status: "ACTIVE",
       },
     });
+
+    // --- v2.1 demo comercial ---
+    for (const code of [
+      "PUSH",
+      "RAFFLES",
+      "RECEIPTS",
+      "PREDICTIVE",
+    ] as const) {
+      await setModuleEnabled({ clinicId: clinic.id, code, enabled: true });
+    }
+
+    await prisma.widgetOrigin.upsert({
+      where: {
+        clinicId_origin: {
+          clinicId: clinic.id,
+          origin: "http://localhost:3000",
+        },
+      },
+      create: {
+        organizationId: org.id,
+        clinicId: clinic.id,
+        origin: "http://localhost:3000",
+        active: true,
+      },
+      update: { active: true },
+    });
+
+    const demoPatient = patients[0]?.patient;
+    if (demoPatient) {
+      await prisma.predictionScore.create({
+        data: {
+          organizationId: org.id,
+          clinicId: clinic.id,
+          patientId: demoPatient.id,
+          scoreType: "CHURN_RISK",
+          score: 78,
+          band: "HIGH",
+          factors: { reason: "seed" },
+        },
+      });
+
+      await prisma.raffle.create({
+        data: {
+          organizationId: org.id,
+          clinicId: clinic.id,
+          name: "Sorteio de boas-vindas",
+          description: "Demo comercial — bilhete com pontos",
+          ticketCostPoints: 50,
+          maxTicketsPerPatient: 5,
+          status: "ACTIVE",
+          startsAt: new Date(Date.now() - 7 * 86400000),
+          endsAt: new Date(Date.now() + 30 * 86400000),
+          prizeDescription: "Voucher R$ 100",
+        },
+      });
+    }
   });
 
   console.log("Seed concluído.");

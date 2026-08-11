@@ -5,29 +5,44 @@ export function Paginacao({
   totalPaginas,
   total,
   busca,
+  params,
+  className,
 }: {
   pagina: number;
   totalPaginas: number;
   total: number;
+  /** @deprecated Prefira `params={{ busca }}` ou `params={{ q }}`. */
   busca?: string;
+  params?: Record<string, string | undefined | null>;
+  className?: string;
 }) {
+  function href(p: number) {
+    const q = new URLSearchParams();
+    q.set("pagina", String(p));
+    if (busca) q.set("busca", busca);
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (value) q.set(key, value);
+      }
+    }
+    return `?${q.toString()}`;
+  }
+
   if (totalPaginas <= 1) {
     return (
-      <p className="px-4 py-3 text-xs text-slate-500">
+      <p className={className ?? "px-4 py-3 text-xs text-slate-500"}>
         {total} registro{total === 1 ? "" : "s"}
       </p>
     );
   }
 
-  function href(p: number) {
-    const q = new URLSearchParams();
-    q.set("pagina", String(p));
-    if (busca) q.set("busca", busca);
-    return `?${q.toString()}`;
-  }
-
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-800">
+    <div
+      className={
+        className ??
+        "flex items-center justify-between gap-4 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-800"
+      }
+    >
       <p className="text-xs text-slate-500">
         Página {pagina} de {totalPaginas} · {total} registro
         {total === 1 ? "" : "s"}

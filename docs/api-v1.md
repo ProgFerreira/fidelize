@@ -57,20 +57,37 @@ Lista indicações (como indicador ou indicado).
 
 Lista respostas NPS.
 
-### GET /api/v1/widget?key=&patientId=&phone=
+### GET /api/v1/widget
 
-Snapshot read-only para widget (saldo/pontos/categoria). Respeita allowlist de origem.
+Snapshot read-only para widget (saldo/pontos/categoria).
+
+- Auth: header `x-api-key` (não use `?key=` em novos clientes)
+- Origem obrigatória na allowlist (`WidgetOrigin`)
+- Embed HTML: `/embed/widget?clinic=SLUG&patientId=...` (sem API key na URL)
+
+### Conectores clínicos
+
+- `GET /api/v1/connectors/clinical` — catálogo Feegow / Clinicorp / genérico
+- `POST /api/v1/connectors/clinical/appointments` — ingere atendimento e confirma fidelidade
 
 ### Mobile white-label `/api/v1/mobile/*`
 
-- `GET /api/v1/mobile` — contrato
-- `POST .../otp/request`, `.../otp/verify`
-- `POST .../push/register`
-- `POST .../home`, `.../receipts`
+- `GET /api/v1/mobile` — contrato v1.1
+- `POST .../otp/request`, `.../otp/verify` → retorna `sessionToken` persistido
+- Rotas do paciente exigem `x-api-key` + `x-session-token` (ou `Authorization: Bearer`)
+- `POST .../push/register`, `.../home`, `.../receipts`
+
+### WhatsApp inbound
+
+- `GET|POST /api/webhooks/whatsapp` — verificação Meta + comando `saldo`
 
 ## Provedores
 
-E-mail Resend, SMS Twilio, WhatsApp Meta, Push FCM — ver `.env.example` e `docs/extensoes-futuras.md`.
+E-mail Resend, SMS Twilio, WhatsApp Meta, Push FCM HTTP v1 (`FCM_SERVICE_ACCOUNT_JSON`) — ver `.env.example`.
+
+## LGPD
+
+Portal do paciente (`/p/perfil`): exportação e anonimização do titular.
 
 ## Webhooks
 

@@ -12,28 +12,38 @@ import { labelPt } from "@/lib/i18n/labels";
 import { getProvidersConfig, providersStatusSummary } from "@/lib/providers";
 import { listWidgetOrigins, widgetEmbedSnippet } from "@/lib/widget";
 import { describeMobileWhiteLabel } from "@/lib/mobile/contract";
+import { CLINICAL_CONNECTORS, clinicalConnectorDocs } from "@/lib/connectors/clinical";
+import { observabilityStatus } from "@/lib/observability";
+import { prisma } from "@/lib/db";
 
 export default async function IntegracoesPage() {
   const session = await requirePermission(PERMISSIONS.INTEGRATIONS_MANAGE);
   const clinicId = session.clinicId;
-  const [data, providers, origins] = await Promise.all([
+  const [data, providers, origins, clinic] = await Promise.all([
     listIntegrations(clinicId),
     getProvidersConfig(clinicId),
     listWidgetOrigins(clinicId),
+    prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { slug: true },
+    }),
   ]);
   const status = providersStatusSummary(providers);
   const mobile = describeMobileWhiteLabel();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "http://localhost:3000";
-  const snippet = widgetEmbedSnippet(baseUrl);
+  const obs = observabilityStatus();
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "http://localhost:3000";
+  const snippet = widgetEmbedSnippet(baseUrl, clinic?.slug || clinicId);
+  const connectorDocs = clinicalConnectorDocs(baseUrl);
 
   return (
     <div>
       <PageHeader
         title="Integrações"
-        description="Chaves de API, webhooks, provedores de mensagem, widget e contrato mobile."
+        description="Chaves de API, webhooks, conectores clínicos, provedores, widget e contrato mobile."
       />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <p className="text-xs uppercase text-slate-400">E-mail</p>
           <p className="font-semibold">{status.email}</p>
@@ -50,7 +60,23 @@ export default async function IntegracoesPage() {
           <p className="text-xs uppercase text-slate-400">Push</p>
           <p className="font-semibold">{status.push}</p>
         </Card>
+        <Card>
+          <p className="text-xs uppercase text-slate-400">Observabilidade</p>
+          <p className="font-semibold">
+            {obs.sentryConfigured ? "Sentry" : "log local"}
+          </p>
+        </Card>
       </div>
+
+      {status.whatsapp === "simulated" || status.email === "simulated" ? (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <p className="text-sm text-amber-900">
+            Canais em modo simulado. Configure RESEND_API_KEY, WHATSAPP_TOKEN e
+            WHATSAPP_PHONE_NUMBER_ID no .env para piloto real. Webhook de saldo:
+            POST /api/webhooks/whatsapp (WHATSAPP_VERIFY_TOKEN).
+          </p>
+        </Card>
+      ) : null}
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card>
@@ -58,7 +84,7 @@ export default async function IntegracoesPage() {
           <form action={createApiKeyAction} className="mt-3 grid gap-3">
             <div>
               <Label>Nome</Label>
-              <Input name="name" required defaultValue="Integração ERP" />
+              <Input name="name" required defaultValue="Integração clínica" />
             </div>
             <div>
               <Label>Ambiente</Label>
@@ -67,9 +93,11 @@ export default async function IntegracoesPage() {
                 <option value="live">Produção</option>
               </Select>
             </div>
-            <Button type="submit" variant="gold">Gerar chave</Button>
+            <Button type="submit" variant="gold">
+              Gerar chave
+            </Button>
             <p className="text-xs text-slate-500">
-              A chave completa é gravada apenas como hash. Prefixos ficam listados abaixo após a criação.
+              Use a chave no header x-api-key — nunca na URL do widget.
             </p>
           </form>
         </Card>
@@ -83,12 +111,32 @@ export default async function IntegracoesPage() {
             </div>
             <div>
               <Label>Eventos (separados por vírgula)</Label>
-              <Input name="events" defaultValue="appointment.confirmed,*,referral.converted" />
+              <Input
+                name="events"
+                defaultValue="appointment.confirmed,*,referral.converted"
+              />
             </div>
             <Button type="submit">Salvar endpoint</Button>
           </form>
         </Card>
       </div>
+
+      <h2 className="mb-3 text-lg font-semibold">Conectores clínicos</h2>
+      <Card className="mb-8">
+        <p className="text-sm text-slate-500">
+          Ingestão de atendimentos via {connectorDocs.endpoints.ingest}
+        </p>
+        <ul className="mt-3 space-y-2 text-sm">
+          {CLINICAL_CONNECTORS.map((c) => (
+            <li key={c.code}>
+              <strong>{c.name}</strong> — {c.description}
+            </li>
+          ))}
+        </ul>
+        <pre className="mt-3 overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
+          {JSON.stringify(connectorDocs.sample, null, 2)}
+        </pre>
+      </Card>
 
       <h2 className="mb-3 text-lg font-semibold">Credenciais</h2>
       <div className="mb-8 space-y-3">
@@ -108,7 +156,9 @@ export default async function IntegracoesPage() {
                 {!cred.revokedAt && (
                   <form action={revokeApiKeyAction}>
                     <input type="hidden" name="credentialId" value={cred.id} />
-                    <Button type="submit" size="sm" variant="perigo">Revogar</Button>
+                    <Button type="submit" size="sm" variant="perigo">
+                      Revogar
+                    </Button>
                   </form>
                 )}
               </div>
@@ -123,7 +173,8 @@ export default async function IntegracoesPage() {
           <Card key={wh.id}>
             <p className="font-semibold">{wh.url}</p>
             <p className="text-sm text-slate-500">
-              {(wh.events as string[]).join(", ")} · {wh._count.deliveries} entregas
+              {(wh.events as string[]).join(", ")} · {wh._count.deliveries}{" "}
+              entregas
             </p>
           </Card>
         ))}
@@ -132,8 +183,15 @@ export default async function IntegracoesPage() {
       <h2 className="mb-3 text-lg font-semibold">Widget incorporável</h2>
       <Card className="mb-8">
         <form action={addWidgetOriginAction} className="mb-4 flex flex-wrap gap-2">
-          <Input name="origin" placeholder="https://seusite.com.br" required className="max-w-md" />
-          <Button type="submit" variant="secondary">Permitir origem</Button>
+          <Input
+            name="origin"
+            placeholder="https://seusite.com.br"
+            required
+            className="max-w-md"
+          />
+          <Button type="submit" variant="secondary">
+            Permitir origem
+          </Button>
         </form>
         <p className="mb-2 text-sm text-slate-500">
           Origens: {origins.map((o) => o.origin).join(", ") || "nenhuma"}
@@ -142,7 +200,8 @@ export default async function IntegracoesPage() {
           {snippet}
         </pre>
         <p className="mt-2 text-xs text-slate-400">
-          API: GET /api/v1/widget?key=...&patientId=... · Contrato mobile v{mobile.version}
+          Embed usa clinic + allowlist (sem API key na URL). Mobile v
+          {mobile.version}
         </p>
       </Card>
 
@@ -151,7 +210,8 @@ export default async function IntegracoesPage() {
         {data.logs.map((log) => (
           <Card key={log.id}>
             <p className="text-sm">
-              {labelPt(log.direction)} {log.method} {log.path} · {log.statusCode ?? "—"}
+              {labelPt(log.direction)} {log.method} {log.path} ·{" "}
+              {log.statusCode ?? "—"}
             </p>
           </Card>
         ))}

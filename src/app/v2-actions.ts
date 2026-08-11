@@ -37,6 +37,8 @@ import {
   forecastRevenue,
 } from "@/lib/predictive";
 import { addWidgetOrigin } from "@/lib/widget";
+import { prisma } from "@/lib/db";
+import { toPlain } from "@/lib/serialize";
 import type { ModuleCode, OnboardingStepCode, RaffleStatus } from "@/generated/prisma/client";
 
 export async function toggleModuleAction(formData: FormData) {
@@ -370,89 +372,224 @@ export async function fulfillRewardAction(formData: FormData) {
 }
 
 export async function createVoucherAction(formData: FormData) {
-  const session = await requirePermission(PERMISSIONS.VOUCHERS_MANAGE);
-  await createVoucher({
-    clinicId: session.user.clinicId,
-    actorId: session.user.id,
-    data: {
-      name: String(formData.get("name") || ""),
-      description: String(formData.get("description") || "") || null,
-      type: String(formData.get("type") || "FIXED_VALUE") as
-        | "FIXED_VALUE"
-        | "PERCENT"
-        | "PROCEDURE"
-        | "GIFT"
-        | "COURTESY"
-        | "FEE"
-        | "RECOVERY"
-        | "BIRTHDAY",
-      valueAmount: formData.get("valueAmount")
-        ? Number(formData.get("valueAmount"))
-        : null,
-      valuePercent: formData.get("valuePercent")
-        ? Number(formData.get("valuePercent"))
-        : null,
-      quantity: formData.get("quantity") ? Number(formData.get("quantity")) : null,
-      maxUsesPerPatient: 1,
-      multiUse: false,
-      combineCashback: true,
-      combineDiscount: false,
-      status: "ACTIVE",
-      expiresAt: formData.get("expiresAt")
-        ? new Date(String(formData.get("expiresAt")))
-        : null,
-    },
-  });
-  revalidatePath("/vouchers");
+  try {
+    const session = await requirePermission(PERMISSIONS.VOUCHERS_MANAGE);
+    const name = String(formData.get("name") || "").trim();
+    if (!name) {
+      return { ok: false as const, error: "Nome é obrigatório." };
+    }
+    const voucher = await createVoucher({
+      clinicId: session.user.clinicId,
+      actorId: session.user.id,
+      data: {
+        name,
+        description: String(formData.get("description") || "") || null,
+        type: String(formData.get("type") || "FIXED_VALUE") as
+          | "FIXED_VALUE"
+          | "PERCENT"
+          | "PROCEDURE"
+          | "GIFT"
+          | "COURTESY"
+          | "FEE"
+          | "RECOVERY"
+          | "BIRTHDAY",
+        valueAmount: formData.get("valueAmount")
+          ? Number(formData.get("valueAmount"))
+          : null,
+        valuePercent: formData.get("valuePercent")
+          ? Number(formData.get("valuePercent"))
+          : null,
+        quantity: formData.get("quantity")
+          ? Number(formData.get("quantity"))
+          : null,
+        maxUsesPerPatient: 1,
+        multiUse: false,
+        combineCashback: true,
+        combineDiscount: false,
+        status: "ACTIVE",
+        expiresAt: formData.get("expiresAt")
+          ? new Date(String(formData.get("expiresAt")))
+          : null,
+      },
+    });
+    revalidatePath("/vouchers");
+    return {
+      ok: true as const,
+      voucher: toPlain({
+        ...voucher,
+        usedCount: 0,
+        _count: { redemptions: 0 },
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error ? error.message : "Não foi possível emitir o cupom.",
+    };
+  }
 }
 
 export async function redeemVoucherAction(formData: FormData) {
-  const session = await requirePermission(PERMISSIONS.VOUCHERS_MANAGE);
-  await redeemVoucher({
-    clinicId: session.user.clinicId,
-    code: String(formData.get("code")),
-    patientId: String(formData.get("patientId")),
-    actorId: session.user.id,
-  });
-  revalidatePath("/vouchers");
+  try {
+    const session = await requirePermission(PERMISSIONS.VOUCHERS_MANAGE);
+    const code = String(formData.get("code") || "").trim();
+    const patientId = String(formData.get("patientId") || "").trim();
+    if (!code || !patientId) {
+      return { ok: false as const, error: "Código e paciente são obrigatórios." };
+    }
+    await redeemVoucher({
+      clinicId: session.user.clinicId,
+      code,
+      patientId,
+      actorId: session.user.id,
+    });
+    revalidatePath("/vouchers");
+    return { ok: true as const };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível resgatar o cupom.",
+    };
+  }
 }
 
 export async function issueGiftCardAction(formData: FormData) {
-  const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
-  await issueGiftCard({
-    clinicId: session.user.clinicId,
-    actorId: session.user.id,
-    activate: formData.get("activate") === "on",
-    data: {
-      initialAmount: Number(formData.get("initialAmount") || 0),
-      buyerName: String(formData.get("buyerName") || "") || null,
-      beneficiaryName: String(formData.get("beneficiaryName") || "") || null,
-      message: String(formData.get("message") || "") || null,
-      allowPartial: formData.get("allowPartial") !== "off",
-    },
-  });
-  revalidatePath("/vales-presente");
+  try {
+    const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
+    const initialAmount = Number(formData.get("initialAmount") || 0);
+    if (!Number.isFinite(initialAmount) || initialAmount <= 0) {
+      return { ok: false as const, error: "Informe um valor válido." };
+    }
+    const card = await issueGiftCard({
+      clinicId: session.user.clinicId,
+      actorId: session.user.id,
+      activate: formData.get("activate") === "on",
+      data: {
+        initialAmount,
+        buyerName: String(formData.get("buyerName") || "") || null,
+        beneficiaryName: String(formData.get("beneficiaryName") || "") || null,
+        message: String(formData.get("message") || "") || null,
+        allowPartial: formData.get("allowPartial") !== "off",
+        expiresAt: formData.get("expiresAt")
+          ? new Date(String(formData.get("expiresAt")))
+          : null,
+      },
+    });
+    revalidatePath("/vales-presente");
+    return {
+      ok: true as const,
+      giftCard: toPlain({
+        id: card.id,
+        code: card.code,
+        buyerName: card.buyerName,
+        beneficiaryName: card.beneficiaryName,
+        message: card.message,
+        initialAmount: card.initialAmount,
+        remainingAmount: card.remainingAmount,
+        status: card.status,
+        allowPartial: card.allowPartial,
+        expiresAt: card.expiresAt,
+        createdAt: card.createdAt,
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível emitir o vale-presente.",
+    };
+  }
 }
 
 export async function activateGiftCardAction(formData: FormData) {
-  const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
-  await activateGiftCard({
-    clinicId: session.user.clinicId,
-    giftCardId: String(formData.get("giftCardId")),
-    actorId: session.user.id,
-  });
-  revalidatePath("/vales-presente");
+  try {
+    const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
+    const giftCardId = String(formData.get("giftCardId") || "").trim();
+    if (!giftCardId) {
+      return { ok: false as const, error: "Vale inválido." };
+    }
+    const card = await activateGiftCard({
+      clinicId: session.user.clinicId,
+      giftCardId,
+      actorId: session.user.id,
+    });
+    revalidatePath("/vales-presente");
+    return {
+      ok: true as const,
+      giftCard: toPlain({
+        id: card.id,
+        code: card.code,
+        buyerName: card.buyerName,
+        beneficiaryName: card.beneficiaryName,
+        message: card.message,
+        initialAmount: card.initialAmount,
+        remainingAmount: card.remainingAmount,
+        status: card.status,
+        allowPartial: card.allowPartial,
+        expiresAt: card.expiresAt,
+        createdAt: card.createdAt,
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível ativar o vale-presente.",
+    };
+  }
 }
 
 export async function redeemGiftCardAction(formData: FormData) {
-  const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
-  await redeemGiftCard({
-    clinicId: session.user.clinicId,
-    code: String(formData.get("code")),
-    amount: Number(formData.get("amount") || 0),
-    actorId: session.user.id,
-  });
-  revalidatePath("/vales-presente");
+  try {
+    const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
+    const code = String(formData.get("code") || "").trim();
+    const amount = Number(formData.get("amount") || 0);
+    if (!code) {
+      return { ok: false as const, error: "Código é obrigatório." };
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { ok: false as const, error: "Informe um valor válido." };
+    }
+    const card = await redeemGiftCard({
+      clinicId: session.user.clinicId,
+      code,
+      amount,
+      actorId: session.user.id,
+    });
+    revalidatePath("/vales-presente");
+    return {
+      ok: true as const,
+      giftCard: toPlain({
+        id: card.id,
+        code: card.code,
+        buyerName: card.buyerName,
+        beneficiaryName: card.beneficiaryName,
+        message: card.message,
+        initialAmount: card.initialAmount,
+        remainingAmount: card.remainingAmount,
+        status: card.status,
+        allowPartial: card.allowPartial,
+        expiresAt: card.expiresAt,
+        createdAt: card.createdAt,
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível debitar o vale-presente.",
+    };
+  }
 }
 
 export async function createAcceleratorAction(formData: FormData) {
@@ -643,4 +780,52 @@ export async function addWidgetOriginAction(formData: FormData) {
     origin: String(formData.get("origin") || ""),
   });
   revalidatePath("/integracoes");
+}
+
+export async function updateCustomDomainAction(formData: FormData) {
+  const session = await requirePermission(PERMISSIONS.SETTINGS_MANAGE);
+  const customDomain = String(formData.get("customDomain") || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
+
+  await prisma.clinic.update({
+    where: { id: session.user.clinicId },
+    data: { customDomain: customDomain || null },
+  });
+
+  revalidatePath("/configuracoes");
+}
+
+export async function staffExportPatientLgpdAction(formData: FormData) {
+  const session = await requirePermission(PERMISSIONS.PATIENTS_READ);
+  const patientId = String(formData.get("patientId") || "");
+  const { exportPatientData } = await import("@/lib/lgpd");
+  return exportPatientData({
+    clinicId: session.user.clinicId,
+    patientId,
+    actorId: session.user.id,
+  });
+}
+
+export async function staffAnonymizePatientLgpdAction(formData: FormData) {
+  const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
+  const patientId = String(formData.get("patientId") || "");
+  const { anonymizePatient } = await import("@/lib/lgpd");
+  const { revokeAllMobileSessionsForPatient } = await import(
+    "@/lib/mobile/session"
+  );
+  await anonymizePatient({
+    clinicId: session.user.clinicId,
+    patientId,
+    actorId: session.user.id,
+    reason: "solicitacao_staff",
+  });
+  await revokeAllMobileSessionsForPatient({
+    clinicId: session.user.clinicId,
+    patientId,
+  });
+  revalidatePath(`/pacientes/${patientId}`);
+  revalidatePath("/pacientes");
 }

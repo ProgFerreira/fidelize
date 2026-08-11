@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
-import { getWidgetPatientSnapshot } from "@/lib/widget";
+import {
+  extractRequestOrigin,
+  getWidgetPatientSnapshot,
+} from "@/lib/widget";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const key = url.searchParams.get("key") || request.headers.get("x-api-key") || "";
+  // Prefer header — query `key` é legado e não deve ser usado em novos embeds
+  const key =
+    request.headers.get("x-api-key") || url.searchParams.get("key") || "";
   const patientId = url.searchParams.get("patientId") || undefined;
   const phone = url.searchParams.get("phone") || undefined;
-  const origin = request.headers.get("origin");
+  const origin = extractRequestOrigin(request);
 
   if (!key) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,23 +31,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Origin not allowed" }, { status: 403 });
   }
 
+  const allowOrigin = origin && origin !== "null" ? origin : "";
+
   return NextResponse.json(
     { data },
     {
       headers: {
-        "Access-Control-Allow-Origin": origin || "*",
+        ...(allowOrigin
+          ? {
+              "Access-Control-Allow-Origin": allowOrigin,
+              Vary: "Origin",
+            }
+          : {}),
         "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "x-api-key, content-type",
       },
     },
   );
 }
 
 export async function OPTIONS(request: Request) {
-  const origin = request.headers.get("origin") || "*";
+  const origin = extractRequestOrigin(request) || "";
   return new NextResponse(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": origin,
+      ...(origin ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" } : {}),
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "x-api-key, content-type",
     },

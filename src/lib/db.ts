@@ -5,10 +5,15 @@ import { extensaoTenant } from "@/lib/prisma-tenant";
 /**
  * Cliente Prisma com isolamento multiempresa embutido.
  * Não existe cliente "cru" exportado — use `semOrganizacao()` para ops globais.
+ *
+ * Bump `PRISMA_CLIENT_REV` quando o schema mudar campos de modelos já existentes
+ * (ex.: Procedure.imageUrl), para invalidar o singleton em hot-reload do Next.
  */
+const PRISMA_CLIENT_REV = 3;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof criarPrisma>;
+  prismaRev?: number;
 };
 
 function criarPrisma() {
@@ -25,6 +30,9 @@ function criarPrisma() {
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, ""),
     connectionLimit: 10,
+    // Evita ficar em "Salvando..." sem feedback quando o MySQL não responde.
+    acquireTimeout: 8_000,
+    connectTimeout: 5_000,
   });
 
   return new PrismaClient({ adapter }).$extends(extensaoTenant);
@@ -33,10 +41,24 @@ function criarPrisma() {
 function clienteAtualizado(
   cliente: ReturnType<typeof criarPrisma> | undefined,
 ): cliente is ReturnType<typeof criarPrisma> {
+  if (globalForPrisma.prismaRev !== PRISMA_CLIENT_REV) return false;
+
+  const c = cliente as
+    | {
+        organization?: { findUnique?: unknown };
+        scheduleEvent?: { findMany?: unknown };
+        professional?: { findMany?: unknown };
+        appointmentItem?: { findMany?: unknown };
+        procedure?: { findMany?: unknown };
+      }
+    | undefined;
   return (
-    !!cliente &&
-    typeof (cliente as { organization?: { findUnique?: unknown } }).organization
-      ?.findUnique === "function"
+    !!c &&
+    typeof c.organization?.findUnique === "function" &&
+    typeof c.scheduleEvent?.findMany === "function" &&
+    typeof c.professional?.findMany === "function" &&
+    typeof c.appointmentItem?.findMany === "function" &&
+    typeof c.procedure?.findMany === "function"
   );
 }
 
@@ -51,7 +73,10 @@ function obterPrisma() {
   }
 
   const novo = criarPrisma();
-  if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = novo;
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = novo;
+    globalForPrisma.prismaRev = PRISMA_CLIENT_REV;
+  }
   return novo;
 }
 

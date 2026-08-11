@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma } from "@/lib/db";
 import { creditWallet, redeemFromWallet, LedgerError } from "@/lib/ledger";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
@@ -83,6 +83,40 @@ describe.runIf(runDb)("ledger concurrency", () => {
         amount: 100,
         idempotencyKey: `test-credit-base-${walletId}`,
       });
+    });
+  });
+
+  afterAll(async () => {
+    if (!patientId || !organizationId) return;
+    await comOrganizacao({ organizationId }, async () => {
+      // Ordem de FK: RedemptionItem → Redemption → LedgerEntry → CreditLot → Card → Wallet → Patient
+      const redemptions = await prisma.redemption.findMany({
+        where: { walletId },
+        select: { id: true },
+      });
+      const redemptionIds = redemptions.map((r) => r.id);
+      if (redemptionIds.length) {
+        await prisma.redemptionItem.deleteMany({
+          where: { redemptionId: { in: redemptionIds } },
+        });
+        await prisma.redemption.deleteMany({ where: { id: { in: redemptionIds } } });
+      }
+      await prisma.ledgerEntry.deleteMany({ where: { patientId } });
+      await prisma.creditLot.deleteMany({ where: { walletId } });
+      await prisma.card.deleteMany({ where: { walletId } }).catch(() => undefined);
+      await prisma.idempotencyKey
+        .deleteMany({
+          where: {
+            OR: [
+              { key: { startsWith: `test-credit-base-${walletId}` } },
+              { key: { startsWith: `parallel-` } },
+              { key: { startsWith: `idem-credit-` } },
+            ],
+          },
+        })
+        .catch(() => undefined);
+      await prisma.wallet.deleteMany({ where: { patientId } });
+      await prisma.patient.deleteMany({ where: { id: patientId } });
     });
   });
 

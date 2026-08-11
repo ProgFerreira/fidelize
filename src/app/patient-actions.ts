@@ -119,3 +119,53 @@ export async function updatePatientPreferencesAction(formData: FormData) {
 
   redirect("/p/perfil");
 }
+
+export async function exportMyDataAction() {
+  const session = await getPatientSession();
+  if (!session) redirect("/paciente");
+
+  const clinic = await prisma.clinic.findUnique({
+    where: { id: session.clinicId },
+    select: { organizationId: true },
+  });
+  if (!clinic?.organizationId) throw new Error("Clínica inválida");
+
+  const { exportPatientData } = await import("@/lib/lgpd");
+  const data = await comOrganizacao({ organizationId: clinic.organizationId }, () =>
+    exportPatientData({
+      clinicId: session.clinicId,
+      patientId: session.patientId,
+    }),
+  );
+
+  return data;
+}
+
+export async function anonymizeMyDataAction() {
+  const session = await getPatientSession();
+  if (!session) redirect("/paciente");
+
+  const clinic = await prisma.clinic.findUnique({
+    where: { id: session.clinicId },
+    select: { organizationId: true },
+  });
+  if (!clinic?.organizationId) throw new Error("Clínica inválida");
+
+  const { anonymizePatient } = await import("@/lib/lgpd");
+  const { revokeAllMobileSessionsForPatient } = await import("@/lib/mobile/session");
+
+  await comOrganizacao({ organizationId: clinic.organizationId }, async () => {
+    await anonymizePatient({
+      clinicId: session.clinicId,
+      patientId: session.patientId,
+      reason: "solicitacao_portal_paciente",
+    });
+    await revokeAllMobileSessionsForPatient({
+      clinicId: session.clinicId,
+      patientId: session.patientId,
+    });
+  });
+
+  await clearPatientSession();
+  redirect("/paciente?lgpd=anonimizado");
+}

@@ -1,7 +1,15 @@
 "use client";
 
-import { useTransition, type CSSProperties } from "react";
-import { Badge, Button, Input, Label, Select, Textarea } from "@/components/ui";
+import { useState, useTransition, type CSSProperties } from "react";
+import {
+  Badge,
+  Button,
+  Input,
+  Label,
+  Select,
+  Textarea,
+  toast,
+} from "@/components/ui";
 import { saveCategoryAction } from "@/app/actions";
 import { Gem, Shield } from "lucide-react";
 
@@ -36,12 +44,32 @@ function PlanIcon({ slug, color }: { slug: string; color: string }) {
 
 export function CategoryPlanCard({ category }: { category: CategoryPlan }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   return (
     <form
       action={(formData) => {
         startTransition(async () => {
-          await saveCategoryAction(formData);
+          setError(null);
+          setSaved(false);
+          try {
+            const result = await saveCategoryAction(formData);
+            if (!result.ok) {
+              setError(result.error);
+              toast.error("Falha ao salvar plano", result.error);
+              return;
+            }
+            setSaved(true);
+            toast.success("Plano salvo");
+          } catch (err) {
+            const message =
+              err instanceof Error
+                ? err.message
+                : "Não foi possível salvar o plano.";
+            setError(message);
+            toast.error("Falha ao salvar plano", message);
+          }
         });
       }}
       className="plan-card"
@@ -175,6 +203,14 @@ export function CategoryPlanCard({ category }: { category: CategoryPlan }) {
           {pending ? "Salvando..." : "Salvar plano"}
         </Button>
       </div>
+      {saved ? (
+        <p className="mt-2 text-sm text-green-700">Plano salvo.</p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-sm text-red-600">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

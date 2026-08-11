@@ -54,3 +54,13 @@ Sem credenciais, o envio é **simulado** (status SENT + evento com `simulated: t
 ## Domínio personalizado
 
 - Continua via `Clinic.customDomain` / host middleware (já preparado no portal)
+- UI de configuração em `/configuracoes` (DNS CNAME + HTTPS)
+
+## Comercial (pós-v2.1)
+
+- Combos Start/Pro/Vip em `/planos` com enforcement de limites
+- Loyalty 360 clínico em `/loyalty360`
+- Calculadora pública em `/calculadora`
+- Conectores clínicos em `/api/v1/connectors/clinical`
+- Observabilidade opcional via `SENTRY_DSN`
+- LGPD: exportação/anonimização no portal (`/p/perfil`)

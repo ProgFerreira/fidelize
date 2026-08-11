@@ -1,16 +1,66 @@
+import Link from "next/link";
+import {
+  ArrowLeft,
+  IdCard,
+  Phone,
+  MapPin,
+  Mail,
+  Wallet,
+  Clock3,
+  Sparkles,
+  Award,
+  CreditCard,
+  ShieldAlert,
+  Pencil,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePermission, hasPermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Card, Badge, Button, Select } from "@/components/ui";
+import {
+  CabecalhoPagina,
+  Badge,
+  Button,
+  Select,
+  Input,
+} from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 import { formatBRL } from "@/lib/money";
 import { getCategoryProgress } from "@/lib/categories";
 import { generateCardQrDataUrl } from "@/lib/cards";
 import { linkCardAction } from "@/app/actions";
 import { listTags } from "@/lib/tags";
-import { assignTagAction, removeTagAction } from "@/app/v2-actions";
+import {
+  assignTagAction,
+  removeTagAction,
+  staffAnonymizePatientLgpdAction,
+} from "@/app/v2-actions";
 import { AppointmentHistoryCard } from "@/components/patients/appointment-history";
+import { onlyDigits } from "@/lib/patients/cpf";
+
+function formatCpf(value: string) {
+  const d = onlyDigits(value);
+  if (d.length !== 11) return value;
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+}
+
+function formatPhone(value: string) {
+  const d = onlyDigits(value);
+  if (d.length === 11) {
+    return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  }
+  if (d.length === 10) {
+    return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  }
+  return value;
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
 
 export default async function PacienteDetalhePage({
   params,
@@ -19,6 +69,10 @@ export default async function PacienteDetalhePage({
 }) {
   const session = await requirePermission(PERMISSIONS.PATIENTS_READ);
   const clinicId = session.clinicId;
+  const canWrite = hasPermission(
+    session.user.permissions,
+    PERMISSIONS.PATIENTS_WRITE,
+  );
   const { id } = await params;
 
   const patient = await prisma.patient.findFirst({
@@ -58,190 +112,416 @@ export default async function PacienteDetalhePage({
   if (!patient) notFound();
   const wallet = patient.wallets[0];
   const progress = wallet ? await getCategoryProgress(wallet.id) : null;
-  const activeCard = wallet?.cards.find((c) => c.status === "ACTIVE");
+  const activeCards = wallet?.cards.filter((c) => c.status === "ACTIVE") ?? [];
+  const activeCard =
+    activeCards.find((c) => c.kind === "PHYSICAL") ??
+    activeCards.find((c) => c.kind === "VIRTUAL") ??
+    activeCards[0];
+  const virtualCard = activeCards.find((c) => c.kind === "VIRTUAL");
   const qr = activeCard
     ? await generateCardQrDataUrl(activeCard.publicToken)
     : null;
+  const virtualQr = virtualCard
+    ? await generateCardQrDataUrl(virtualCard.publicToken)
+    : null;
   const tags = await listTags(clinicId).catch(() => []);
   const canManageTags = session.user.permissions.includes(PERMISSIONS.TAGS_MANAGE);
+  const statusTone =
+    patient.status === "ACTIVE"
+      ? "success"
+      : patient.status === "BLOCKED"
+        ? "danger"
+        : "muted";
+  const categoryName = wallet?.category?.name ?? "Sem categoria";
+  const ledgerEntries = wallet?.ledgerEntries ?? [];
+  const creditLots = wallet?.creditLots ?? [];
 
   return (
-    <div>
-      <PageHeader
-        title={patient.fullName}
-        description={`CPF ${patient.cpf} · ${patient.phone}`}
-        actions={<Badge tone={patient.status === "ACTIVE" ? "success" : "danger"}>{labelPt(patient.status)}</Badge>}
+    <div className="patients-page patient-detail">
+      <CabecalhoPagina
+        titulo="Ficha do paciente"
+        descricao="Carteira, cartão, etiquetas e histórico comercial em um só lugar."
+        breadcrumbs={[
+          { label: "Pacientes", href: "/pacientes" },
+          { label: patient.fullName },
+        ]}
+        acoes={
+          <div className="flex flex-wrap items-center gap-2">
+            {canWrite ? (
+              <Link href={`/pacientes/${patient.id}/editar`}>
+                <Button variant="gold">
+                  <Pencil className="h-4 w-4" aria-hidden />
+                  Editar
+                </Button>
+              </Link>
+            ) : null}
+            <Link href="/pacientes">
+              <Button variant="contorno">
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+                Voltar
+              </Button>
+            </Link>
+          </div>
+        }
       />
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <h2 className="text-2xl">Carteira</h2>
-          {wallet ? (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-slate-500">Disponível</p>
-                <p className="text-3xl text-slate-900">
-                  {formatBRL(wallet.availableBalance)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Pendente</p>
-                <p className="text-3xl text-slate-900">
-                  {formatBRL(wallet.pendingBalance)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Pontos</p>
-                <p className="text-3xl text-slate-900">
-                  {wallet.pointsBalance}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Categoria</p>
-                <p className="text-3xl text-slate-900">
-                  {wallet.category?.name ?? "—"}
-                </p>
-              </div>
-              {progress?.next ? (
-                <div className="sm:col-span-2">
-                  <p className="mb-2 text-sm text-slate-500">
-                    Progresso para {progress.next.name}: {progress.progressPercent}%
-                  </p>
-                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-blue-500"
-                      style={{ width: `${progress.progressPercent}%` }}
-                    />
-                  </div>
-                </div>
+      <section className="patient-detail__hero">
+        <div className="patient-detail__hero-main">
+          <div className="patient-detail__avatar" aria-hidden>
+            {initials(patient.fullName)}
+          </div>
+          <div className="min-w-0">
+            <h2 className="patient-detail__name">{patient.fullName}</h2>
+            <div className="patient-detail__meta">
+              <span className="patient-detail__meta-item">
+                <IdCard aria-hidden />
+                CPF {formatCpf(patient.cpf)}
+              </span>
+              <span className="patient-detail__meta-item">
+                <Phone aria-hidden />
+                {formatPhone(patient.phone)}
+              </span>
+              {patient.email ? (
+                <span className="patient-detail__meta-item">
+                  <Mail aria-hidden />
+                  {patient.email}
+                </span>
+              ) : null}
+              {patient.unit ? (
+                <span className="patient-detail__meta-item">
+                  <MapPin aria-hidden />
+                  {patient.unit.name}
+                </span>
               ) : null}
             </div>
-          ) : (
-            <p className="mt-2 text-slate-500">Sem carteira ativa.</p>
-          )}
-        </Card>
-
-        <Card>
-          <h2 className="text-2xl">Cartão</h2>
-          {activeCard && qr ? (
-            <div className="mt-4 text-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qr} alt="QR Code do cartão" className="mx-auto rounded-xl" />
-              <p className="mt-2 font-mono text-sm">{activeCard.cardNumber}</p>
-            </div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              <p className="text-sm text-slate-500">Nenhum cartão ativo.</p>
-              {wallet ? (
-                <form action={linkCardAction} className="space-y-2">
-                  <input type="hidden" name="walletId" value={wallet.id} />
-                  <input
-                    name="publicToken"
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                    placeholder="Token do QR / cartão"
-                    required
-                  />
-                  <Button type="submit" variant="outline">
-                    Vincular cartão
-                  </Button>
-                </form>
-              ) : null}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <Card className="mt-4">
-        <h2 className="text-2xl">Etiquetas</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {patient.tagAssignments.map((a) => (
-            <form key={a.id} action={removeTagAction} className="inline-flex items-center gap-1">
-              <Badge tone="muted">
-                <span
-                  className="mr-1 inline-block h-2 w-2 rounded-full"
-                  style={{ background: a.tag.color }}
-                />
-                {a.tag.name}
-              </Badge>
-              {canManageTags && (
-                <>
-                  <input type="hidden" name="patientId" value={patient.id} />
-                  <input type="hidden" name="tagId" value={a.tagId} />
-                  <Button type="submit" size="sm" variant="ghost">
-                    ×
-                  </Button>
-                </>
-              )}
-            </form>
-          ))}
-          {patient.tagAssignments.length === 0 && (
-            <p className="text-sm text-slate-500">Nenhuma etiqueta.</p>
-          )}
+          </div>
         </div>
-        {canManageTags && (
-          <form action={assignTagAction} className="mt-3 flex flex-wrap gap-2">
-            <input type="hidden" name="patientId" value={patient.id} />
-            <Select name="tagId" required className="max-w-xs">
-              <option value="">Aplicar etiqueta</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
-            </Select>
-            <Button type="submit" size="sm">Aplicar</Button>
-          </form>
-        )}
-      </Card>
+        <div className="patient-detail__badges">
+          <Badge tone="gold">{categoryName}</Badge>
+          <Badge tone={statusTone}>{labelPt(patient.status)}</Badge>
+        </div>
+      </section>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card>
-          <h2 className="text-2xl">Extrato recente</h2>
-          <div className="mt-4 space-y-2">
-            {wallet?.ledgerEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between border-b border-slate-200/60 py-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{labelPt(entry.type)}</p>
-                  <p className="text-slate-500">
-                    {entry.createdAt.toLocaleString("pt-BR")}
-                  </p>
-                </div>
-                <p className="font-semibold">{formatBRL(entry.amount)}</p>
-              </div>
-            ))}
+      <div className="patients-stats patients-stats--4">
+        <div className="patients-stat">
+          <div className="patients-stat__icon patients-stat__icon--green">
+            <Wallet className="h-5 w-5" aria-hidden />
           </div>
-        </Card>
-        <Card>
-          <h2 className="text-2xl">Créditos próximos de expirar</h2>
-          <div className="mt-4 space-y-2">
-            {wallet?.creditLots.map((lot) => (
-              <div
-                key={lot.id}
-                className="flex items-center justify-between border-b border-slate-200/60 py-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{formatBRL(lot.remainingAmount)}</p>
-                  <p className="text-slate-500">
-                    {lot.expiresAt
-                      ? `Expira ${lot.expiresAt.toLocaleDateString("pt-BR")}`
-                      : "Sem validade"}
-                  </p>
-                </div>
-                <Badge tone="gold">{labelPt(lot.status)}</Badge>
-              </div>
-            ))}
+          <div>
+            <p className="patients-stat__label">Disponível</p>
+            <p className="patients-stat__value">
+              {formatBRL(wallet?.availableBalance ?? 0)}
+            </p>
           </div>
-        </Card>
+        </div>
+        <div className="patients-stat">
+          <div className="patients-stat__icon">
+            <Clock3 className="h-5 w-5" aria-hidden />
+          </div>
+          <div>
+            <p className="patients-stat__label">Pendente</p>
+            <p className="patients-stat__value">
+              {formatBRL(wallet?.pendingBalance ?? 0)}
+            </p>
+          </div>
+        </div>
+        <div className="patients-stat">
+          <div className="patients-stat__icon patients-stat__icon--gold">
+            <Sparkles className="h-5 w-5" aria-hidden />
+          </div>
+          <div>
+            <p className="patients-stat__label">Pontos</p>
+            <p className="patients-stat__value">{wallet?.pointsBalance ?? 0}</p>
+          </div>
+        </div>
+        <div className="patients-stat">
+          <div className="patients-stat__icon patients-stat__icon--gold">
+            <Award className="h-5 w-5" aria-hidden />
+          </div>
+          <div>
+            <p className="patients-stat__label">Categoria</p>
+            <p className="patients-stat__value" style={{ fontSize: "1.05rem" }}>
+              {categoryName}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <AppointmentHistoryCard
-        className="mt-4"
-        patientName={patient.fullName}
-        items={patient.appointments}
-      />
+      {progress?.next ? (
+        <div className="patient-detail__panel">
+          <div className="patient-detail__panel-head" style={{ marginBottom: 0 }}>
+            <div>
+              <h3 className="patient-detail__panel-title">
+                Progresso de categoria
+              </h3>
+              <p className="patient-detail__panel-desc">
+                Caminho até {progress.next.name}
+              </p>
+            </div>
+            <span className="patient-detail__progress-value">
+              {progress.progressPercent}%
+            </span>
+          </div>
+          <div className="patient-detail__progress">
+            <div className="patient-detail__progress-track">
+              <div
+                className="patient-detail__progress-bar"
+                style={{ width: `${progress.progressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="patient-detail__layout">
+        <div className="patient-detail__main">
+          <section className="patient-detail__panel">
+            <div className="patient-detail__panel-head">
+              <div>
+                <h3 className="patient-detail__panel-title">Etiquetas</h3>
+                <p className="patient-detail__panel-desc">
+                  Segmentação comercial do paciente
+                </p>
+              </div>
+              <span className="patient-detail__panel-count">
+                {patient.tagAssignments.length} ativa
+                {patient.tagAssignments.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <div className="patient-detail__tags">
+              {patient.tagAssignments.map((a) => (
+                <form
+                  key={a.id}
+                  action={removeTagAction}
+                  className="patient-detail__tag"
+                >
+                  <Badge tone="muted">
+                    <span
+                      className="patient-detail__tag-dot mr-1"
+                      style={{ background: a.tag.color }}
+                    />
+                    {a.tag.name}
+                  </Badge>
+                  {canManageTags ? (
+                    <>
+                      <input type="hidden" name="patientId" value={patient.id} />
+                      <input type="hidden" name="tagId" value={a.tagId} />
+                      <Button type="submit" size="sm" variant="ghost">
+                        ×
+                      </Button>
+                    </>
+                  ) : null}
+                </form>
+              ))}
+              {patient.tagAssignments.length === 0 ? (
+                <p className="patient-detail__empty">Nenhuma etiqueta aplicada.</p>
+              ) : null}
+            </div>
+
+            {canManageTags ? (
+              <form action={assignTagAction} className="patient-detail__tag-form">
+                <input type="hidden" name="patientId" value={patient.id} />
+                <Select name="tagId" required className="max-w-xs">
+                  <option value="">Aplicar etiqueta</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="submit" size="sm">
+                  Aplicar
+                </Button>
+              </form>
+            ) : null}
+          </section>
+
+          <div className="patient-detail__metric-grid">
+            <section className="patient-detail__panel">
+              <div className="patient-detail__panel-head">
+                <div>
+                  <h3 className="patient-detail__panel-title">Extrato recente</h3>
+                  <p className="patient-detail__panel-desc">
+                    Últimos lançamentos da carteira
+                  </p>
+                </div>
+                <span className="patient-detail__panel-count">
+                  {ledgerEntries.length}
+                </span>
+              </div>
+              {ledgerEntries.length === 0 ? (
+                <p className="patient-detail__empty">Sem lançamentos recentes.</p>
+              ) : (
+                <div className="patient-detail__list">
+                  {ledgerEntries.map((entry) => (
+                    <div key={entry.id} className="patient-detail__row">
+                      <div>
+                        <p className="patient-detail__row-title">
+                          {labelPt(entry.type)}
+                        </p>
+                        <p className="patient-detail__row-meta">
+                          {entry.createdAt.toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <p className="patient-detail__row-amount">
+                        {formatBRL(entry.amount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="patient-detail__panel">
+              <div className="patient-detail__panel-head">
+                <div>
+                  <h3 className="patient-detail__panel-title">
+                    Créditos a expirar
+                  </h3>
+                  <p className="patient-detail__panel-desc">
+                    Lotes com saldo ainda disponível
+                  </p>
+                </div>
+                <span className="patient-detail__panel-count">
+                  {creditLots.length}
+                </span>
+              </div>
+              {creditLots.length === 0 ? (
+                <p className="patient-detail__empty">
+                  Nenhum crédito próximo de expirar.
+                </p>
+              ) : (
+                <div className="patient-detail__list">
+                  {creditLots.map((lot) => (
+                    <div key={lot.id} className="patient-detail__row">
+                      <div>
+                        <p className="patient-detail__row-title">
+                          {formatBRL(lot.remainingAmount)}
+                        </p>
+                        <p className="patient-detail__row-meta">
+                          {lot.expiresAt
+                            ? `Expira ${lot.expiresAt.toLocaleDateString("pt-BR")}`
+                            : "Sem validade"}
+                        </p>
+                      </div>
+                      <Badge tone="gold">{labelPt(lot.status)}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <AppointmentHistoryCard
+            patientName={patient.fullName}
+            items={patient.appointments}
+          />
+        </div>
+
+        <aside className="patient-detail__aside">
+          <section className="patient-detail__panel patient-detail__card">
+            <div className="patient-detail__panel-head">
+              <div>
+                <h3 className="patient-detail__panel-title">Cartão</h3>
+                <p className="patient-detail__panel-desc">
+                  Identificação e QR do membro
+                </p>
+              </div>
+              <CreditCard className="h-4 w-4 text-slate-400" aria-hidden />
+            </div>
+
+            {activeCard && qr ? (
+              <div className="space-y-3">
+                <div className="digital-card">
+                  <p className="patient-detail__card-label">
+                    Cartão {activeCard.kind === "VIRTUAL" ? "virtual" : "físico"}
+                  </p>
+                  <p className="mt-3 text-lg font-semibold text-white">
+                    {patient.fullName.split(" ")[0]}
+                  </p>
+                  <p className="mt-1 text-sm text-white/65">{categoryName}</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qr}
+                    alt="QR Code do cartão"
+                    className="patient-detail__card-qr mt-5"
+                  />
+                  <p className="patient-detail__card-number">
+                    {activeCard.cardNumber}
+                  </p>
+                </div>
+                {virtualCard &&
+                virtualQr &&
+                virtualCard.id !== activeCard.id ? (
+                  <p className="text-xs text-slate-500">
+                    Também possui cartão virtual ativo:{" "}
+                    <strong>{virtualCard.cardNumber}</strong>
+                  </p>
+                ) : null}
+                {wallet ? (
+                  <form action={linkCardAction} className="patient-detail__link-form">
+                    <input type="hidden" name="walletId" value={wallet.id} />
+                    <Input
+                      name="publicToken"
+                      placeholder="Token para vincular/substituir físico"
+                      aria-label="Token do QR ou cartão"
+                    />
+                    <Button type="submit" variant="contorno" size="sm">
+                      Vincular físico
+                    </Button>
+                  </form>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-3 text-left">
+                <p className="patient-detail__empty" style={{ paddingTop: 0 }}>
+                  Nenhum cartão ativo vinculado.
+                </p>
+                {wallet ? (
+                  <form action={linkCardAction} className="patient-detail__link-form">
+                    <input type="hidden" name="walletId" value={wallet.id} />
+                    <Input
+                      name="publicToken"
+                      placeholder="Token do QR / cartão"
+                      required
+                      aria-label="Token do QR ou cartão"
+                    />
+                    <Button type="submit" variant="contorno">
+                      Vincular cartão
+                    </Button>
+                  </form>
+                ) : (
+                  <p className="patient-detail__empty">
+                    Crie uma carteira antes de vincular um cartão.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="patient-detail__panel patient-detail__danger">
+            <div className="patient-detail__panel-head">
+              <div>
+                <h3 className="patient-detail__panel-title">LGPD</h3>
+                <p className="patient-detail__panel-desc">
+                  Direitos do titular (art. 18)
+                </p>
+              </div>
+              <ShieldAlert className="h-4 w-4 text-red-500" aria-hidden />
+            </div>
+            <p className="text-sm text-slate-600">
+              A anonimização remove dados identificáveis e é irreversível.
+            </p>
+            <form action={staffAnonymizePatientLgpdAction} className="mt-3">
+              <input type="hidden" name="patientId" value={patient.id} />
+              <Button type="submit" variant="perigo" size="sm">
+                Anonimizar titular
+              </Button>
+            </form>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

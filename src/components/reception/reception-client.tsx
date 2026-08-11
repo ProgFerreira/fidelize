@@ -10,7 +10,7 @@ import {
   confirmReceptionAction,
   updateReceptionSaleAction,
   getSaleForEditAction,
-  linkCardAction,
+  linkCardFormAction,
   getPatientAppointmentHistoryAction,
 } from "@/app/actions";
 import { formatBRL } from "@/lib/money";
@@ -362,7 +362,7 @@ export function ReceptionClient({
 
           {selected && wallet && !wallet.cards.length ? (
             <form
-              action={linkCardAction}
+              action={linkCardFormAction}
               className="mt-6 space-y-2 border-t border-slate-200 pt-4"
             >
               <p className="text-sm font-semibold">Vincular cartão disponível</p>

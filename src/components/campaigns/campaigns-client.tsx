@@ -28,6 +28,7 @@ import { saveCampaignAction } from "@/app/actions";
 import { formatBRL } from "@/lib/money";
 import { labelPt } from "@/lib/i18n/labels";
 import { cn } from "@/lib/utils";
+import { toClientProps } from "@/lib/serialize";
 
 export type CampaignDTO = {
   id: string;
@@ -46,10 +47,10 @@ export type CampaignRoiDTO = {
   id: string;
   impacted: number;
   attributedVisits: number;
-  revenue: number;
+  revenue: number | string;
   benefitCost: number | string;
   commCost: number | string;
-  netRevenue: number;
+  netRevenue: number | string;
   roi: number | null;
 };
 
@@ -206,7 +207,7 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
         toast.error("Falha ao salvar", result.error);
         return;
       }
-      const saved = result.campaign as CampaignDTO;
+      const saved = toClientProps<CampaignDTO>(result.campaign);
       setCampaigns((prev) => {
         const exists = prev.some((c) => c.id === saved.id);
         if (exists) {

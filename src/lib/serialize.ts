@@ -16,6 +16,11 @@ export function toPlain<T>(value: T): T {
   ) as T;
 }
 
+/** Como toPlain, mas tipa o retorno para DTOs de Client Components. */
+export function toClientProps<T>(value: unknown): T {
+  return toPlain(value) as T;
+}
+
 export function decimalToNumber(value: unknown): number {
   if (value == null) return 0;
   if (typeof value === "number") return value;

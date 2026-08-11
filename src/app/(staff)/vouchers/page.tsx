@@ -4,8 +4,12 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listVouchers } from "@/lib/vouchers";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
-import { VouchersClient } from "@/components/vouchers/vouchers-client";
-import { toPlain } from "@/lib/serialize";
+import {
+  VouchersClient,
+  type VoucherDTO,
+  type VoucherPatientOption,
+} from "@/components/vouchers/vouchers-client";
+import { toClientProps } from "@/lib/serialize";
 
 export default async function VouchersPage() {
   const session = await requirePermission(PERMISSIONS.VOUCHERS_MANAGE);
@@ -33,8 +37,8 @@ export default async function VouchersPage() {
         }
       />
       <VouchersClient
-        initialVouchers={toPlain(vouchers)}
-        patients={toPlain(patients)}
+        initialVouchers={toClientProps<VoucherDTO[]>(vouchers)}
+        patients={toClientProps<VoucherPatientOption[]>(patients)}
       />
     </div>
   );

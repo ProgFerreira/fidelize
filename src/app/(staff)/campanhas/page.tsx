@@ -4,8 +4,12 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { PageHeader } from "@/components/ui";
 import { campaignRoi } from "@/lib/metrics";
-import { toPlain } from "@/lib/serialize";
-import { CampaignsClient } from "@/components/campaigns/campaigns-client";
+import { toClientProps } from "@/lib/serialize";
+import {
+  CampaignsClient,
+  type CampaignDTO,
+  type CampaignRoiDTO,
+} from "@/components/campaigns/campaigns-client";
 
 export default async function CampanhasPage() {
   const session = await requirePermission(PERMISSIONS.CAMPAIGNS_MANAGE);
@@ -32,8 +36,8 @@ export default async function CampanhasPage() {
         }
       />
       <CampaignsClient
-        initialCampaigns={toPlain(campaigns)}
-        initialRois={toPlain(rois)}
+        initialCampaigns={toClientProps<CampaignDTO[]>(campaigns)}
+        initialRois={toClientProps<CampaignRoiDTO[]>(rois)}
       />
     </div>
   );

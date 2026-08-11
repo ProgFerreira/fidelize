@@ -30,6 +30,7 @@ import {
 import { formatBRL } from "@/lib/money";
 import { labelPt } from "@/lib/i18n/labels";
 import { cn } from "@/lib/utils";
+import { toClientProps } from "@/lib/serialize";
 
 export type GiftCardDTO = {
   id: string;
@@ -169,7 +170,7 @@ export function GiftCardsClient({ initialCards }: Props) {
         toast.error("Falha ao emitir", result.error);
         return;
       }
-      setCards((prev) => mergeCard(prev, result.giftCard as GiftCardDTO));
+      setCards((prev) => mergeCard(prev, toClientProps<GiftCardDTO>(result.giftCard)));
       toast.success("Vale emitido", result.giftCard.code);
       setDraft(null);
       router.refresh();
@@ -192,7 +193,7 @@ export function GiftCardsClient({ initialCards }: Props) {
         toast.error("Falha ao debitar", result.error);
         return;
       }
-      setCards((prev) => mergeCard(prev, result.giftCard as GiftCardDTO));
+      setCards((prev) => mergeCard(prev, toClientProps<GiftCardDTO>(result.giftCard)));
       toast.success("Valor debitado", result.giftCard.code);
       setRedeemOpen(false);
       setRedeemCode("");
@@ -216,13 +217,12 @@ export function GiftCardsClient({ initialCards }: Props) {
         toast.error("Falha ao ativar", result.error);
         return;
       }
-      setCards((prev) => mergeCard(prev, result.giftCard as GiftCardDTO));
+      const giftCard = toClientProps<GiftCardDTO>(result.giftCard);
+      setCards((prev) => mergeCard(prev, giftCard));
       setViewing((prev) =>
-        prev?.id === result.giftCard.id
-          ? { ...prev, ...result.giftCard }
-          : prev,
+        prev?.id === giftCard.id ? { ...prev, ...giftCard } : prev,
       );
-      toast.success("Vale ativado", result.giftCard.code);
+      toast.success("Vale ativado", giftCard.code);
       router.refresh();
     } catch (error) {
       toast.error(

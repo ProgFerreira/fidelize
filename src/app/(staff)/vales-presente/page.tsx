@@ -3,8 +3,11 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listGiftCards } from "@/lib/giftcards";
 import { PageHeader } from "@/components/ui";
-import { GiftCardsClient } from "@/components/giftcards/giftcards-client";
-import { toPlain } from "@/lib/serialize";
+import {
+  GiftCardsClient,
+  type GiftCardDTO,
+} from "@/components/giftcards/giftcards-client";
+import { toClientProps } from "@/lib/serialize";
 
 export default async function ValesPresentePage() {
   const session = await requirePermission(PERMISSIONS.GIFTCARDS_MANAGE);
@@ -23,7 +26,7 @@ export default async function ValesPresentePage() {
           </span>
         }
       />
-      <GiftCardsClient initialCards={toPlain(cards)} />
+      <GiftCardsClient initialCards={toClientProps<GiftCardDTO[]>(cards)} />
     </div>
   );
 }

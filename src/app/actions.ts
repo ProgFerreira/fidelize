@@ -109,6 +109,11 @@ export async function linkCardAction(formData: FormData) {
   }
 }
 
+/** Compatível com <form action={...}> (React exige Promise<void>). */
+export async function linkCardFormAction(formData: FormData): Promise<void> {
+  await linkCardAction(formData);
+}
+
 export async function blockCardAction(formData: FormData) {
   try {
     const session = await requirePermission(PERMISSIONS.CARDS_MANAGE);

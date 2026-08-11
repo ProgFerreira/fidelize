@@ -28,7 +28,7 @@ import { labelPt } from "@/lib/i18n/labels";
 import { formatBRL } from "@/lib/money";
 import { getCategoryProgress } from "@/lib/categories";
 import { generateCardQrDataUrl } from "@/lib/cards";
-import { linkCardAction } from "@/app/actions";
+import { linkCardFormAction } from "@/app/actions";
 import { listTags } from "@/lib/tags";
 import {
   assignTagAction,
@@ -460,7 +460,7 @@ export default async function PacienteDetalhePage({
                   </p>
                 ) : null}
                 {wallet ? (
-                  <form action={linkCardAction} className="patient-detail__link-form">
+                  <form action={linkCardFormAction} className="patient-detail__link-form">
                     <input type="hidden" name="walletId" value={wallet.id} />
                     <Input
                       name="publicToken"
@@ -479,7 +479,7 @@ export default async function PacienteDetalhePage({
                   Nenhum cartão ativo vinculado.
                 </p>
                 {wallet ? (
-                  <form action={linkCardAction} className="patient-detail__link-form">
+                  <form action={linkCardFormAction} className="patient-detail__link-form">
                     <input type="hidden" name="walletId" value={wallet.id} />
                     <Input
                       name="publicToken"

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 import { getCardSettings, getStockAlerts } from "@/lib/cards";
-import { toPlain } from "@/lib/serialize";
+import { toClientProps } from "@/lib/serialize";
 import { CardsOpsPanel } from "@/components/cards/cards-ops-panel";
 import { CardsList } from "@/components/cards/cards-list";
 
@@ -147,7 +147,21 @@ export default async function CartoesPage({
     take: PAGE_SIZE,
   });
 
-  const listItems = toPlain(
+  const listItems = toClientProps<
+    Array<{
+      id: string;
+      cardNumber: string;
+      publicToken: string;
+      kind: string;
+      status: string;
+      expiresAt: string | null;
+      linkedAt: string | null;
+      createdAt: string;
+      blockedReason: string | null;
+      unitName: string | null;
+      patient: { id: string; fullName: string } | null;
+    }>
+  >(
     cards.map((card) => ({
       id: card.id,
       cardNumber: card.cardNumber,
@@ -163,19 +177,7 @@ export default async function CartoesPage({
         ? { id: card.wallet.patient.id, fullName: card.wallet.patient.fullName }
         : null,
     })),
-  ) as Array<{
-    id: string;
-    cardNumber: string;
-    publicToken: string;
-    kind: string;
-    status: string;
-    expiresAt: string | null;
-    linkedAt: string | null;
-    createdAt: string;
-    blockedReason: string | null;
-    unitName: string | null;
-    patient: { id: string; fullName: string } | null;
-  }>;
+  );
 
   return (
     <div className="cartoes-page">

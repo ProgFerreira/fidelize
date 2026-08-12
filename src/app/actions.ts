@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { unstable_rethrow } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { createPatient, updatePatient, patientSchema } from "@/lib/patients";
@@ -32,6 +32,12 @@ export async function createPatientAction(formData: FormData) {
 
   revalidatePath("/pacientes");
   return { ok: true as const, patientId: patient.id };
+}
+
+/** Action de formulário: cria e redireciona (evita inline "use server" na page). */
+export async function createPatientFormAction(formData: FormData) {
+  const result = await createPatientAction(formData);
+  redirect(`/pacientes/${result.patientId}`);
 }
 
 export async function updatePatientAction(patientId: string, formData: FormData) {

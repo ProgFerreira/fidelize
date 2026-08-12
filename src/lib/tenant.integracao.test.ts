@@ -21,6 +21,7 @@ function createClient() {
   return new PrismaClient({ adapter }).$extends(extensaoTenant);
 }
 
+const runDb = process.env.RUN_DB_TESTS === "1";
 const prisma = createClient();
 
 const ORG_A = "org_test_a_tenant_iso";
@@ -63,7 +64,7 @@ async function montarCenario() {
   });
 }
 
-describe("tenant isolation", () => {
+describe.runIf(runDb)("tenant isolation", () => {
   beforeAll(async () => {
     await montarCenario();
   });

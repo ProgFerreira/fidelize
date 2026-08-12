@@ -50,6 +50,8 @@ export function LoginForm({
           setError("Informe o código MFA.");
         } else if (result.error.includes("ORGANIZATION_SUSPENDED")) {
           setError("Organização suspensa.");
+        } else if (result.error.includes("TOO_MANY_ATTEMPTS")) {
+          setError("Muitas tentativas. Aguarde alguns minutos e tente novamente.");
         } else {
           setError("E-mail ou senha incorretos.");
         }
@@ -66,6 +68,8 @@ export function LoginForm({
         setError("Informe o código MFA.");
       } else if (message.includes("ORGANIZATION_SUSPENDED")) {
         setError("Organização suspensa.");
+      } else if (message.includes("TOO_MANY_ATTEMPTS")) {
+        setError("Muitas tentativas. Aguarde alguns minutos e tente novamente.");
       } else {
         setError(message);
       }

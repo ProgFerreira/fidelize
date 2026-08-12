@@ -21,6 +21,36 @@ function authSecret() {
   return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 }
 
+const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 10;
+
+function extractIp(request: Request | undefined): string | null {
+  const forwarded = request?.headers.get("x-forwarded-for");
+  return forwarded?.split(",")[0]?.trim() || null;
+}
+
+/**
+ * Bloqueia por IP após N falhas na janela — não grava audit log para o
+ * bloqueio em si, só conta falhas reais (LOGIN_FAILED), então a janela
+ * desliza normalmente sem se auto-estender enquanto o atacante insiste.
+ */
+async function checkLoginRateLimit(ip: string | null) {
+  if (!ip) return;
+  const since = new Date(Date.now() - LOGIN_RATE_LIMIT_WINDOW_MS);
+  const attempts = await semOrganizacao(() =>
+    prisma.auditLog.count({
+      where: {
+        action: "LOGIN_FAILED",
+        ipAddress: ip,
+        createdAt: { gte: since },
+      },
+    }),
+  );
+  if (attempts >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS) {
+    throw new Error("TOO_MANY_ATTEMPTS");
+  }
+}
+
 const nextAuth = NextAuth({
   ...authConfig,
   ...(authSecret() ? { secret: authSecret() } : {}),
@@ -33,7 +63,7 @@ const nextAuth = NextAuth({
         mfaCode: { label: "MFA", type: "text" },
         organizationSlug: { label: "Org", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = String(credentials?.email ?? "")
           .trim()
           .toLowerCase();
@@ -46,6 +76,9 @@ const nextAuth = NextAuth({
         if (!email || !password) {
           return null;
         }
+
+        const ip = extractIp(request);
+        await checkLoginRateLimit(ip);
 
         const org = organizationSlug
           ? await buscarOrganizacaoPorSlug(organizationSlug)
@@ -79,6 +112,7 @@ const nextAuth = NextAuth({
           await semOrganizacao(() =>
             writeAuditLog({
               action: "LOGIN_FAILED",
+              ipAddress: ip,
               metadata: { email, reason: "user_not_found_or_inactive" },
             }),
           );
@@ -92,6 +126,7 @@ const nextAuth = NextAuth({
               clinicId: user.clinicId,
               userId: user.id,
               action: "LOGIN_FAILED",
+              ipAddress: ip,
               metadata: { email, reason: "invalid_password" },
             });
           if (user.organizationId) {
@@ -199,6 +234,9 @@ export const { handlers, signIn, signOut } = nextAuth;
 export async function auth() {
   const sessao = await nextAuth.auth();
   if (sessao?.user?.organizationId) {
+    // estabelecerOrganizacao usa enterWith + Map por request-id.
+    // Em seguida reforçamos com comOrganizacao no-op para garantir ALS.run
+    // no mesmo tick em que a page/layout continua (Hostinger/RSC).
     await estabelecerOrganizacao({
       organizationId: sessao.user.organizationId,
       suporte:

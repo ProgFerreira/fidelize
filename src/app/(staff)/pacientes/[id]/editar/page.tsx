@@ -25,6 +25,7 @@ import {
 import { updatePatientAction } from "@/app/actions";
 import { onlyDigits } from "@/lib/patients/cpf";
 import { labelPt } from "@/lib/i18n/labels";
+import { comOrganizacao } from "@/lib/tenant";
 
 function formatCpf(value: string) {
   const d = onlyDigits(value);
@@ -57,15 +58,19 @@ export default async function EditarPacientePage({
   const clinicId = session.clinicId;
   const { id } = await params;
 
-  const [patient, units] = await Promise.all([
-    prisma.patient.findFirst({
-      where: { id, clinicId },
-    }),
-    prisma.unit.findMany({
-      where: { clinicId, active: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+  const [patient, units] = await comOrganizacao(
+    { organizationId: session.organizationId },
+    () =>
+      Promise.all([
+        prisma.patient.findFirst({
+          where: { id, clinicId },
+        }),
+        prisma.unit.findMany({
+          where: { clinicId, active: true },
+          orderBy: { name: "asc" },
+        }),
+      ]),
+  );
 
   if (!patient) notFound();
 

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  # Valores fake — nenhum destes precisa ser real. Prisma generate e o
+  # build do Next não conectam no banco; testes que precisam de banco
+  # real ficam pulados (RUN_DB_TESTS não é setado aqui).
+  DATABASE_URL: "mysql://user:pass@127.0.0.1:3306/ci_placeholder"
+  AUTH_SECRET: "ci-placeholder-secret-not-used-in-prod"
+  AUTH_URL: "http://localhost:3000"
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (sem banco)
+        run: npm test
+
+      - name: Build de produção
+        run: npm run build

@@ -58,14 +58,33 @@ async function runNodeScript(scriptPath: string, args: string[]) {
   };
 }
 
+function writeEnabled() {
+  return process.env.ALLOW_SETUP_DB_WRITE === "true";
+}
+
 /**
  * Setup one-shot do banco na Hostinger.
  * POST /api/setup/db?secret=SEU_SETUP_SECRET
  * Body JSON opcional: { "migrate": true, "seed": true }
+ *
+ * Exige TAMBÉM ALLOW_SETUP_DB_WRITE=true no ambiente — segunda trava
+ * independente do secret, para que a escrita fique desligada por padrão
+ * mesmo que o secret vaze. Ligue só durante o bootstrap e desligue depois.
  */
 export async function POST(request: Request) {
   const gate = assertSecret(request);
   if (!gate.ok) return gate.response;
+
+  if (!writeEnabled()) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Escrita desabilitada. Defina ALLOW_SETUP_DB_WRITE=true no hostinger.env, reinicie o app, rode o setup e depois remova essa variável (e o SETUP_SECRET).",
+      },
+      { status: 503 },
+    );
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     seed?: boolean;

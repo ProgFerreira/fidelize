@@ -32,10 +32,11 @@ function criarPrisma() {
     user: decodeURIComponent(parsed.username || "root"),
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, ""),
-    connectionLimit: 10,
+    // Hostinger MySQL compartilha limite baixo; 10 por processo esgota o pool.
+    connectionLimit: 5,
     // Evita ficar em "Salvando..." sem feedback quando o MySQL não responde.
-    acquireTimeout: 8_000,
-    connectTimeout: 5_000,
+    acquireTimeout: 10_000,
+    connectTimeout: 8_000,
   });
 
   return new PrismaClient({ adapter }).$extends(extensaoTenant);

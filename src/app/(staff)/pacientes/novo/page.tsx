@@ -22,22 +22,22 @@ import {
   Textarea,
   Badge,
 } from "@/components/ui";
-import { createPatientAction } from "@/app/actions";
-import { redirect } from "next/navigation";
+import { createPatientFormAction } from "@/app/actions";
+import { comOrganizacao } from "@/lib/tenant";
 
 export default async function NovoPacientePage() {
   const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
   const clinicId = session.clinicId;
-  const units = await prisma.unit.findMany({
-    where: { clinicId, active: true },
-    orderBy: { name: "asc" },
-  });
-
-  async function action(formData: FormData) {
-    "use server";
-    const result = await createPatientAction(formData);
-    redirect(`/pacientes/${result.patientId}`);
-  }
+  // comOrganizacao reforça o tenant (ALS.run) — evita 500 intermitente no soft-nav
+  // quando enterWith do auth() se perde entre boundaries do RSC.
+  const units = await comOrganizacao(
+    { organizationId: session.organizationId },
+    () =>
+      prisma.unit.findMany({
+        where: { clinicId, active: true },
+        orderBy: { name: "asc" },
+      }),
+  );
 
   return (
     <div className="patients-page patient-new">
@@ -92,7 +92,7 @@ export default async function NovoPacientePage() {
         </div>
       </section>
 
-      <form action={action} className="patient-new__layout">
+      <form action={createPatientFormAction} className="patient-new__layout">
         <div className="patient-new__main">
           <section className="patient-new__panel patient-new__panel--enter">
             <div className="patient-new__panel-head">

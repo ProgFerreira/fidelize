@@ -13,7 +13,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "test": "vitest run",
-    "test:db": "cross-env RUN_DB_TESTS=1 vitest run src/lib/ledger/ledger.test.ts",
+    "test:db": "cross-env RUN_DB_TESTS=1 vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "@prisma/adapter-mariadb": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@radix-ui/react-toast": "^1.2.23",
+    "@sentry/nextjs": "^10.70.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

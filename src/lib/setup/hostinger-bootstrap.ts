@@ -9,6 +9,7 @@ import {
   type PermissionCode,
 } from "@/lib/auth/permissions";
 import { semOrganizacao } from "@/lib/tenant";
+import { EMBEDDED_MIGRATIONS } from "@/lib/setup/embedded-migrations";
 
 const ORG_ID = "org_inicial_dermaphios_000";
 const PLATFORM_ORG_ID = "org_plataforma_interno_000";
@@ -111,6 +112,7 @@ export async function diagnoseDb() {
     prismaCli: findPrismaCli(),
     tsxCli: findTsxCli(),
     migrationsDir: findMigrationsDir(),
+    embeddedMigrations: EMBEDDED_MIGRATIONS.length,
     hasMigrationsTable,
     hasUserTable,
     hasOrganizationTable,
@@ -120,10 +122,31 @@ export async function diagnoseDb() {
   };
 }
 
+function loadMigrationSources(): Array<{ name: string; sql: string }> {
+  const dir = findMigrationsDir();
+  if (dir) {
+    const folders = readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      .sort();
+    return folders
+      .map((name) => {
+        const sqlPath = path.join(dir, name, "migration.sql");
+        if (!existsSync(sqlPath)) return null;
+        return { name, sql: readFileSync(sqlPath, "utf8") };
+      })
+      .filter((x): x is { name: string; sql: string } => Boolean(x));
+  }
+  return EMBEDDED_MIGRATIONS.map((m) => ({ name: m.name, sql: m.sql }));
+}
+
 export async function applyMigrationsWithClient() {
-  const migrationsDir = findMigrationsDir();
-  if (!migrationsDir) {
-    return { ok: false as const, error: "Pasta prisma/migrations não encontrada no deploy." };
+  const migrations = loadMigrationSources();
+  if (migrations.length === 0) {
+    return {
+      ok: false as const,
+      error: "Nenhuma migration encontrada (pasta prisma/migrations nem embutidas).",
+    };
   }
 
   await prisma.$executeRawUnsafe(`
@@ -145,17 +168,9 @@ export async function applyMigrationsWithClient() {
   );
   const appliedSet = new Set(applied.map((r) => r.migration_name));
 
-  const folders = readdirSync(migrationsDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name)
-    .sort();
-
   const ran: string[] = [];
-  for (const name of folders) {
+  for (const { name, sql } of migrations) {
     if (appliedSet.has(name)) continue;
-    const sqlPath = path.join(migrationsDir, name, "migration.sql");
-    if (!existsSync(sqlPath)) continue;
-    const sql = readFileSync(sqlPath, "utf8");
     const statements = splitSqlStatements(sql);
     const id = randomUUID();
     await prisma.$executeRawUnsafe(
@@ -192,7 +207,12 @@ export async function applyMigrationsWithClient() {
     }
   }
 
-  return { ok: true as const, ran, skipped: [...appliedSet] };
+  return {
+    ok: true as const,
+    ran,
+    skipped: [...appliedSet],
+    source: findMigrationsDir() ? "filesystem" : "embedded",
+  };
 }
 
 export async function seedStaffUsers() {

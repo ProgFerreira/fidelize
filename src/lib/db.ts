@@ -37,6 +37,10 @@ function criarPrisma() {
     // Evita ficar em "Salvando..." sem feedback quando o MySQL não responde.
     acquireTimeout: 10_000,
     connectTimeout: 8_000,
+    // Sem isso, a Hostinger negocia UTF8MB4_BIN na conexão, colidindo com a
+    // collation das tabelas (utf8mb4_unicode_ci) em qualquer LIKE/contains.
+    charset: "utf8mb4",
+    collation: "UTF8MB4_UNICODE_CI",
   });
 
   return new PrismaClient({ adapter }).$extends(extensaoTenant);

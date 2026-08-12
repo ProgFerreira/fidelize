@@ -17,6 +17,8 @@ function createClient() {
     user: decodeURIComponent(parsed.username || "root"),
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, ""),
+    charset: "utf8mb4",
+    collation: "UTF8MB4_UNICODE_CI",
   });
   return new PrismaClient({ adapter }).$extends(extensaoTenant);
 }

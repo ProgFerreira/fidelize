@@ -69,7 +69,7 @@ export default auth((req) => {
   const sessao = req.auth;
   const ehApi = pathname.startsWith("/api/");
 
-  if (pathname === "/__proxy_debug") {
+  if (pathname === "/login" && req.nextUrl.searchParams.get("debug") === "1") {
     return NextResponse.json({
       hasAuthSecret: Boolean(process.env.AUTH_SECRET),
       hasAuthUrl: Boolean(process.env.AUTH_URL),

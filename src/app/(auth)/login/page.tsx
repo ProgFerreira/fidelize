@@ -40,8 +40,7 @@ export default async function LoginPage() {
             src="/images/login-hero.jpg"
             alt="Ambiente premium de clínica"
             fill
-            priority
-            sizes="(min-width: 960px) 55vw, 0px"
+            sizes="(min-width: 960px) 55vw, 1px"
           />
         </div>
         <div className="login-visual__overlay" />

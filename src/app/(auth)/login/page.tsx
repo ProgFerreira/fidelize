@@ -80,7 +80,6 @@ export default async function LoginPage() {
             src="/images/login-hero.jpg"
             alt=""
             fill
-            priority
             sizes="100vw"
           />
         </div>

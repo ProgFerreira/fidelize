@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Button, Campo, Input } from "@/components/ui";
 
@@ -72,14 +73,14 @@ export function LoginForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form onSubmit={onSubmit} className="login-form" noValidate>
       {hostTipo === "organizacao" && slug ? (
-        <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        <p className="login-form__hint login-form__hint--org">
           Organização: <strong>{slug}</strong>
         </p>
       ) : null}
       {hostTipo === "plataforma" ? (
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <p className="login-form__hint login-form__hint--platform">
           Acesso da plataforma
         </p>
       ) : null}
@@ -100,6 +101,7 @@ export function LoginForm({
           onChange={(e) => setEmail(e.target.value)}
           required
           autoComplete="username"
+          placeholder="seu@email.com"
         />
       </Campo>
       <Campo label="Senha" obrigatorio>
@@ -109,8 +111,14 @@ export function LoginForm({
           onChange={(e) => setPassword(e.target.value)}
           required
           autoComplete="current-password"
+          placeholder="••••••••"
         />
       </Campo>
+      <div className="login-form__row">
+        <Link href="/recuperar-senha" className="login-form__link">
+          Esqueceu a senha?
+        </Link>
+      </div>
       {needsMfa ? (
         <Campo label="Código MFA">
           <Input
@@ -122,16 +130,16 @@ export function LoginForm({
         </Campo>
       ) : null}
       {error ? (
-        <p
-          role="alert"
-          className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
-        >
+        <p role="alert" className="login-form__error">
           {error}
         </p>
       ) : null}
-      <Button type="submit" carregando={loading} className="w-full">
+      <Button type="submit" carregando={loading} className="login-form__submit w-full">
         Entrar
       </Button>
+      <p className="login-form__footer">
+        Acesso restrito à equipe autorizada da clínica.
+      </p>
     </form>
   );
 }

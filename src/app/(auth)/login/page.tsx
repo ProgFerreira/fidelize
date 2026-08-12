@@ -1,9 +1,9 @@
 import { LoginForm } from "@/components/auth/login-form";
 import { auth } from "@/lib/auth";
-import { Stethoscope } from "lucide-react";
+import { Sparkles, Stethoscope } from "lucide-react";
 import { headers } from "next/headers";
+import Image from "next/image";
 import { redirect } from "next/navigation";
-import { Card } from "@/components/ui";
 import {
   HEADER_ORG_SLUG,
   resolverHost,
@@ -25,31 +25,95 @@ export default async function LoginPage() {
   const organizationSlug =
     host.tipo === "organizacao" ? host.slug : slugHeader || null;
 
+  const contexto =
+    host.tipo === "plataforma"
+      ? "Administração da plataforma"
+      : organizationSlug
+        ? `Clube de Benefícios · ${organizationSlug}`
+        : "Clube de Benefícios";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 dark:bg-slate-950">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-blue-600">
-            <Stethoscope className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-            Fidelize
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {host.tipo === "plataforma"
-              ? "Administração da plataforma"
-              : organizationSlug
-                ? `Clube de Benefícios · ${organizationSlug}`
-                : "Clube de Benefícios"}
-          </p>
+    <div className="login-page">
+      <aside className="login-visual">
+        <div className="login-visual__media">
+          <Image
+            src="/images/login-hero.jpg"
+            alt="Ambiente premium de clínica"
+            fill
+            priority
+            sizes="(min-width: 960px) 55vw, 0px"
+          />
         </div>
-        <Card>
+        <div className="login-visual__overlay" />
+        <div className="login-visual__content">
+          <p className="login-visual__eyebrow">
+            <Sparkles aria-hidden />
+            Fidelize Premium
+          </p>
+          <h1 className="login-visual__title">
+            Seu clube de benefícios, <span>com elegância</span>
+          </h1>
+          <p className="login-visual__desc">
+            Cashback, pontos, cartão digital e campanhas em uma experiência
+            feita para clínicas que valorizam cada paciente.
+          </p>
+          <div className="login-visual__stats">
+            <div className="login-visual__stat">
+              <strong>Cashback</strong>
+              <span>Retorno real nas vendas</span>
+            </div>
+            <div className="login-visual__stat">
+              <strong>Pontos</strong>
+              <span>Engajamento contínuo</span>
+            </div>
+            <div className="login-visual__stat">
+              <strong>Cartão</strong>
+              <span>Identidade digital</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="login-mobile-banner">
+        <div className="login-mobile-banner__media">
+          <Image
+            src="/images/login-hero.jpg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+          />
+        </div>
+        <div className="login-mobile-banner__overlay" />
+        <div className="login-mobile-banner__content">
+          <h2>Fidelize</h2>
+          <p>{contexto}</p>
+        </div>
+      </div>
+
+      <main className="login-panel">
+        <div className="login-panel__inner">
+          <div className="login-panel__brand">
+            <div className="login-panel__brand-icon">
+              <Stethoscope aria-hidden />
+            </div>
+            <div className="login-panel__brand-text">
+              <span className="login-panel__brand-name">Fidelize</span>
+              <span className="login-panel__brand-sub">{contexto}</span>
+            </div>
+          </div>
+
+          <h2 className="login-panel__heading">Bem-vindo de volta</h2>
+          <p className="login-panel__lede">
+            Entre com suas credenciais para acessar o painel.
+          </p>
+
           <LoginForm
             organizationSlug={organizationSlug}
             hostTipo={host.tipo}
           />
-        </Card>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

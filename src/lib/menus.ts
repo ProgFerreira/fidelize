@@ -53,6 +53,14 @@ export const MENUS: MenuDef[] = [
     permission: PERMISSIONS.DASHBOARD_VIEW,
   },
   {
+    id: "resumo-financeiro",
+    label: "Resumo financeiro",
+    rota: "/resumo-financeiro",
+    icone: "TrendingUp",
+    area: "inicio",
+    permission: PERMISSIONS.REPORTS_VIEW,
+  },
+  {
     id: "recepcao",
     label: "Recepção",
     rota: "/recepcao",

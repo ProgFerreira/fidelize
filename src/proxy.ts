@@ -69,20 +69,6 @@ export default auth((req) => {
   const sessao = req.auth;
   const ehApi = pathname.startsWith("/api/");
 
-  const debugAtivo = req.nextUrl.searchParams.get("debug") === "1";
-  const marcarDebug = (res: NextResponse) => {
-    if (!debugAtivo) return res;
-    res.headers.set("x-debug-has-auth-secret", String(Boolean(process.env.AUTH_SECRET)));
-    res.headers.set("x-debug-has-auth-url", String(Boolean(process.env.AUTH_URL)));
-    res.headers.set("x-debug-cookie-names", req.cookies.getAll().map((c) => c.name).join(","));
-    res.headers.set("x-debug-sessao-presente", String(Boolean(sessao?.user)));
-    res.headers.set("x-debug-sessao-email", sessao?.user?.email ?? "null");
-    res.headers.set("x-debug-protocol", req.nextUrl.protocol);
-    res.headers.set("x-debug-host", req.headers.get("host") ?? "null");
-    res.headers.set("x-debug-forwarded-proto", req.headers.get("x-forwarded-proto") ?? "null");
-    return res;
-  };
-
   const host = resolverHost(req.headers.get("host"));
 
   const cabecalhos = new Headers(req.headers);
@@ -103,7 +89,7 @@ export default auth((req) => {
       res.headers.set("X-Content-Type-Options", "nosniff");
       res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     }
-    return marcarDebug(res);
+    return res;
   }
 
   const precisaAuth =
@@ -148,7 +134,7 @@ export default auth((req) => {
     if (ehApi) return respostaJsonApi(401, "Não autenticado");
     const url = new URL("/login", req.url);
     if (pathname !== "/") url.searchParams.set("callbackUrl", pathname);
-    return marcarDebug(comCookieRef(req, NextResponse.redirect(url)));
+    return comCookieRef(req, NextResponse.redirect(url));
   }
 
   const slugSessao = sessao.user.organizationSlug ?? null;
@@ -211,7 +197,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  return marcarDebug(seguir());
+  return seguir();
 });
 
 export const config = {

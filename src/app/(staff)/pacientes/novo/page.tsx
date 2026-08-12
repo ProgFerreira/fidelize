@@ -42,12 +42,16 @@ const ERROS_CADASTRO: Record<string, string> = {
 export default async function NovoPacientePage({
   searchParams,
 }: {
-  searchParams: Promise<{ erro?: string }>;
+  searchParams: Promise<{ erro?: string; detalhe?: string }>;
 }) {
   const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
   const clinicId = session.clinicId;
-  const { erro } = await searchParams;
-  const erroMsg = erro ? ERROS_CADASTRO[erro] ?? ERROS_CADASTRO["cadastro-falhou"] : null;
+  const { erro, detalhe } = await searchParams;
+  const erroMsg = erro
+    ? detalhe?.trim() ||
+      ERROS_CADASTRO[erro] ||
+      ERROS_CADASTRO["cadastro-falhou"]
+    : null;
   // comOrganizacao reforça o tenant (ALS.run) — evita 500 intermitente no soft-nav
   // quando enterWith do auth() se perde entre boundaries do RSC.
   // try/catch: pool MySQL esgotado na Hostinger não pode derrubar o formulário inteiro.

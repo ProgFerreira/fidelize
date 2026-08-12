@@ -14,6 +14,7 @@ import { saveBenefitSettings, type BenefitSettings } from "@/lib/cashback";
 import { reverseLedgerEntry } from "@/lib/ledger";
 import { writeAuditLog } from "@/lib/audit";
 import { toPlain } from "@/lib/serialize";
+import { z } from "zod";
 
 export async function createPatientAction(formData: FormData) {
   const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
@@ -35,28 +36,35 @@ export async function createPatientAction(formData: FormData) {
   return { ok: true as const, patientId: patient.id };
 }
 
-function mensagemErroCadastroPaciente(err: unknown): string {
+function redirectErroCadastroPaciente(err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);
   const name = err instanceof Error ? err.name : "";
+
+  if (err instanceof z.ZodError) {
+    const detalhe = err.issues[0]?.message ?? "Dados inválidos";
+    redirect(
+      `/pacientes/novo?erro=validacao&detalhe=${encodeURIComponent(detalhe)}`,
+    );
+  }
   if (/pool timeout|P2039|acquireTimeout|Can't connect|ECONNREFUSED/i.test(msg)) {
-    return "banco-indisponivel";
+    redirect("/pacientes/novo?erro=banco-indisponivel");
   }
   if (
     name === "SemContextoTenantError" ||
     /sem contexto de organização/i.test(msg)
   ) {
-    return "sessao-org";
+    redirect("/pacientes/novo?erro=sessao-org");
   }
   if (/Já existe paciente com este CPF/i.test(msg)) {
-    return "cpf-duplicado";
+    redirect("/pacientes/novo?erro=cpf-duplicado");
   }
-  if (/PlanLimitError|Limite do plano|Organização suspensa|trial encerrado/i.test(msg)) {
-    return "limite-plano";
+  if (
+    name === "PlanLimitError" ||
+    /Limite do plano|Organização suspensa|trial encerrado/i.test(msg)
+  ) {
+    redirect("/pacientes/novo?erro=limite-plano");
   }
-  if (/CPF inválido|Nome obrigatório|Telefone obrigatório/i.test(msg)) {
-    return "validacao";
-  }
-  return "cadastro-falhou";
+  redirect("/pacientes/novo?erro=cadastro-falhou");
 }
 
 /** Action de formulário: cria e redireciona (evita inline "use server" na page). */
@@ -67,7 +75,7 @@ export async function createPatientFormAction(formData: FormData) {
   } catch (err) {
     unstable_rethrow(err);
     console.error("[createPatientFormAction]", err);
-    redirect(`/pacientes/novo?erro=${mensagemErroCadastroPaciente(err)}`);
+    redirectErroCadastroPaciente(err);
   }
 }
 

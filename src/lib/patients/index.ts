@@ -6,19 +6,36 @@ import { comOrganizacao } from "@/lib/tenant";
 
 export { onlyDigits, isValidCpf } from "@/lib/patients/cpf";
 
+/** FormData manda "" nos opcionais; trata como ausente. */
+function vazioParaNulo(value: unknown) {
+  if (value == null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  return value;
+}
+
 export const patientSchema = z.object({
-  fullName: z.string().min(3, "Nome obrigatório"),
+  fullName: z
+    .string()
+    .trim()
+    .min(3, "Nome obrigatório (mínimo 3 caracteres)"),
   cpf: z
     .string()
+    .transform(onlyDigits)
     .refine((v) => isValidCpf(v), "CPF inválido"),
-  birthDate: z.string().optional().nullable(),
-  phone: z.string().min(10, "Telefone obrigatório"),
-  email: z.string().email().optional().or(z.literal("")).nullable(),
-  gender: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  externalCode: z.string().optional().nullable(),
-  unitId: z.string().optional().nullable(),
-  commercialNotes: z.string().optional().nullable(),
+  birthDate: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
+  phone: z
+    .string()
+    .transform(onlyDigits)
+    .refine((v) => v.length >= 10 && v.length <= 13, "Telefone obrigatório (DDD + número)"),
+  email: z.preprocess(
+    vazioParaNulo,
+    z.string().email("E-mail inválido").nullable().optional(),
+  ),
+  gender: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
+  address: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
+  externalCode: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
+  unitId: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
+  commercialNotes: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
   regulationConsent: z.boolean(),
   marketingConsent: z.boolean().default(false),
   status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED"]).default("ACTIVE"),

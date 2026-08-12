@@ -1,9 +1,14 @@
 import "@/lib/load-env";
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import path from "node:path";
 import { promisify } from "node:util";
 import { NextResponse } from "next/server";
+import {
+  applyMigrationsWithClient,
+  diagnoseDb,
+  findPrismaCli,
+  findTsxCli,
+  seedStaffUsers,
+} from "@/lib/setup/hostinger-bootstrap";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -40,9 +45,6 @@ function assertSecret(request: Request) {
 }
 
 async function runNodeScript(scriptPath: string, args: string[]) {
-  if (!existsSync(scriptPath)) {
-    throw new Error(`Binário não encontrado: ${scriptPath}`);
-  }
   const { stdout, stderr } = await execFileAsync(process.execPath, [scriptPath, ...args], {
     cwd: process.cwd(),
     env: { ...process.env },
@@ -59,9 +61,7 @@ async function runNodeScript(scriptPath: string, args: string[]) {
 /**
  * Setup one-shot do banco na Hostinger.
  * POST /api/setup/db?secret=SEU_SETUP_SECRET
- * ou header x-setup-secret
- *
- * Body JSON opcional: { "seed": true }
+ * Body JSON opcional: { "migrate": true, "seed": true }
  */
 export async function POST(request: Request) {
   const gate = assertSecret(request);
@@ -74,56 +74,69 @@ export async function POST(request: Request) {
   const doMigrate = body.migrate !== false;
   const doSeed = body.seed !== false;
 
-  const prismaCli = path.join(process.cwd(), "node_modules", "prisma", "build", "index.js");
-  const tsxCliCandidates = [
-    path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs"),
-    path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.js"),
-  ];
-  const tsxCli = tsxCliCandidates.find((p) => existsSync(p));
-
-  const steps: Array<{ step: string; ok: boolean; stdout?: string; stderr?: string; error?: string }> =
-    [];
+  const steps: Array<Record<string, unknown>> = [];
 
   try {
     if (doMigrate) {
-      try {
-        const result = await runNodeScript(prismaCli, ["migrate", "deploy"]);
-        steps.push({ step: "migrate", ok: true, ...result });
-      } catch (error) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
-        steps.push({
-          step: "migrate",
-          ok: false,
-          stdout: String(err.stdout || "").slice(-8000),
-          stderr: String(err.stderr || err.message || "").slice(-8000),
-          error: err.message || "migrate failed",
-        });
-        return NextResponse.json({ ok: false, steps }, { status: 500 });
+      const prismaCli = findPrismaCli();
+      if (prismaCli) {
+        try {
+          const result = await runNodeScript(prismaCli, ["migrate", "deploy"]);
+          steps.push({ step: "migrate", mode: "cli", ok: true, ...result });
+        } catch (error) {
+          const err = error as { stdout?: string; stderr?: string; message?: string };
+          steps.push({
+            step: "migrate",
+            mode: "cli",
+            ok: false,
+            stdout: String(err.stdout || "").slice(-8000),
+            stderr: String(err.stderr || err.message || "").slice(-8000),
+            error: err.message || "migrate failed",
+          });
+          // Fallback para SQL via Prisma Client
+          const fallback = await applyMigrationsWithClient();
+          steps.push({ step: "migrate", mode: "client", ...fallback });
+          if (!fallback.ok) {
+            return NextResponse.json({ ok: false, steps }, { status: 500 });
+          }
+        }
+      } else {
+        const fallback = await applyMigrationsWithClient();
+        steps.push({ step: "migrate", mode: "client", ...fallback });
+        if (!fallback.ok) {
+          return NextResponse.json({ ok: false, steps }, { status: 500 });
+        }
       }
     }
 
     if (doSeed) {
-      if (!tsxCli) {
-        steps.push({
-          step: "seed",
-          ok: false,
-          error: "tsx não encontrado em node_modules (necessário para prisma/seed.ts)",
-        });
-        return NextResponse.json({ ok: false, steps }, { status: 500 });
+      const tsxCli = findTsxCli();
+      const seedScript = `${process.cwd()}/prisma/seed.ts`;
+      let seededViaCli = false;
+      if (tsxCli) {
+        try {
+          const result = await runNodeScript(tsxCli, [seedScript]);
+          steps.push({ step: "seed", mode: "cli", ok: true, ...result });
+          seededViaCli = true;
+        } catch (error) {
+          const err = error as { stdout?: string; stderr?: string; message?: string };
+          steps.push({
+            step: "seed",
+            mode: "cli",
+            ok: false,
+            stdout: String(err.stdout || "").slice(-8000),
+            stderr: String(err.stderr || err.message || "").slice(-8000),
+            error: err.message || "seed failed",
+          });
+        }
       }
-      try {
-        const result = await runNodeScript(tsxCli, ["prisma/seed.ts"]);
-        steps.push({ step: "seed", ok: true, ...result });
-      } catch (error) {
-        const err = error as { stdout?: string; stderr?: string; message?: string };
-        steps.push({
-          step: "seed",
-          ok: false,
-          stdout: String(err.stdout || "").slice(-8000),
-          stderr: String(err.stderr || err.message || "").slice(-8000),
-          error: err.message || "seed failed",
-        });
-        return NextResponse.json({ ok: false, steps }, { status: 500 });
+
+      if (!seededViaCli) {
+        const result = await seedStaffUsers();
+        steps.push({ step: "seed", mode: "client", ...result });
+        if (!result.ok) {
+          return NextResponse.json({ ok: false, steps }, { status: 500 });
+        }
       }
     }
 
@@ -153,9 +166,23 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const gate = assertSecret(request);
   if (!gate.ok) return gate.response;
-  return NextResponse.json({
-    ok: true,
-    usage:
-      "POST /api/setup/db?secret=SETUP_SECRET com body opcional {\"migrate\":true,\"seed\":true}",
-  });
+
+  try {
+    const diagnosis = await diagnoseDb();
+    return NextResponse.json({
+      ok: true,
+      usage:
+        'POST /api/setup/db?secret=SETUP_SECRET com body opcional {"migrate":true,"seed":true}',
+      diagnosis,
+    });
+  } catch (error) {
+    return NextResponse.json({
+      ok: true,
+      usage:
+        'POST /api/setup/db?secret=SETUP_SECRET com body opcional {"migrate":true,"seed":true}',
+      diagnosisError: error instanceof Error ? error.message : String(error),
+      prismaCli: findPrismaCli(),
+      tsxCli: findTsxCli(),
+    });
+  }
 }

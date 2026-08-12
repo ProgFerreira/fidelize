@@ -5,6 +5,8 @@ const nextConfig = {
     "@prisma/client",
     "@prisma/adapter-mariadb",
     "mariadb",
+    "prisma",
+    "tsx",
   ],
 };
 

@@ -20,7 +20,9 @@ export function LoginForm({
   const [needsMfa, setNeedsMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [slug, setSlug] = useState(organizationSlug ?? "");
+  const [slug, setSlug] = useState(
+    organizationSlug ?? (hostTipo === "indefinido" ? "dermaphios" : ""),
+  );
 
   useEffect(() => {
     if (organizationSlug) setSlug(organizationSlug);

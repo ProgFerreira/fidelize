@@ -14,14 +14,24 @@ export default async function AfiliadoLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAffiliateSession();
+  const session = await requireAffiliateSession();
 
   return (
     <div className="mx-auto min-h-full max-w-5xl px-4 py-8">
       <header className="mb-8 border-b border-slate-200 pb-4 dark:border-slate-800">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-          Painel do afiliado
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+            Painel do afiliado
+          </h1>
+          <form action="/api/auth/signout" method="post">
+            <button
+              type="submit"
+              className="rounded-md border px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900"
+            >
+              Sair ({session.user.email})
+            </button>
+          </form>
+        </div>
         <nav className="mt-4 flex flex-wrap gap-3 text-sm">
           {NAV.map((item) => (
             <Link

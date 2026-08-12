@@ -69,6 +69,19 @@ export default auth((req) => {
   const sessao = req.auth;
   const ehApi = pathname.startsWith("/api/");
 
+  if (pathname === "/__proxy_debug") {
+    return NextResponse.json({
+      hasAuthSecret: Boolean(process.env.AUTH_SECRET),
+      hasAuthUrl: Boolean(process.env.AUTH_URL),
+      cookieNames: [...req.cookies.getAll()].map((c) => c.name),
+      sessaoPresente: Boolean(sessao?.user),
+      sessaoEmail: sessao?.user?.email ?? null,
+      nextUrlProtocol: req.nextUrl.protocol,
+      hostHeader: req.headers.get("host"),
+      forwardedProto: req.headers.get("x-forwarded-proto"),
+    });
+  }
+
   const host = resolverHost(req.headers.get("host"));
 
   const cabecalhos = new Headers(req.headers);

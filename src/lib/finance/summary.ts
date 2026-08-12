@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatBRL, money, moneyToNumber } from "@/lib/money";
+import { paymentMethodLabel } from "@/lib/payments/methods";
 
 export type FinancePeriod = {
   start: Date;
@@ -53,20 +54,6 @@ export type FinancialSummary = {
 
 const CHANNEL_COLORS = ["#3B82F6", "#22C55E", "#F59E0B", "#8B5CF6", "#06B6D4", "#EF4444"];
 
-const METHOD_LABELS: Record<string, string> = {
-  manual: "Venda presencial",
-  presencial: "Venda presencial",
-  dinheiro: "Dinheiro",
-  pix: "PIX / Transferência",
-  transferencia: "PIX / Transferência",
-  link: "Link de pagamento",
-  payment_link: "Link de pagamento",
-  cartao: "Cartão",
-  card: "Cartão",
-  credito: "Cartão crédito",
-  debito: "Cartão débito",
-};
-
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
 }
@@ -89,11 +76,6 @@ function monthLabelPt(date: Date) {
     year: "numeric",
   });
   return raw.charAt(0).toUpperCase() + raw.slice(1);
-}
-
-function methodLabel(method: string | null | undefined) {
-  const key = (method ?? "manual").trim().toLowerCase();
-  return METHOD_LABELS[key] ?? (method?.trim() || "Outros");
 }
 
 function dayKey(date: Date) {
@@ -186,7 +168,7 @@ export async function getFinancialSummary(
       apt.payments.find((x) => x.method)?.method ??
       apt.payments[0]?.method ??
       "manual";
-    const channel = methodLabel(payMethod);
+    const channel = paymentMethodLabel(payMethod);
     channelMap.set(channel, (channelMap.get(channel) ?? money(0)).plus(g));
 
     if (apt.items.length > 0) {

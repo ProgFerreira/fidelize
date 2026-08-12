@@ -2,11 +2,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/db";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 import { SLUG_ORG_PLATAFORMA } from "@/lib/organization-host";
-import {
-  PERMISSIONS,
-  PERMISSION_LABELS,
-  ROLE_PERMISSIONS,
-} from "@/lib/auth/permissions";
+import { ensureSystemRoles } from "@/lib/auth/sync-roles";
 import { ensureModulesForClinic } from "@/lib/modules";
 
 function gerarSenhaProvisoria() {
@@ -58,17 +54,6 @@ export async function criarOrganizacao(entrada: {
   const passwordHash = await hashPassword(senhaProvisoria);
 
   await comOrganizacao({ organizationId: org.id }, async () => {
-    for (const code of Object.values(PERMISSIONS)) {
-      await prisma.permission.upsert({
-        where: { code },
-        create: {
-          code,
-          name: PERMISSION_LABELS[code] ?? code,
-        },
-        update: {},
-      });
-    }
-
     const clinic = await prisma.clinic.create({
       data: {
         name: entrada.name.trim(),
@@ -81,23 +66,12 @@ export async function criarOrganizacao(entrada: {
       },
     });
 
-    const adminPerms = ROLE_PERMISSIONS.ADMIN;
-    const role = await prisma.role.create({
-      data: {
-        clinicId: clinic.id,
-        code: "ADMIN",
-        name: "Administrador",
-        isSystem: true,
-      },
-    });
+    await ensureSystemRoles(clinic.id);
 
-    for (const code of adminPerms) {
-      const perm = await prisma.permission.findUnique({ where: { code } });
-      if (!perm) continue;
-      await prisma.rolePermission.create({
-        data: { roleId: role.id, permissionId: perm.id },
-      });
-    }
+    const role = await prisma.role.findFirst({
+      where: { clinicId: clinic.id, code: "ADMIN" },
+    });
+    if (!role) throw new Error("Perfil administrador não foi criado");
 
     await prisma.user.create({
       data: {

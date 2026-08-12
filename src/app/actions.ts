@@ -8,13 +8,14 @@ import { createPatient, updatePatient, patientSchema } from "@/lib/patients";
 import { onlyDigits } from "@/lib/patients/cpf";
 import { linkCard, blockCard, createCardStock, unblockCard, replaceCard, issueVirtualCard, saveCardSettings, searchPatientsForCardLink } from "@/lib/cards";
 import { confirmAppointment, getAppointmentSale, updateAppointmentSale } from "@/lib/reception";
-import { simulateBenefit } from "@/lib/cashback";
+import { simulateBenefit, applyGiftCardToSimulation } from "@/lib/cashback";
 import { prisma } from "@/lib/db";
 import { saveBenefitSettings, type BenefitSettings } from "@/lib/cashback";
 import { reverseLedgerEntry } from "@/lib/ledger";
 import { writeAuditLog } from "@/lib/audit";
 import { toPlain } from "@/lib/serialize";
 import { z } from "zod";
+import { lookupGiftCard, quoteGiftCardForSale } from "@/lib/giftcards";
 
 export async function createPatientAction(formData: FormData) {
   const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
@@ -305,6 +306,9 @@ export async function simulateReceptionAction(input: {
   grossAmount: number;
   discountAmount?: number;
   benefitToUse?: number;
+  giftCardCode?: string;
+  giftCardAmount?: number;
+  editingAppointmentId?: string;
   items?: Array<{
     procedureId?: string;
     unitPrice: number;
@@ -363,7 +367,23 @@ export async function simulateReceptionAction(input: {
       })
     : null;
 
-  return simulateBenefit({
+  let availableBalance = Number(wallet.availableBalance);
+  if (input.editingAppointmentId) {
+    const editing = await prisma.appointment.findFirst({
+      where: {
+        id: input.editingAppointmentId,
+        clinicId: session.user.clinicId,
+        walletId: wallet.id,
+        status: "CONFIRMED",
+      },
+      select: { benefitUsed: true },
+    });
+    if (editing) {
+      availableBalance += Number(editing.benefitUsed);
+    }
+  }
+
+  const simulation = await simulateBenefit({
     clinicId: session.user.clinicId,
     categoryCashbackPercent: wallet.category
       ? Number(wallet.category.cashbackPercent)
@@ -373,8 +393,33 @@ export async function simulateReceptionAction(input: {
     grossAmount,
     discountAmount: input.discountAmount,
     benefitToUse: input.benefitToUse,
-    availableBalance: Number(wallet.availableBalance),
+    availableBalance,
   });
+
+  const code = input.giftCardCode?.trim();
+  if (!code) return simulation;
+
+  const quote = await quoteGiftCardForSale({
+    clinicId: session.user.clinicId,
+    code,
+    amountDue: Number(simulation.paidAmount),
+    requestedAmount: input.giftCardAmount,
+    creditBackAppointmentId: input.editingAppointmentId,
+  });
+  return applyGiftCardToSimulation(simulation, quote.amount, quote.card.code);
+}
+
+export async function lookupReceptionGiftCardAction(
+  code: string,
+  editingAppointmentId?: string,
+) {
+  const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
+  const card = await lookupGiftCard({
+    clinicId: session.user.clinicId,
+    code,
+    creditBackAppointmentId: editingAppointmentId,
+  });
+  return toPlain(card);
 }
 
 export async function confirmReceptionAction(input: {
@@ -388,11 +433,15 @@ export async function confirmReceptionAction(input: {
   professionalName?: string;
   idempotencyKey: string;
   unitId?: string;
+  giftCardCode?: string;
+  giftCardAmount?: number;
+  paymentMethod?: string;
   items?: Array<{
     procedureId?: string;
     name: string;
     unitPrice: number;
     quantity: number;
+    professionalName?: string | null;
   }>;
 }) {
   const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
@@ -409,10 +458,15 @@ export async function confirmReceptionAction(input: {
     discountAmount: input.discountAmount,
     benefitToUse: input.benefitToUse,
     idempotencyKey: input.idempotencyKey,
+    giftCardCode: input.giftCardCode,
+    giftCardAmount: input.giftCardAmount,
+    paymentMethod: input.paymentMethod,
     items: input.items,
   });
   revalidatePath("/recepcao");
   revalidatePath("/dashboard");
+  revalidatePath("/vales-presente");
+  revalidatePath("/extrato-dia");
   return toPlain(result);
 }
 
@@ -431,11 +485,15 @@ export async function updateReceptionSaleAction(input: {
   discountAmount?: number;
   benefitToUse?: number;
   professionalName?: string;
+  giftCardCode?: string;
+  giftCardAmount?: number;
+  paymentMethod?: string;
   items: Array<{
     procedureId?: string;
     name: string;
     unitPrice: number;
     quantity: number;
+    professionalName?: string | null;
   }>;
 }) {
   const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
@@ -448,11 +506,17 @@ export async function updateReceptionSaleAction(input: {
     discountAmount: input.discountAmount,
     benefitToUse: input.benefitToUse,
     campaignId: input.campaignId,
+    giftCardCode: input.giftCardCode,
+    giftCardAmount: input.giftCardAmount,
+    paymentMethod: input.paymentMethod,
     items: input.items,
   });
   revalidatePath("/recepcao");
   revalidatePath("/dashboard");
   revalidatePath(`/pacientes`);
+  revalidatePath("/vales-presente");
+  revalidatePath("/extrato-dia");
+  revalidatePath(`/extrato-dia/${input.appointmentId}`);
   return toPlain(result);
 }
 

@@ -44,6 +44,36 @@ export const PERMISSIONS = {
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
+export const STAFF_ROLE_CODES = [
+  "ADMIN",
+  "MANAGER",
+  "RECEPTION",
+  "FINANCE",
+] as const;
+
+export type StaffRoleCode = (typeof STAFF_ROLE_CODES)[number];
+
+export const STAFF_ROLE_DEFS: { code: StaffRoleCode; name: string }[] = [
+  { code: "ADMIN", name: "Administrador geral" },
+  { code: "MANAGER", name: "Gestor da clínica" },
+  { code: "RECEPTION", name: "Recepção" },
+  { code: "FINANCE", name: "Financeiro" },
+];
+
+export function isStaffRoleCode(value: string): value is StaffRoleCode {
+  return (STAFF_ROLE_CODES as readonly string[]).includes(value);
+}
+
+export function permissionsForRole(code: string): {
+  code: PermissionCode;
+  label: string;
+}[] {
+  return (ROLE_PERMISSIONS[code] ?? []).map((perm) => ({
+    code: perm,
+    label: PERMISSION_LABELS[perm] ?? perm,
+  }));
+}
+
 export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
   ADMIN: Object.values(PERMISSIONS),
   MANAGER: [
@@ -73,6 +103,7 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.REWARDS_MANAGE,
     PERMISSIONS.REWARDS_FULFILL,
     PERMISSIONS.VOUCHERS_MANAGE,
+    PERMISSIONS.GIFTCARDS_MANAGE,
     PERMISSIONS.ACCELERATORS_MANAGE,
     PERMISSIONS.RECOVERY_MANAGE,
     PERMISSIONS.ONBOARDING_MANAGE,
@@ -94,6 +125,7 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.NPS_VIEW,
     PERMISSIONS.REWARDS_FULFILL,
     PERMISSIONS.VOUCHERS_MANAGE,
+    PERMISSIONS.GIFTCARDS_MANAGE,
     PERMISSIONS.RECOVERY_MANAGE,
     PERMISSIONS.RECEIPTS_MANAGE,
   ],

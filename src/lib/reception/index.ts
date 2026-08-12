@@ -2,14 +2,49 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import {
   simulateBenefit,
+  applyGiftCardToSimulation,
   computeAvailabilityDates,
   getBenefitSettings,
+  type SimulationResult,
 } from "@/lib/cashback";
 import { creditWallet, redeemFromWallet, reverseLedgerEntry } from "@/lib/ledger";
 import { recalculateCategory } from "@/lib/categories";
 import { writeAuditLog } from "@/lib/audit";
 import { money, moneyToString } from "@/lib/money";
 import { organizacaoAtual } from "@/lib/tenant";
+import {
+  giftCardCodeFromPaymentKey,
+  quoteGiftCardForSale,
+  redeemGiftCardInTx,
+  restoreGiftCardForAppointment,
+} from "@/lib/giftcards";
+import { parsePdvPaymentMethod } from "@/lib/payments/methods";
+
+async function applyOptionalGiftCard(input: {
+  clinicId: string;
+  simulation: SimulationResult;
+  giftCardCode?: string | null;
+  giftCardAmount?: number | null;
+}) {
+  const code = input.giftCardCode?.trim();
+  if (!code) {
+    return { simulation: input.simulation, gift: null as null };
+  }
+  const quote = await quoteGiftCardForSale({
+    clinicId: input.clinicId,
+    code,
+    amountDue: Number(input.simulation.paidAmount),
+    requestedAmount: input.giftCardAmount,
+  });
+  return {
+    simulation: applyGiftCardToSimulation(
+      input.simulation,
+      quote.amount,
+      quote.card.code,
+    ),
+    gift: quote,
+  };
+}
 
 export async function confirmAppointment(params: {
   clinicId: string;
@@ -25,6 +60,9 @@ export async function confirmAppointment(params: {
   campaignId?: string | null;
   idempotencyKey?: string;
   notes?: string;
+  giftCardCode?: string | null;
+  giftCardAmount?: number | null;
+  paymentMethod?: string | null;
   items?: Array<{
     procedureId?: string | null;
     name: string;
@@ -130,7 +168,16 @@ export async function confirmAppointment(params: {
     availableBalance: Number(wallet.availableBalance),
   });
 
-  const simulation = { ...baseSimulation };
+  const { simulation: withGift, gift } = await applyOptionalGiftCard({
+    clinicId: params.clinicId,
+    simulation: baseSimulation,
+    giftCardCode: params.giftCardCode,
+    giftCardAmount: params.giftCardAmount,
+  });
+  const settledAmount = money(baseSimulation.paidAmount);
+  const giftUsed = money(withGift.giftCardAmount ?? 0);
+
+  const simulation = { ...withGift };
   let acceleratorIds: string[] = [];
   try {
     const { applyAcceleratorBonus } = await import("@/lib/accelerators");
@@ -165,12 +212,24 @@ export async function confirmAppointment(params: {
   const dates = computeAvailabilityDates(settings);
   const organizationId = wallet.organizationId ?? organizacaoAtual();
 
+  const giftNote =
+    gift && giftUsed.gt(0)
+      ? `Vale-presente ${gift.card.code} (${moneyToString(giftUsed, 2)})`
+      : null;
   const cartNotes =
     cartItems.length > 1
       ? cartItems
           .map((i) => `${i.quantity}x ${i.name} (${moneyToString(i.unitPrice * i.quantity, 2)})`)
           .join("; ")
       : params.notes;
+  const notes = [cartNotes || params.notes, giftNote].filter(Boolean).join(" · ");
+
+  const cashMethod = money(simulation.paidAmount).gt(0)
+    ? parsePdvPaymentMethod(params.paymentMethod)
+    : "beneficio";
+  if (money(simulation.paidAmount).gt(0) && !cashMethod) {
+    throw new Error("Informe a forma de pagamento");
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const appointment = await tx.appointment.create({
@@ -191,7 +250,7 @@ export async function confirmAppointment(params: {
         cashbackGenerated: simulation.cashbackAmount,
         pointsGenerated: simulation.points,
         idempotencyKey: key,
-        notes: cartNotes || params.notes,
+        notes: notes || null,
         occurredAt: new Date(),
         items:
           cartItems.length > 0
@@ -212,17 +271,42 @@ export async function confirmAppointment(params: {
       },
     });
 
-    await tx.payment.create({
-      data: {
+    if (gift && giftUsed.gt(0)) {
+      await redeemGiftCardInTx(tx, {
         clinicId: params.clinicId,
+        code: gift.card.code,
+        amount: Number(giftUsed),
+        actorId: params.operatorId,
         appointmentId: appointment.id,
-        amount: simulation.paidAmount,
-        method: "manual",
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        idempotencyKey: `pay:${key}`,
-      },
-    });
+        patientId: params.patientId,
+        walletId: params.walletId,
+      });
+      await tx.payment.create({
+        data: {
+          clinicId: params.clinicId,
+          appointmentId: appointment.id,
+          amount: moneyToString(giftUsed),
+          method: "gift_card",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          idempotencyKey: `pay-gift:${key}:${gift.card.code}`,
+        },
+      });
+    }
+
+    if (money(simulation.paidAmount).gt(0) || giftUsed.lte(0)) {
+      await tx.payment.create({
+        data: {
+          clinicId: params.clinicId,
+          appointmentId: appointment.id,
+          amount: simulation.paidAmount,
+          method: cashMethod || "beneficio",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          idempotencyKey: `pay:${key}`,
+        },
+      });
+    }
 
     return appointment;
   });
@@ -274,7 +358,7 @@ export async function confirmAppointment(params: {
   await prisma.wallet.update({
     where: { id: params.walletId },
     data: {
-      annualSpend: { increment: moneyToString(simulation.paidAmount) },
+      annualSpend: { increment: moneyToString(settledAmount) },
       appointmentCount: { increment: 1 },
     },
   });
@@ -382,6 +466,7 @@ export type SaleCartItemInput = {
   name: string;
   unitPrice: number;
   quantity: number;
+  professionalName?: string | null;
 };
 
 export async function getAppointmentSale(params: {
@@ -402,6 +487,24 @@ export async function getAppointmentSale(params: {
   });
   if (!appointment) throw new Error("Venda não encontrada ou não editável");
 
+  const giftPay = await prisma.payment.findFirst({
+    where: {
+      appointmentId: appointment.id,
+      clinicId: params.clinicId,
+      method: "gift_card",
+    },
+  });
+  const giftCardCode = giftCardCodeFromPaymentKey(giftPay?.idempotencyKey);
+
+  const cashPay = await prisma.payment.findFirst({
+    where: {
+      appointmentId: appointment.id,
+      clinicId: params.clinicId,
+      method: { not: "gift_card" },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   const items =
     appointment.items.length > 0
       ? appointment.items.map((item) => ({
@@ -410,6 +513,7 @@ export async function getAppointmentSale(params: {
           unitPrice: Number(item.unitPrice),
           quantity: item.quantity,
           lineTotal: Number(item.lineTotal),
+          professionalName: item.professionalName,
         }))
       : appointment.procedure
         ? [
@@ -419,6 +523,7 @@ export async function getAppointmentSale(params: {
               unitPrice: Number(appointment.grossAmount),
               quantity: 1,
               lineTotal: Number(appointment.grossAmount),
+              professionalName: appointment.professionalName,
             },
           ]
         : [];
@@ -433,6 +538,12 @@ export async function getAppointmentSale(params: {
     benefitUsed: Number(appointment.benefitUsed),
     grossAmount: Number(appointment.grossAmount),
     paidAmount: Number(appointment.paidAmount),
+    giftCardCode,
+    giftCardAmount: giftPay ? Number(giftPay.amount) : 0,
+    paymentMethod:
+      cashPay?.method && cashPay.method !== "beneficio"
+        ? cashPay.method
+        : null,
     items,
   };
 }
@@ -488,13 +599,28 @@ async function undoAppointmentFinancials(params: {
     });
   }
 
+  const giftPay = await prisma.payment.findFirst({
+    where: {
+      appointmentId: appointment.id,
+      clinicId: params.clinicId,
+      method: "gift_card",
+    },
+  });
+  const settledSpend = money(appointment.paidAmount).plus(giftPay?.amount ?? 0);
+
   await prisma.wallet.update({
     where: { id: appointment.walletId },
     data: {
       annualSpend: {
-        decrement: moneyToString(appointment.paidAmount),
+        decrement: moneyToString(settledSpend),
       },
     },
+  });
+
+  await restoreGiftCardForAppointment({
+    clinicId: params.clinicId,
+    appointmentId: params.appointmentId,
+    actorId: params.operatorId,
   });
 
   return appointment;
@@ -509,6 +635,9 @@ export async function updateAppointmentSale(params: {
   discountAmount?: number;
   benefitToUse?: number;
   campaignId?: string | null;
+  giftCardCode?: string | null;
+  giftCardAmount?: number | null;
+  paymentMethod?: string | null;
   items: SaleCartItemInput[];
 }) {
   const existing = await prisma.appointment.findFirst({
@@ -526,6 +655,7 @@ export async function updateAppointmentSale(params: {
       name: item.name.trim(),
       unitPrice: Number(item.unitPrice),
       quantity: Math.max(1, Math.trunc(Number(item.quantity) || 1)),
+      professionalName: item.professionalName || params.professionalName || null,
     }))
     .filter((item) => item.name && item.unitPrice >= 0);
 
@@ -600,17 +730,41 @@ export async function updateAppointmentSale(params: {
     availableBalance: Number(wallet.availableBalance),
   });
 
-  const simulation = { ...baseSimulation };
+  const { simulation: withGift, gift } = await applyOptionalGiftCard({
+    clinicId: params.clinicId,
+    simulation: baseSimulation,
+    giftCardCode: params.giftCardCode,
+    giftCardAmount: params.giftCardAmount,
+  });
+  const simulation = { ...withGift };
+  const settledAmount = money(baseSimulation.paidAmount);
+  const giftUsed = money(withGift.giftCardAmount ?? 0);
   const primaryProcedureId = cartItems.find((i) => i.procedureId)?.procedureId ?? null;
   const organizationId = wallet.organizationId ?? organizacaoAtual();
   const settings = await getBenefitSettings(params.clinicId);
   const dates = computeAvailabilityDates(settings);
-  const cartNotes = cartItems
-    .map(
-      (i) =>
-        `${i.quantity}x ${i.name} (${moneyToString(i.unitPrice * i.quantity, 2)})`,
-    )
-    .join("; ");
+  const giftNote =
+    gift && giftUsed.gt(0)
+      ? `Vale-presente ${gift.card.code} (${moneyToString(giftUsed, 2)})`
+      : null;
+  const cartNotes = [
+    cartItems
+      .map(
+        (i) =>
+          `${i.quantity}x ${i.name} (${moneyToString(i.unitPrice * i.quantity, 2)})`,
+      )
+      .join("; "),
+    giftNote,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const cashMethod = money(simulation.paidAmount).gt(0)
+    ? parsePdvPaymentMethod(params.paymentMethod)
+    : "beneficio";
+  if (money(simulation.paidAmount).gt(0) && !cashMethod) {
+    throw new Error("Informe a forma de pagamento");
+  }
 
   const updated = await prisma.$transaction(async (tx) => {
     await tx.appointmentItem.deleteMany({
@@ -638,7 +792,7 @@ export async function updateAppointmentSale(params: {
             unitPrice: moneyToString(item.unitPrice),
             quantity: item.quantity,
             lineTotal: moneyToString(item.unitPrice * item.quantity),
-            professionalName: params.professionalName || null,
+            professionalName: item.professionalName,
             sortOrder: index,
           })),
         },
@@ -649,17 +803,43 @@ export async function updateAppointmentSale(params: {
       },
     });
 
-    const payment = await tx.payment.findFirst({
+    await tx.payment.deleteMany({
       where: { appointmentId: existing.id, clinicId: params.clinicId },
-      orderBy: { createdAt: "asc" },
     });
-    if (payment) {
-      await tx.payment.update({
-        where: { id: payment.id },
+
+    if (gift && giftUsed.gt(0)) {
+      await redeemGiftCardInTx(tx, {
+        clinicId: params.clinicId,
+        code: gift.card.code,
+        amount: Number(giftUsed),
+        actorId: params.operatorId,
+        appointmentId: existing.id,
+        patientId: existing.patientId,
+        walletId: existing.walletId,
+      });
+      await tx.payment.create({
         data: {
-          amount: simulation.paidAmount,
+          clinicId: params.clinicId,
+          appointmentId: existing.id,
+          amount: moneyToString(giftUsed),
+          method: "gift_card",
           status: "CONFIRMED",
           confirmedAt: new Date(),
+          idempotencyKey: `pay-gift:${existing.id}:${gift.card.code}`,
+        },
+      });
+    }
+
+    if (money(simulation.paidAmount).gt(0) || giftUsed.lte(0)) {
+      await tx.payment.create({
+        data: {
+          clinicId: params.clinicId,
+          appointmentId: existing.id,
+          amount: simulation.paidAmount,
+          method: cashMethod || "beneficio",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          idempotencyKey: `pay:${existing.id}:${Date.now()}`,
         },
       });
     }
@@ -716,7 +896,7 @@ export async function updateAppointmentSale(params: {
   await prisma.wallet.update({
     where: { id: existing.walletId },
     data: {
-      annualSpend: { increment: moneyToString(simulation.paidAmount) },
+      annualSpend: { increment: moneyToString(settledAmount) },
     },
   });
 

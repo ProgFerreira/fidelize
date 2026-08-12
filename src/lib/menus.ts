@@ -69,6 +69,14 @@ export const MENUS: MenuDef[] = [
     permission: PERMISSIONS.RECEPTION_OPERATE,
   },
   {
+    id: "extrato-dia",
+    label: "Extrato",
+    rota: "/extrato-dia",
+    icone: "ClipboardList",
+    area: "atendimento",
+    permission: PERMISSIONS.RECEPTION_OPERATE,
+  },
+  {
     id: "agenda",
     label: "Agenda",
     rota: "/agenda",
@@ -307,6 +315,14 @@ export const MENUS: MenuDef[] = [
     icone: "Plug",
     area: "configuracoes",
     permission: PERMISSIONS.INTEGRATIONS_MANAGE,
+  },
+  {
+    id: "usuarios",
+    label: "Usuários",
+    rota: "/usuarios",
+    icone: "UserCog",
+    area: "configuracoes",
+    permission: PERMISSIONS.USERS_MANAGE,
   },
   {
     id: "configuracoes",

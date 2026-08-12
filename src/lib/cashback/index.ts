@@ -63,6 +63,8 @@ export type SimulationResult = {
   cashbackAmount: string;
   points: number;
   settings: BenefitSettings;
+  giftCardAmount?: string;
+  giftCardCode?: string | null;
 };
 
 export async function simulateBenefit(
@@ -119,6 +121,37 @@ export async function simulateBenefit(
     cashbackAmount: moneyToString(cashback),
     points,
     settings,
+  };
+}
+
+/** Abate vale-presente do valor a pagar e recalcula cashback/pontos só sobre o caixa. */
+export function applyGiftCardToSimulation(
+  sim: SimulationResult,
+  giftAmount: number,
+  giftCardCode?: string | null,
+): SimulationResult {
+  const prepaid = money(Math.max(0, giftAmount));
+  const paidBefore = money(sim.paidAmount);
+  const used = prepaid.gt(paidBefore) ? paidBefore : prepaid;
+  const paid = DecimalMax(paidBefore.minus(used), money(0));
+  const percent = money(sim.cashbackPercent);
+  let cashback = percentOf(paid, percent);
+  if (
+    sim.settings.maxCashbackPerTransaction != null &&
+    cashback.gt(sim.settings.maxCashbackPerTransaction)
+  ) {
+    cashback = money(sim.settings.maxCashbackPerTransaction);
+  }
+  const points = Math.floor(
+    paid.mul(sim.settings.pointsPerReal).toDecimalPlaces(0).toNumber(),
+  );
+  return {
+    ...sim,
+    paidAmount: moneyToString(paid),
+    cashbackAmount: moneyToString(cashback),
+    points,
+    giftCardAmount: moneyToString(used),
+    giftCardCode: giftCardCode ?? sim.giftCardCode ?? null,
   };
 }
 

@@ -565,6 +565,7 @@ export async function redeemGiftCardAction(formData: FormData) {
       actorId: session.user.id,
     });
     revalidatePath("/vales-presente");
+    revalidatePath("/recepcao");
     return {
       ok: true as const,
       giftCard: toPlain({

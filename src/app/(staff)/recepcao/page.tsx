@@ -5,12 +5,17 @@ import { PageHeader } from "@/components/ui";
 import { ReceptionClient } from "@/components/reception/reception-client";
 import { listProfessionals } from "@/lib/professionals";
 import { toPlain } from "@/lib/serialize";
+import { isModuleEnabled } from "@/lib/modules";
+import { ensureSystemRolePermissions } from "@/lib/auth/sync-roles";
+import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 
 export default async function RecepcaoPage() {
   const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
   const clinicId = session.clinicId;
+  await ensureSystemRolePermissions(clinicId);
 
-  const [procedures, professionals, campaigns, availableCards] =
+  const [procedures, professionals, campaigns, availableCards, giftCardEnabled] =
     await Promise.all([
       prisma.procedure.findMany({
         where: { clinicId, active: true },
@@ -26,13 +31,20 @@ export default async function RecepcaoPage() {
         take: 20,
         orderBy: { createdAt: "desc" },
       }),
+      isModuleEnabled(clinicId, "GIFT_CARD"),
     ]);
 
   return (
     <div>
       <PageHeader
         title="Recepção"
-        description="PDV de atendimento: escolha o serviço do catálogo, profissional, simule benefício e confirme a venda."
+        description="PDV de atendimento: escolha o profissional, os serviços do portfólio, simule benefício e confirme a venda."
+        actions={
+          <Link href="/extrato-dia" className="pdv-extract-link">
+            <ClipboardList className="h-4 w-4" aria-hidden />
+            Extrato
+          </Link>
+        }
       />
       <ReceptionClient
         procedures={toPlain(
@@ -67,6 +79,7 @@ export default async function RecepcaoPage() {
           cardNumber: c.cardNumber,
           publicToken: c.publicToken,
         }))}
+        giftCardEnabled={giftCardEnabled}
       />
     </div>
   );

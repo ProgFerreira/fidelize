@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { Gift, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import { Button, Card, Input, Label, Select, Badge } from "@/components/ui";
+import { Button, Campo, Card, Input, Label, Select, Badge } from "@/components/ui";
 import {
   searchPatientsAction,
   simulateReceptionAction,
@@ -12,6 +12,7 @@ import {
   getSaleForEditAction,
   linkCardFormAction,
   getPatientAppointmentHistoryAction,
+  lookupReceptionGiftCardAction,
 } from "@/app/actions";
 import { formatBRL } from "@/lib/money";
 import { resolveServicePrice } from "@/lib/professionals/price";
@@ -21,6 +22,7 @@ import {
 } from "@/components/patients/appointment-history";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui";
+import { PDV_PAYMENT_METHODS, paymentMethodLabel } from "@/lib/payments/methods";
 
 type PatientResult = Awaited<ReturnType<typeof searchPatientsAction>>[number];
 
@@ -44,23 +46,32 @@ type ProfessionalOption = {
 };
 
 type CartLine = {
+  key: string;
   procedureId: string;
   name: string;
   unitPrice: number;
   quantity: number;
   cashbackPercent: number | null;
+  professionalId: string;
+  professionalName: string | null;
 };
+
+function cartLineKey(procedureId: string, professionalId: string) {
+  return `${procedureId}::${professionalId}`;
+}
 
 export function ReceptionClient({
   procedures,
   professionals,
   campaigns,
   availableCards,
+  giftCardEnabled = false,
 }: {
   procedures: ProcedureOption[];
   professionals: ProfessionalOption[];
   campaigns: Array<{ id: string; name: string; extraCashbackPct: number }>;
   availableCards: Array<{ id: string; cardNumber: string; publicToken: string }>;
+  giftCardEnabled?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PatientResult[]>([]);
@@ -73,6 +84,15 @@ export function ReceptionClient({
   const [campaignId, setCampaignId] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
   const [benefitToUse, setBenefitToUse] = useState(0);
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [giftCardAmount, setGiftCardAmount] = useState("");
+  const [giftPreview, setGiftPreview] = useState<{
+    code: string;
+    remainingAmount: string | number;
+    allowPartial: boolean;
+    beneficiaryName: string | null;
+  } | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState("dinheiro");
   const [simulation, setSimulation] = useState<Awaited<
     ReturnType<typeof simulateReceptionAction>
   > | null>(null);
@@ -93,23 +113,28 @@ export function ReceptionClient({
     return uuidv4();
   }, [selected?.id, cartSubtotal, cartCount]);
 
-  const professionalsForCart = useMemo(() => {
-    if (cart.length === 0) return [];
-    const needed = [
-      ...new Set(cart.map((l) => l.procedureId).filter(Boolean)),
-    ];
-    // Só profissionais que tenham o(s) serviço(s) do carrinho no portfólio
-    // (tipos de atendimento cadastrados). Sem portfólio = não aparece.
-    return professionals.filter(
-      (p) =>
-        p.procedureIds.length > 0 &&
-        needed.every((id) => p.procedureIds.includes(id)),
-    );
-  }, [professionals, cart]);
-
   const selectedProfessional = professionals.find(
     (p) => p.id === professionalId,
   );
+
+  const catalogProcedures = useMemo(() => {
+    if (!selectedProfessional) return procedures;
+    if (selectedProfessional.procedureIds.length === 0) return [];
+    return procedures.filter((p) =>
+      selectedProfessional.procedureIds.includes(p.id),
+    );
+  }, [procedures, selectedProfessional]);
+
+  const cartProfessionals = useMemo(() => {
+    const names = [
+      ...new Set(
+        cart
+          .map((line) => line.professionalName)
+          .filter((name): name is string => Boolean(name)),
+      ),
+    ];
+    return names;
+  }, [cart]);
 
   function priceFor(procedureId: string, catalogPrice: number) {
     return resolveServicePrice(
@@ -118,22 +143,9 @@ export function ReceptionClient({
     );
   }
 
-  useEffect(() => {
-    if (
-      professionalId &&
-      !professionalsForCart.some((p) => p.id === professionalId)
-    ) {
-      setProfessionalId("");
-      setSimulation(null);
-      setCart((prev) =>
-        prev.map((line) => {
-          const proc = procedures.find((item) => item.id === line.procedureId);
-          if (!proc) return line;
-          return { ...line, unitPrice: proc.basePrice };
-        }),
-      );
-    }
-  }, [professionalId, professionalsForCart, procedures]);
+  function applyProfessional(nextId: string) {
+    setProfessionalId(nextId);
+  }
 
   function loadHistory(patientId: string) {
     startTransition(async () => {
@@ -149,6 +161,10 @@ export function ReceptionClient({
     setEditingSaleId(null);
     setBenefitToUse(0);
     setDiscountAmount(0);
+    setGiftCardCode("");
+    setGiftCardAmount("");
+    setGiftPreview(null);
+    setPaymentMethod("dinheiro");
     setProfessionalId("");
     setCampaignId("");
     setSimulation(null);
@@ -179,6 +195,12 @@ export function ReceptionClient({
         setEditingSaleId(sale.id);
         setDiscountAmount(sale.discountAmount);
         setBenefitToUse(sale.benefitUsed);
+        setGiftCardCode(sale.giftCardCode ?? "");
+        setGiftCardAmount(
+          sale.giftCardAmount ? String(sale.giftCardAmount) : "",
+        );
+        setGiftPreview(null);
+        setPaymentMethod(sale.paymentMethod || "dinheiro");
         setSimulation(null);
         setReceipt(null);
         setCart(
@@ -186,12 +208,23 @@ export function ReceptionClient({
             const proc = item.procedureId
               ? procedures.find((p) => p.id === item.procedureId)
               : null;
+            const itemPro = item.professionalName
+              ? professionals.find((p) => p.name === item.professionalName)
+              : sale.professionalName
+                ? professionals.find((p) => p.name === sale.professionalName)
+                : null;
+            const lineProfessionalId = itemPro?.id ?? "";
+            const procedureId = item.procedureId || proc?.id || item.name;
             return {
-              procedureId: item.procedureId || proc?.id || item.name,
+              key: cartLineKey(procedureId, lineProfessionalId),
+              procedureId,
               name: item.name,
               unitPrice: item.unitPrice,
               quantity: item.quantity,
               cashbackPercent: proc?.cashbackPercent ?? null,
+              professionalId: lineProfessionalId,
+              professionalName:
+                item.professionalName || itemPro?.name || sale.professionalName || null,
             };
           }),
         );
@@ -209,43 +242,44 @@ export function ReceptionClient({
   function addToCart(procedureId: string) {
     const proc = procedures.find((p) => p.id === procedureId);
     if (!proc) return;
+    const lineProfessionalId = professionalId || "";
+    const lineKey = cartLineKey(proc.id, lineProfessionalId);
     setSimulation(null);
     setReceipt(null);
     setCart((prev) => {
-      const existing = prev.find((l) => l.procedureId === procedureId);
+      const existing = prev.find((l) => l.key === lineKey);
       if (existing) {
         return prev.map((l) =>
-          l.procedureId === procedureId
-            ? { ...l, quantity: l.quantity + 1 }
-            : l,
+          l.key === lineKey ? { ...l, quantity: l.quantity + 1 } : l,
         );
       }
       return [
         ...prev,
         {
+          key: lineKey,
           procedureId: proc.id,
           name: proc.name,
           unitPrice: priceFor(proc.id, proc.basePrice),
           quantity: 1,
           cashbackPercent: proc.cashbackPercent,
+          professionalId: lineProfessionalId,
+          professionalName: selectedProfessional?.name ?? null,
         },
       ];
     });
   }
 
-  function setQty(procedureId: string, quantity: number) {
+  function setQty(lineKey: string, quantity: number) {
     setSimulation(null);
     setCart((prev) => {
-      if (quantity <= 0) return prev.filter((l) => l.procedureId !== procedureId);
-      return prev.map((l) =>
-        l.procedureId === procedureId ? { ...l, quantity } : l,
-      );
+      if (quantity <= 0) return prev.filter((l) => l.key !== lineKey);
+      return prev.map((l) => (l.key === lineKey ? { ...l, quantity } : l));
     });
   }
 
-  function removeLine(procedureId: string) {
+  function removeLine(lineKey: string) {
     setSimulation(null);
-    setCart((prev) => prev.filter((l) => l.procedureId !== procedureId));
+    setCart((prev) => prev.filter((l) => l.key !== lineKey));
   }
 
   function clearCart() {
@@ -269,7 +303,42 @@ export function ReceptionClient({
       name: l.name,
       unitPrice: l.unitPrice,
       quantity: l.quantity,
+      professionalName: l.professionalName,
     }));
+  }
+
+  function saleProfessionalName() {
+    if (cartProfessionals.length > 0) return cartProfessionals.join(", ");
+    return selectedProfessional?.name;
+  }
+
+  function lookupGift() {
+    const code = giftCardCode.trim();
+    if (!code) return;
+    startTransition(async () => {
+      setError(null);
+      try {
+        const card = await lookupReceptionGiftCardAction(
+          code,
+          editingSaleId || undefined,
+        );
+        setGiftPreview({
+          code: card.code,
+          remainingAmount: card.remainingAmount,
+          allowPartial: card.allowPartial,
+          beneficiaryName: card.beneficiaryName,
+        });
+        setGiftCardCode(card.code);
+        if (!giftCardAmount) {
+          setGiftCardAmount(String(Number(card.remainingAmount)));
+        }
+        setSimulation(null);
+        toast.success("Vale encontrado", `Saldo ${formatBRL(card.remainingAmount)}`);
+      } catch (e) {
+        setGiftPreview(null);
+        setError(e instanceof Error ? e.message : "Vale-presente inválido");
+      }
+    });
   }
 
   function simulate() {
@@ -283,6 +352,12 @@ export function ReceptionClient({
           grossAmount: cartSubtotal,
           discountAmount,
           benefitToUse,
+          giftCardCode: giftCardEnabled ? giftCardCode || undefined : undefined,
+          giftCardAmount:
+            giftCardEnabled && giftCardAmount
+              ? Number(giftCardAmount)
+              : undefined,
+          editingAppointmentId: editingSaleId || undefined,
           items: cartPayload().map((l) => ({
             procedureId: l.procedureId,
             unitPrice: l.unitPrice,
@@ -301,8 +376,7 @@ export function ReceptionClient({
     startTransition(async () => {
       setError(null);
       try {
-        const professionalName =
-          professionals.find((p) => p.id === professionalId)?.name ?? undefined;
+        const professionalName = saleProfessionalName();
         const items = cartPayload();
 
         if (editingSaleId) {
@@ -312,12 +386,23 @@ export function ReceptionClient({
             discountAmount,
             benefitToUse,
             professionalName,
+            giftCardCode: giftCardEnabled ? giftCardCode || undefined : undefined,
+            giftCardAmount:
+              giftCardEnabled && giftCardAmount
+                ? Number(giftCardAmount)
+                : undefined,
+            paymentMethod,
             items,
           });
           setReceipt(
             `Venda ${result.appointment?.id} atualizada · Pago ${formatBRL(
               result.appointment?.paidAmount ?? 0,
-            )} · Cashback ${formatBRL(result.appointment?.cashbackGenerated ?? 0)}.`,
+            )}${
+              result.simulation?.giftCardAmount &&
+              Number(result.simulation.giftCardAmount) > 0
+                ? ` · Vale ${formatBRL(result.simulation.giftCardAmount)}`
+                : ""
+            } · ${paymentMethodLabel(paymentMethod)} · Cashback ${formatBRL(result.appointment?.cashbackGenerated ?? 0)}.`,
           );
           toast.success("Venda atualizada");
         } else {
@@ -331,12 +416,23 @@ export function ReceptionClient({
             benefitToUse,
             idempotencyKey,
             professionalName,
+            giftCardCode: giftCardEnabled ? giftCardCode || undefined : undefined,
+            giftCardAmount:
+              giftCardEnabled && giftCardAmount
+                ? Number(giftCardAmount)
+                : undefined,
+            paymentMethod,
             items,
           });
           setReceipt(
             `Venda ${result.appointment?.id} confirmada · ${cartCount} item(ns) · Pago ${formatBRL(
               result.appointment?.paidAmount ?? 0,
-            )} · Cashback ${formatBRL(result.appointment?.cashbackGenerated ?? 0)}.`,
+            )}${
+              result.simulation?.giftCardAmount &&
+              Number(result.simulation.giftCardAmount) > 0
+                ? ` · Vale ${formatBRL(result.simulation.giftCardAmount)}`
+                : ""
+            } · ${paymentMethodLabel(paymentMethod)} · Cashback ${formatBRL(result.appointment?.cashbackGenerated ?? 0)}.`,
           );
           toast.success("Venda confirmada");
         }
@@ -344,6 +440,10 @@ export function ReceptionClient({
         setSimulation(null);
         setCart([]);
         setEditingSaleId(null);
+        setGiftCardCode("");
+        setGiftCardAmount("");
+        setGiftPreview(null);
+        setPaymentMethod("dinheiro");
         const data = await getPatientAppointmentHistoryAction(selected.id);
         setHistory(data);
       } catch (e) {
@@ -427,16 +527,62 @@ export function ReceptionClient({
                 <Badge>{formatBRL(wallet.availableBalance)} disponível</Badge>
               </div>
 
+              <div className="pdv-professional">
+                <Campo
+                  label="Profissional"
+                  dica={
+                    selectedProfessional
+                      ? `Catálogo de ${selectedProfessional.name}. Trocar o profissional não limpa o carrinho.`
+                      : "Selecione o profissional para filtrar o catálogo. O carrinho permanece ao trocar."
+                  }
+                >
+                  <Select
+                    value={professionalId}
+                    onChange={(e) => applyProfessional(e.target.value)}
+                    disabled={professionals.length === 0}
+                  >
+                    <option value="">
+                      {professionals.length === 0
+                        ? "Nenhum profissional cadastrado"
+                        : "Todos os serviços"}
+                    </option>
+                    {professionals.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {p.specialty}
+                        {p.procedureIds.length > 0
+                          ? ` · ${p.procedureIds.length} serviço${
+                              p.procedureIds.length === 1 ? "" : "s"
+                            }`
+                          : " · sem portfólio"}
+                      </option>
+                    ))}
+                  </Select>
+                </Campo>
+              </div>
+
               <div className="mt-5">
-                <Label>Catálogo — clique para adicionar ao carrinho</Label>
+                <Label>
+                  {selectedProfessional
+                    ? `Serviços de ${selectedProfessional.name} — clique para adicionar`
+                    : "Catálogo — clique para adicionar ao carrinho"}
+                </Label>
                 {procedures.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500">
                     Cadastre serviços em Cadastros → Serviços.
                   </p>
+                ) : catalogProcedures.length === 0 ? (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Este profissional não tem serviços no portfólio. Vincule em
+                    Cadastros → Profissionais.
+                  </p>
                 ) : (
                   <div className="mt-2 grid max-h-[28rem] gap-2 overflow-y-auto sm:grid-cols-2">
-                    {procedures.map((p) => {
-                      const inCart = cart.find((l) => l.procedureId === p.id);
+                    {catalogProcedures.map((p) => {
+                      const inCart = cart.find(
+                        (l) =>
+                          l.procedureId === p.id &&
+                          l.professionalId === (professionalId || ""),
+                      );
                       return (
                         <button
                           key={p.id}
@@ -487,7 +633,8 @@ export function ReceptionClient({
             </>
           ) : (
             <p className="text-slate-500">
-              Selecione um paciente para montar o carrinho de atendimento.
+              Selecione um paciente para escolher o profissional e montar o
+              carrinho.
             </p>
           )}
         </Card>
@@ -498,9 +645,16 @@ export function ReceptionClient({
               <ShoppingCart className="h-5 w-5" aria-hidden />
               {editingSaleId ? "Editando venda" : "Carrinho"}
             </h2>
-            {cartCount > 0 ? (
-              <Badge>{cartCount} item{cartCount === 1 ? "" : "s"}</Badge>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {cartProfessionals.map((name) => (
+                <Badge key={name}>{name}</Badge>
+              ))}
+              {cartCount > 0 ? (
+                <Badge>
+                  {cartCount} item{cartCount === 1 ? "" : "s"}
+                </Badge>
+              ) : null}
+            </div>
           </div>
 
           {editingSaleId ? (
@@ -526,27 +680,30 @@ export function ReceptionClient({
             </p>
           ) : cart.length === 0 ? (
             <p className="mt-4 text-sm text-slate-500">
-              O carrinho está vazio. Adicione serviços do catálogo.
+              {selectedProfessional
+                ? `O carrinho está vazio. Adicione serviços de ${selectedProfessional.name}.`
+                : "O carrinho está vazio. Escolha o profissional e adicione serviços do catálogo."}
             </p>
           ) : (
             <ul className="pdv-cart__list mt-4">
               {cart.map((line) => (
-                <li key={line.procedureId} className="pdv-cart__line">
+                <li key={line.key} className="pdv-cart__line">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-900">
                       {line.name}
                     </p>
                     <p className="text-xs text-slate-500 tabular">
                       {formatBRL(line.unitPrice)} un.
+                      {line.professionalName
+                        ? ` · ${line.professionalName}`
+                        : ""}
                     </p>
                   </div>
                   <div className="pdv-cart__qty">
                     <button
                       type="button"
                       aria-label="Diminuir"
-                      onClick={() =>
-                        setQty(line.procedureId, line.quantity - 1)
-                      }
+                      onClick={() => setQty(line.key, line.quantity - 1)}
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
@@ -554,9 +711,7 @@ export function ReceptionClient({
                     <button
                       type="button"
                       aria-label="Aumentar"
-                      onClick={() =>
-                        setQty(line.procedureId, line.quantity + 1)
-                      }
+                      onClick={() => setQty(line.key, line.quantity + 1)}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
@@ -568,7 +723,7 @@ export function ReceptionClient({
                     type="button"
                     className="pdv-cart__remove"
                     aria-label={`Remover ${line.name}`}
-                    onClick={() => removeLine(line.procedureId)}
+                    onClick={() => removeLine(line.key)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -589,69 +744,13 @@ export function ReceptionClient({
               <div className="mt-4 grid gap-3">
                 <div>
                   <Label>Profissional</Label>
-                  <Select
-                    value={professionalId}
-                    onChange={(e) => {
-                      const nextId = e.target.value;
-                      const pro = professionals.find((p) => p.id === nextId);
-                      setProfessionalId(nextId);
-                      setSimulation(null);
-                      setCart((prev) =>
-                        prev.map((line) => {
-                          const proc = procedures.find(
-                            (item) => item.id === line.procedureId,
-                          );
-                          if (!proc) return line;
-                          return {
-                            ...line,
-                            unitPrice: resolveServicePrice(
-                              proc.basePrice,
-                              pro?.procedurePrices?.[proc.id],
-                            ),
-                          };
-                        }),
-                      );
-                    }}
-                    disabled={professionalsForCart.length === 0}
-                  >
-                    <option value="">
-                      {professionalsForCart.length === 0
-                        ? "Nenhum profissional para estes serviços"
-                        : "—"}
-                    </option>
-                    {professionalsForCart.map((p) => {
-                      const single = cart.length === 1 ? cart[0] : null;
-                      const proc = single
-                        ? procedures.find((item) => item.id === single.procedureId)
-                        : null;
-                      const priceLabel =
-                        proc
-                          ? ` · ${formatBRL(
-                              resolveServicePrice(
-                                proc.basePrice,
-                                p.procedurePrices?.[proc.id],
-                              ),
-                            )}`
-                          : "";
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {p.name} · {p.specialty}
-                          {priceLabel}
-                        </option>
-                      );
-                    })}
-                  </Select>
-                  {professionalsForCart.length === 0 ? (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Vincule o serviço ao profissional em Cadastros →
-                      Profissionais (tipos de atendimento).
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Ao escolher o profissional, o carrinho usa o preço dele
-                      para cada serviço.
-                    </p>
-                  )}
+                  <p className="mt-1 text-sm text-slate-700">
+                    {cartProfessionals.length > 0
+                      ? cartProfessionals.join(", ")
+                      : selectedProfessional
+                        ? `${selectedProfessional.name} · ${selectedProfessional.specialty}`
+                        : "Nenhum selecionado — escolha no catálogo para filtrar os serviços."}
+                  </p>
                 </div>
                 <div>
                   <Label>Campanha</Label>
@@ -694,6 +793,87 @@ export function ReceptionClient({
                     }}
                   />
                 </div>
+                {giftCardEnabled ? (
+                  <div className="pdv-gift">
+                    <Campo
+                      label="Vale-presente"
+                      dica="Informe o código e consulte o saldo. O valor abate o que falta pagar, sem gerar cashback."
+                    >
+                      <div className="pdv-gift__row">
+                        <Input
+                          value={giftCardCode}
+                          onChange={(e) => {
+                            setGiftCardCode(e.target.value.toUpperCase());
+                            setGiftPreview(null);
+                            setSimulation(null);
+                          }}
+                          placeholder="Ex.: GP1A2B3C4D"
+                          autoComplete="off"
+                          aria-label="Código do vale-presente"
+                        />
+                        <Button
+                          type="button"
+                          variant="contorno"
+                          onClick={lookupGift}
+                          disabled={pending || !giftCardCode.trim()}
+                        >
+                          <Gift className="h-4 w-4" aria-hidden />
+                          Consultar
+                        </Button>
+                      </div>
+                    </Campo>
+                    {giftPreview ? (
+                      <p className="pdv-gift__hint">
+                        Saldo {formatBRL(giftPreview.remainingAmount)}
+                        {giftPreview.allowPartial
+                          ? " · uso parcial permitido"
+                          : " · somente valor total"}
+                        {giftPreview.beneficiaryName
+                          ? ` · ${giftPreview.beneficiaryName}`
+                          : ""}
+                      </p>
+                    ) : null}
+                    <Campo label="Valor do vale (R$)">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={giftCardAmount}
+                        onChange={(e) => {
+                          setGiftCardAmount(e.target.value);
+                          setSimulation(null);
+                        }}
+                        placeholder="Vazio = usar o máximo possível"
+                      />
+                    </Campo>
+                  </div>
+                ) : null}
+                <div>
+                  <Label>Forma de pagamento</Label>
+                  <div
+                    className="pdv-pay"
+                    role="group"
+                    aria-label="Forma de pagamento"
+                  >
+                    {PDV_PAYMENT_METHODS.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={cn(
+                          "pdv-pay__opt",
+                          paymentMethod === m.id && "pdv-pay__opt--active",
+                        )}
+                        onClick={() => setPaymentMethod(m.id)}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="pdv-gift__hint mt-1">
+                    Vale-presente e benefício da carteira são registrados à
+                    parte. Esta forma vale para o valor a pagar.
+                  </p>
+                </div>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -723,8 +903,21 @@ export function ReceptionClient({
                     <p>Bruto: {formatBRL(simulation.grossAmount)}</p>
                     <p>Desconto: {formatBRL(simulation.discountAmount)}</p>
                     <p>Benefício: {formatBRL(simulation.benefitUsed)}</p>
+                    {simulation.giftCardAmount &&
+                    Number(simulation.giftCardAmount) > 0 ? (
+                      <p>
+                        Vale-presente
+                        {simulation.giftCardCode
+                          ? ` ${simulation.giftCardCode}`
+                          : ""}
+                        : {formatBRL(simulation.giftCardAmount)}
+                      </p>
+                    ) : null}
                     <p className="font-semibold">
                       A pagar: {formatBRL(simulation.paidAmount)}
+                      {Number(simulation.paidAmount) > 0
+                        ? ` · ${paymentMethodLabel(paymentMethod)}`
+                        : ""}
                     </p>
                     <p>
                       Cashback ({simulation.cashbackPercent}%):{" "}

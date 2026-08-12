@@ -28,7 +28,7 @@ export default async function ProfissionaisPage() {
     <div>
       <PageHeader
         title="Profissionais"
-        description="Monte o portfólio de cada profissional com os serviços do catálogo."
+        description="Monte o portfólio de cada profissional. O mesmo serviço pode ter preço diferente por profissional."
       />
       <ProfessionalsClient
         initialProfessionals={toPlain(professionals)}

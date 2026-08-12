@@ -2,6 +2,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { organizacaoAtual } from "@/lib/tenant";
+import { moneyToString } from "@/lib/money";
+
+const optionalPrice = z.preprocess((v) => {
+  if (v === "" || v == null) return null;
+  const n = Number(String(v).replace(",", "."));
+  return Number.isNaN(n) ? v : n;
+}, z.number().min(0, "Valor inválido").nullable());
 
 export const professionalSchema = z.object({
   name: z.string().trim().min(2, "Informe o nome").max(120),
@@ -14,6 +21,7 @@ export const professionalSchema = z.object({
   active: z.coerce.boolean().default(true),
   color: z.string().trim().max(32).optional().nullable(),
   procedureIds: z.array(z.string().min(1)).default([]),
+  procedurePrices: z.record(z.string(), optionalPrice).default({}),
 });
 
 export type ProfessionalInput = z.infer<typeof professionalSchema>;
@@ -27,6 +35,8 @@ export type ProfessionalDTO = {
   color: string | null;
   procedureIds: string[];
   procedureNames: string[];
+  /** Preço próprio por serviço; null = usa o preço do catálogo. */
+  procedurePrices: Record<string, number | null>;
 };
 
 const include = {
@@ -42,8 +52,16 @@ function toDTO(row: {
   notes: string | null;
   active: boolean;
   color: string | null;
-  procedures: { procedure: { id: string; name: string } }[];
+  procedures: {
+    price: unknown;
+    procedure: { id: string; name: string };
+  }[];
 }): ProfessionalDTO {
+  const procedurePrices: Record<string, number | null> = {};
+  for (const link of row.procedures) {
+    procedurePrices[link.procedure.id] =
+      link.price == null ? null : Number(link.price);
+  }
   return {
     id: row.id,
     name: row.name,
@@ -53,7 +71,24 @@ function toDTO(row: {
     color: row.color,
     procedureIds: row.procedures.map((p) => p.procedure.id),
     procedureNames: row.procedures.map((p) => p.procedure.name),
+    procedurePrices,
   };
+}
+
+function linksToCreate(
+  procedureIds: string[],
+  procedurePrices: Record<string, number | null | undefined>,
+) {
+  return procedureIds.map((procedureId) => {
+    const override = procedurePrices[procedureId];
+    return {
+      procedureId,
+      price:
+        override == null || Number.isNaN(Number(override))
+          ? null
+          : moneyToString(override),
+    };
+  });
 }
 
 async function assertProcedures(clinicId: string, procedureIds: string[]) {
@@ -109,7 +144,7 @@ export async function createProfessional(params: {
       active: data.active,
       color: data.color || null,
       procedures: {
-        create: data.procedureIds.map((procedureId) => ({ procedureId })),
+        create: linksToCreate(data.procedureIds, data.procedurePrices),
       },
     },
     include,
@@ -156,7 +191,7 @@ export async function updateProfessional(params: {
       active: data.active,
       color: data.color || null,
       procedures: {
-        create: data.procedureIds.map((procedureId) => ({ procedureId })),
+        create: linksToCreate(data.procedureIds, data.procedurePrices),
       },
     },
     include,

@@ -10,7 +10,7 @@ import { extensaoTenant } from "@/lib/prisma-tenant";
  * Bump `PRISMA_CLIENT_REV` quando o schema mudar campos de modelos já existentes
  * (ex.: Procedure.imageUrl), para invalidar o singleton em hot-reload do Next.
  */
-const PRISMA_CLIENT_REV = 5;
+const PRISMA_CLIENT_REV = 6;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof criarPrisma>;

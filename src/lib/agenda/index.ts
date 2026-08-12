@@ -91,6 +91,38 @@ export function weekBounds(anchor: Date) {
   return { start, end };
 }
 
+/** `YYYY-MM-DD` no calendário local (sem deslocar por fuso via toISOString). */
+export function toDateOnly(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Interpreta `YYYY-MM-DD` ou `YYYY-MM-DDTHH:mm` como relógio de parede em UTC
+ * (evita o bug de `new Date("2026-08-12T14:00")` no Node UTC vs browser local).
+ * Prefira enviar ISO com Z a partir do client; este parser é fallback.
+ */
+export function parseAgendaDateTime(value: string): Date {
+  const trimmed = value.trim();
+  if (!trimmed) return new Date(Number.NaN);
+  if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+    return new Date(trimmed);
+  }
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(
+    trimmed,
+  );
+  if (!m) return new Date(trimmed);
+  const year = Number(m[1]);
+  const month = Number(m[2]) - 1;
+  const day = Number(m[3]);
+  const hour = Number(m[4] ?? 0);
+  const minute = Number(m[5] ?? 0);
+  const second = Number(m[6] ?? 0);
+  return new Date(year, month, day, hour, minute, second, 0);
+}
+
 export async function listAgendaEvents(params: {
   clinicId: string;
   from: Date;

@@ -19,20 +19,33 @@ function procedureIdsFromForm(formData: FormData) {
     .filter(Boolean);
 }
 
+function procedurePricesFromForm(formData: FormData, procedureIds: string[]) {
+  const prices: Record<string, string | null> = {};
+  for (const id of procedureIds) {
+    const raw = String(formData.get(`procedurePrice_${id}`) ?? "").trim();
+    prices[id] = raw === "" ? null : raw.replace(",", ".");
+  }
+  return prices;
+}
+
 function parseProfessionalForm(formData: FormData) {
+  const procedureIds = procedureIdsFromForm(formData);
   return professionalSchema.parse({
     name: formData.get("name"),
     specialty: formData.get("specialty"),
     notes: String(formData.get("notes") || "") || null,
     active: formData.get("active") === "on" || formData.get("active") === "true",
     color: String(formData.get("color") || "") || null,
-    procedureIds: procedureIdsFromForm(formData),
+    procedureIds,
+    procedurePrices: procedurePricesFromForm(formData, procedureIds),
   });
 }
 
 function revalidateProfessionals() {
   revalidatePath("/profissionais");
   revalidatePath("/agenda");
+  revalidatePath("/recepcao");
+  revalidatePath("/servicos");
 }
 
 export async function createProfessionalAction(formData: FormData) {

@@ -69,6 +69,11 @@ export type ServiceDTO = {
   active: boolean;
   professionalCount: number;
   professionalNames: string[];
+  professionals: Array<{
+    id: string;
+    name: string;
+    price: number | null;
+  }>;
 };
 
 function slugCode(name: string) {
@@ -113,8 +118,16 @@ function toDTO(row: {
   pointsPerReal: unknown;
   eligible: boolean;
   active: boolean;
-  professionalLinks: { professional: { name: string } }[];
+  professionalLinks: {
+    price: unknown;
+    professional: { id: string; name: string };
+  }[];
 }): ServiceDTO {
+  const professionals = row.professionalLinks.map((l) => ({
+    id: l.professional.id,
+    name: l.professional.name,
+    price: l.price == null ? null : Number(l.price),
+  }));
   return {
     id: row.id,
     code: row.code,
@@ -131,14 +144,15 @@ function toDTO(row: {
     pointsPerReal: row.pointsPerReal == null ? null : Number(row.pointsPerReal),
     eligible: row.eligible,
     active: row.active,
-    professionalCount: row.professionalLinks.length,
-    professionalNames: row.professionalLinks.map((l) => l.professional.name),
+    professionalCount: professionals.length,
+    professionalNames: professionals.map((p) => p.name),
+    professionals,
   };
 }
 
 const include = {
   professionalLinks: {
-    include: { professional: { select: { name: true } } },
+    include: { professional: { select: { id: true, name: true } } },
   },
 } as const;
 

@@ -54,6 +54,7 @@ export default async function RecepcaoPage() {
             name: p.name,
             specialty: p.specialty,
             procedureIds: p.procedureIds,
+            procedurePrices: p.procedurePrices,
           })),
         )}
         campaigns={campaigns.map((c) => ({

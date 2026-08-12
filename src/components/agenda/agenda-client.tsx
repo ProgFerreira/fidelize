@@ -22,6 +22,8 @@ import {
 } from "@/app/agenda-actions";
 import type { AgendaEventDTO } from "@/lib/agenda";
 import { cn } from "@/lib/utils";
+import { formatBRL } from "@/lib/money";
+import { resolveServicePrice } from "@/lib/professionals/price";
 
 const DAY_LABELS = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"] as const;
 const HOUR_START = 6;
@@ -47,6 +49,7 @@ type ProfessionalOption = {
   specialty: string;
   color: string | null;
   procedureIds: string[];
+  procedurePrices: Record<string, number | null>;
 };
 
 type Props = {
@@ -177,13 +180,19 @@ export function AgendaClient({
   procedures,
   professionals,
 }: Props) {
-  const [weekStart, setWeekStart] = React.useState(() =>
-    startOfWeek(new Date(initialWeekStart)),
-  );
+  // Semana no fuso do browser — NÃO usar ISO UTC do SSR (Hostinger UTC desloca a semana no Brasil).
+  const [weekStart, setWeekStart] = React.useState(() => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(initialWeekStart)) {
+      return startOfWeek(parseLocalDateInput(initialWeekStart));
+    }
+    return startOfWeek(new Date());
+  });
   const [events, setEvents] = React.useState(initialEvents);
   const [query, setQuery] = React.useState("");
-  const [dateFilter, setDateFilter] = React.useState(
-    toDateInputValue(new Date(initialWeekStart)),
+  const [dateFilter, setDateFilter] = React.useState(() =>
+    /^\d{4}-\d{2}-\d{2}$/.test(initialWeekStart)
+      ? initialWeekStart
+      : toDateInputValue(new Date()),
   );
   const [loading, setLoading] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft | null>(null);
@@ -215,13 +224,17 @@ export function AgendaClient({
 
   const reload = React.useCallback(
     async (anchor: Date, search?: string) => {
+      const start = startOfWeek(anchor);
+      const end = new Date(addDays(start, 7).getTime() - 1);
       setLoading(true);
       try {
         const data = await listAgendaWeekAction({
-          weekStart: anchor.toISOString(),
+          from: start.toISOString(),
+          to: end.toISOString(),
           query: search,
         });
-        setWeekStart(startOfWeek(new Date(data.weekStart)));
+        setWeekStart(start);
+        setDateFilter(toDateInputValue(start));
         setEvents(data.events);
       } catch (error) {
         toast.error(
@@ -233,6 +246,11 @@ export function AgendaClient({
     },
     [],
   );
+
+  // Alinha a grade ao calendário local após o hydrate (corrige SSR em UTC).
+  React.useEffect(() => {
+    void reload(new Date());
+  }, [reload]);
 
   async function onBuscar(e: React.FormEvent) {
     e.preventDefault();
@@ -275,6 +293,21 @@ export function AgendaClient({
     if (!draft) return;
     setSaving(true);
     const fd = new FormData(e.currentTarget);
+    // datetime-local sem fuso: converte no browser para ISO absoluto.
+    const starts = new Date(draft.startsAt);
+    const ends = new Date(draft.endsAt);
+    if (Number.isNaN(starts.getTime()) || Number.isNaN(ends.getTime())) {
+      setSaving(false);
+      toast.error("Data/hora inválida");
+      return;
+    }
+    if (ends <= starts) {
+      setSaving(false);
+      toast.error("O horário final deve ser após o início");
+      return;
+    }
+    fd.set("startsAt", starts.toISOString());
+    fd.set("endsAt", ends.toISOString());
     try {
       if (draft.id) {
         await updateAgendaEventAction(draft.id, fd);
@@ -284,7 +317,7 @@ export function AgendaClient({
         toast.success("Compromisso criado");
       }
       setDraft(null);
-      await reload(weekStart, query);
+      await reload(starts, query);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Não foi possível salvar",
@@ -750,12 +783,19 @@ export function AgendaClient({
                   }}
                 >
                   <option value="">—</option>
-                  {procedureOptions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.durationMinutes ? ` · ${p.durationMinutes}min` : ""}
-                    </option>
-                  ))}
+                  {procedureOptions.map((p) => {
+                    const price = resolveServicePrice(
+                      p.basePrice,
+                      selectedProfessional?.procedurePrices?.[p.id],
+                    );
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {` · ${formatBRL(price)}`}
+                        {p.durationMinutes ? ` · ${p.durationMinutes}min` : ""}
+                      </option>
+                    );
+                  })}
                 </Select>
               </Campo>
 

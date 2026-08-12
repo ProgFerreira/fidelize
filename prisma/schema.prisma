@@ -895,6 +895,8 @@ model Professional {
 model ProfessionalProcedure {
   professionalId String
   procedureId    String
+  /** Preço deste profissional para o serviço; null = usa Procedure.basePrice. */
+  price          Decimal? @db.Decimal(19, 4)
 
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   procedure    Procedure    @relation(fields: [procedureId], references: [id], onDelete: Cascade)

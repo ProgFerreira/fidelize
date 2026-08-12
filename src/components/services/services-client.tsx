@@ -471,8 +471,16 @@ export function ServicesClient({ initialServices }: Props) {
                 {s.professionalCount > 0 ? (
                   <>
                     <strong>Portfólio:</strong>{" "}
-                    {s.professionalNames.slice(0, 3).join(", ")}
-                    {s.professionalNames.length > 3 ? "…" : ""}
+                    {(s.professionals ?? []).slice(0, 3).map((pro, i) => (
+                      <span key={pro.id}>
+                        {i > 0 ? ", " : ""}
+                        {pro.name}
+                        {pro.price != null
+                          ? ` (${formatBRL(pro.price)})`
+                          : ""}
+                      </span>
+                    ))}
+                    {(s.professionals ?? []).length > 3 ? "…" : ""}
                   </>
                 ) : (
                   "Ainda sem profissional vinculado"
@@ -625,11 +633,22 @@ export function ServicesClient({ initialServices }: Props) {
 
               <div className="service-view__pros">
                 <p className="service-view__pros-label">Profissionais</p>
-                <p>
-                  {viewing.professionalCount > 0
-                    ? viewing.professionalNames.join(", ")
-                    : "Ainda sem profissional vinculado"}
-                </p>
+                {(viewing.professionals ?? []).length > 0 ? (
+                  <ul className="service-view__pro-list">
+                    {(viewing.professionals ?? []).map((pro) => (
+                      <li key={pro.id}>
+                        <span>{pro.name}</span>
+                        <span>
+                          {pro.price != null
+                            ? `${formatBRL(pro.price)} (próprio)`
+                            : `${formatBRL(viewing.basePrice)} (catálogo)`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>Ainda sem profissional vinculado</p>
+                )}
               </div>
 
               <div className="service-view__actions">

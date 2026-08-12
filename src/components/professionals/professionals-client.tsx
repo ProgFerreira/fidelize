@@ -18,7 +18,8 @@ import {
   updateProfessionalAction,
 } from "@/app/professional-actions";
 import type { ProfessionalDTO } from "@/lib/professionals";
-import { Stethoscope } from "lucide-react";
+import { resolveServicePrice } from "@/lib/professionals/price";
+import { Eye, Pencil, Power, Stethoscope } from "lucide-react";
 import { formatBRL } from "@/lib/money";
 
 type ProcedureOption = {
@@ -42,6 +43,7 @@ type Draft = {
   active: boolean;
   color: string;
   procedureIds: string[];
+  procedurePrices: Record<string, string>;
 };
 
 function emptyDraft(): Draft {
@@ -52,10 +54,16 @@ function emptyDraft(): Draft {
     active: true,
     color: "#3b82f6",
     procedureIds: [],
+    procedurePrices: {},
   };
 }
 
 function fromProfessional(p: ProfessionalDTO): Draft {
+  const procedurePrices: Record<string, string> = {};
+  for (const id of p.procedureIds) {
+    const override = p.procedurePrices?.[id];
+    procedurePrices[id] = override == null ? "" : String(override);
+  }
   return {
     id: p.id,
     name: p.name,
@@ -64,6 +72,7 @@ function fromProfessional(p: ProfessionalDTO): Draft {
     active: p.active,
     color: p.color || "#3b82f6",
     procedureIds: [...p.procedureIds],
+    procedurePrices,
   };
 }
 
@@ -73,6 +82,7 @@ export function ProfessionalsClient({
 }: Props) {
   const [items, setItems] = React.useState(initialProfessionals);
   const [draft, setDraft] = React.useState<Draft | null>(null);
+  const [viewing, setViewing] = React.useState<ProfessionalDTO | null>(null);
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -83,11 +93,25 @@ export function ProfessionalsClient({
     setDraft((prev) => {
       if (!prev) return prev;
       const has = prev.procedureIds.includes(id);
+      const nextPrices = { ...prev.procedurePrices };
+      if (has) delete nextPrices[id];
+      else if (nextPrices[id] == null) nextPrices[id] = "";
       return {
         ...prev,
         procedureIds: has
           ? prev.procedureIds.filter((x) => x !== id)
           : [...prev.procedureIds, id],
+        procedurePrices: nextPrices,
+      };
+    });
+  }
+
+  function setProcedurePrice(id: string, value: string) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        procedurePrices: { ...prev.procedurePrices, [id]: value },
       };
     });
   }
@@ -99,6 +123,7 @@ export function ProfessionalsClient({
     const fd = new FormData(e.currentTarget);
     for (const id of draft.procedureIds) {
       fd.append("procedureIds", id);
+      fd.set(`procedurePrice_${id}`, draft.procedurePrices[id] ?? "");
     }
     fd.set("active", draft.active ? "true" : "false");
     try {
@@ -143,7 +168,7 @@ export function ProfessionalsClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
-          Cadastre quem atende e os tipos de atendimento que realiza.
+          Cadastre quem atende e o preço de cada tipo de atendimento.
         </p>
         <Button
           type="button"
@@ -189,14 +214,28 @@ export function ProfessionalsClient({
 
               {p.procedureNames.length > 0 ? (
                 <ul className="mt-3 flex flex-wrap gap-1.5">
-                  {p.procedureNames.map((name) => (
-                    <li
-                      key={name}
-                      className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
-                    >
-                      {name}
-                    </li>
-                  ))}
+                  {p.procedureIds.map((id, index) => {
+                    const proc = procedures.find((item) => item.id === id);
+                    const name = p.procedureNames[index] ?? proc?.name;
+                    if (!name) return null;
+                    const price = proc
+                      ? resolveServicePrice(
+                          proc.basePrice,
+                          p.procedurePrices?.[id],
+                        )
+                      : null;
+                    const custom = p.procedurePrices?.[id] != null;
+                    return (
+                      <li
+                        key={id}
+                        className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                      >
+                        {name}
+                        {price != null ? ` · ${formatBRL(price)}` : ""}
+                        {custom ? " *" : ""}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="mt-3 text-xs text-slate-400">
@@ -208,9 +247,19 @@ export function ProfessionalsClient({
                 <Button
                   type="button"
                   size="sm"
+                  variant="contorno"
+                  onClick={() => setViewing(p)}
+                >
+                  <Eye className="h-3.5 w-3.5" aria-hidden />
+                  Visualizar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant="secondary"
                   onClick={() => setDraft(fromProfessional(p))}
                 >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
                   Editar
                 </Button>
                 <Button
@@ -219,6 +268,7 @@ export function ProfessionalsClient({
                   variant={p.active ? "danger" : "secondary"}
                   onClick={() => void onToggleActive(p.id, !p.active)}
                 >
+                  <Power className="h-3.5 w-3.5" aria-hidden />
                   {p.active ? "Inativar" : "Ativar"}
                 </Button>
               </div>
@@ -226,6 +276,144 @@ export function ProfessionalsClient({
           ))}
         </div>
       )}
+
+      {viewing ? (
+        <div className="agenda__modal" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="agenda__modal-backdrop"
+            aria-label="Fechar"
+            onClick={() => setViewing(null)}
+          />
+          <Card className="agenda__modal-card agenda__modal-card--tall max-w-xl">
+            <div className="agenda__modal-head">
+              <h2>Detalhes do profissional</h2>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setViewing(null)}
+              >
+                Fechar
+              </Button>
+            </div>
+
+            <div className="service-view">
+              <div className="service-view__title-row">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block h-3 w-3 shrink-0 rounded-full"
+                      style={{ background: viewing.color || "#3b82f6" }}
+                      aria-hidden
+                    />
+                    <h3 className="service-view__name">{viewing.name}</h3>
+                  </div>
+                  <p className="service-view__code">{viewing.specialty}</p>
+                </div>
+                <div className="service-view__badges">
+                  <Badge tone={viewing.active ? "success" : "muted"}>
+                    {viewing.active ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+              </div>
+
+              <p className="service-view__desc">
+                {viewing.notes?.trim()
+                  ? viewing.notes
+                  : "Sem observações cadastradas."}
+              </p>
+
+              <dl className="service-view__grid">
+                <div>
+                  <dt>Especialidade</dt>
+                  <dd>{viewing.specialty}</dd>
+                </div>
+                <div>
+                  <dt>Cor na agenda</dt>
+                  <dd className="flex items-center gap-2">
+                    <span
+                      className="inline-block h-3.5 w-3.5 rounded-full border border-slate-200"
+                      style={{ background: viewing.color || "#3b82f6" }}
+                      aria-hidden
+                    />
+                    {viewing.color || "#3b82f6"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{viewing.active ? "Ativo" : "Inativo"}</dd>
+                </div>
+                <div>
+                  <dt>Atendimentos</dt>
+                  <dd>
+                    {viewing.procedureNames.length} tipo
+                    {viewing.procedureNames.length === 1 ? "" : "s"}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="service-view__pros">
+                <p className="service-view__pros-label">
+                  Tipos de atendimento
+                </p>
+                {viewing.procedureNames.length > 0 ? (
+                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                    {viewing.procedureIds.map((id, index) => {
+                      const proc = procedures.find((item) => item.id === id);
+                      const name = viewing.procedureNames[index] ?? proc?.name;
+                      if (!name) return null;
+                      const price = proc
+                        ? resolveServicePrice(
+                            proc.basePrice,
+                            viewing.procedurePrices?.[id],
+                          )
+                        : null;
+                      const custom = viewing.procedurePrices?.[id] != null;
+                      return (
+                        <li
+                          key={id}
+                          className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700"
+                        >
+                          {name}
+                          {price != null ? ` · ${formatBRL(price)}` : ""}
+                          {custom ? " (preço próprio)" : ""}
+                          {proc?.durationMinutes != null
+                            ? ` · ${proc.durationMinutes} min`
+                            : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p>Ainda sem tipo de atendimento vinculado</p>
+                )}
+              </div>
+
+              <div className="service-view__actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setViewing(null)}
+                >
+                  Fechar
+                </Button>
+                <Button
+                  type="button"
+                  variant="gold"
+                  onClick={() => {
+                    setDraft(fromProfessional(viewing));
+                    setViewing(null);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" aria-hidden />
+                  Editar
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      ) : null}
 
       {draft ? (
         <div className="agenda__modal" role="dialog" aria-modal="true">
@@ -279,38 +467,60 @@ export function ProfessionalsClient({
                 />
               </Campo>
 
-              <Campo label="Tipos de atendimento (portfólio)">
+              <Campo
+                label="Tipos de atendimento (portfólio)"
+                dica="O preço em branco usa o valor do catálogo. Preencha só se este profissional cobra diferente."
+              >
                 {procedures.length === 0 ? (
                   <p className="text-sm text-slate-500">
                     Cadastre serviços em Cadastros → Serviços para vinculá-los
                     ao portfólio.
                   </p>
                 ) : (
-                  <ul className="max-h-56 space-y-2 overflow-auto rounded-md border border-slate-200 p-3">
+                  <ul className="professional-portfolio">
                     {procedures.map((proc) => {
                       const checked = draft.procedureIds.includes(proc.id);
                       return (
-                        <li key={proc.id}>
-                          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+                        <li
+                          key={proc.id}
+                          className={
+                            checked
+                              ? "professional-portfolio__item professional-portfolio__item--on"
+                              : "professional-portfolio__item"
+                          }
+                        >
+                          <label className="professional-portfolio__check">
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => toggleProcedure(proc.id)}
-                              className="mt-0.5 h-4 w-4 rounded border-slate-300"
                             />
                             <span className="min-w-0">
                               <span className="font-medium">{proc.name}</span>
-                              <span className="mt-0.5 block text-xs text-slate-500">
-                                {formatBRL(proc.basePrice)}
+                              <span className="professional-portfolio__meta">
+                                Catálogo {formatBRL(proc.basePrice)}
                                 {proc.durationMinutes != null
                                   ? ` · ${proc.durationMinutes} min`
-                                  : ""}
-                                {proc.validityDays != null
-                                  ? ` · validade ${proc.validityDays}d`
                                   : ""}
                               </span>
                             </span>
                           </label>
+                          {checked ? (
+                            <div className="professional-portfolio__price">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                inputMode="decimal"
+                                placeholder={String(proc.basePrice)}
+                                aria-label={`Preço de ${proc.name} para este profissional`}
+                                value={draft.procedurePrices[proc.id] ?? ""}
+                                onChange={(e) =>
+                                  setProcedurePrice(proc.id, e.target.value)
+                                }
+                              />
+                            </div>
+                          ) : null}
                         </li>
                       );
                     })}

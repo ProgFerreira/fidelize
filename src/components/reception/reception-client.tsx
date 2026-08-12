@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { Button, Card, Input, Label, Select, Badge } from "@/components/ui";
@@ -14,6 +14,7 @@ import {
   getPatientAppointmentHistoryAction,
 } from "@/app/actions";
 import { formatBRL } from "@/lib/money";
+import { resolveServicePrice } from "@/lib/professionals/price";
 import {
   AppointmentHistoryCard,
   type AppointmentHistoryItem,
@@ -39,6 +40,7 @@ type ProfessionalOption = {
   name: string;
   specialty: string;
   procedureIds: string[];
+  procedurePrices: Record<string, number | null>;
 };
 
 type CartLine = {
@@ -92,16 +94,46 @@ export function ReceptionClient({
   }, [selected?.id, cartSubtotal, cartCount]);
 
   const professionalsForCart = useMemo(() => {
-    if (cart.length === 0) return professionals;
-    const needed = new Set(
-      cart.map((l) => l.procedureId).filter(Boolean),
-    );
+    if (cart.length === 0) return [];
+    const needed = [
+      ...new Set(cart.map((l) => l.procedureId).filter(Boolean)),
+    ];
+    // Só profissionais que tenham o(s) serviço(s) do carrinho no portfólio
+    // (tipos de atendimento cadastrados). Sem portfólio = não aparece.
     return professionals.filter(
       (p) =>
-        p.procedureIds.length === 0 ||
-        [...needed].some((id) => p.procedureIds.includes(id)),
+        p.procedureIds.length > 0 &&
+        needed.every((id) => p.procedureIds.includes(id)),
     );
   }, [professionals, cart]);
+
+  const selectedProfessional = professionals.find(
+    (p) => p.id === professionalId,
+  );
+
+  function priceFor(procedureId: string, catalogPrice: number) {
+    return resolveServicePrice(
+      catalogPrice,
+      selectedProfessional?.procedurePrices?.[procedureId],
+    );
+  }
+
+  useEffect(() => {
+    if (
+      professionalId &&
+      !professionalsForCart.some((p) => p.id === professionalId)
+    ) {
+      setProfessionalId("");
+      setSimulation(null);
+      setCart((prev) =>
+        prev.map((line) => {
+          const proc = procedures.find((item) => item.id === line.procedureId);
+          if (!proc) return line;
+          return { ...line, unitPrice: proc.basePrice };
+        }),
+      );
+    }
+  }, [professionalId, professionalsForCart, procedures]);
 
   function loadHistory(patientId: string) {
     startTransition(async () => {
@@ -193,7 +225,7 @@ export function ReceptionClient({
         {
           procedureId: proc.id,
           name: proc.name,
-          unitPrice: proc.basePrice,
+          unitPrice: priceFor(proc.id, proc.basePrice),
           quantity: 1,
           cashbackPercent: proc.cashbackPercent,
         },
@@ -420,7 +452,7 @@ export function ReceptionClient({
                               {p.name}
                             </p>
                             <p className="shrink-0 text-sm font-semibold tabular">
-                              {formatBRL(p.basePrice)}
+                              {formatBRL(priceFor(p.id, p.basePrice))}
                             </p>
                           </div>
                           <p className="mt-1 text-xs text-slate-400">{p.code}</p>
@@ -559,15 +591,67 @@ export function ReceptionClient({
                   <Label>Profissional</Label>
                   <Select
                     value={professionalId}
-                    onChange={(e) => setProfessionalId(e.target.value)}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      const pro = professionals.find((p) => p.id === nextId);
+                      setProfessionalId(nextId);
+                      setSimulation(null);
+                      setCart((prev) =>
+                        prev.map((line) => {
+                          const proc = procedures.find(
+                            (item) => item.id === line.procedureId,
+                          );
+                          if (!proc) return line;
+                          return {
+                            ...line,
+                            unitPrice: resolveServicePrice(
+                              proc.basePrice,
+                              pro?.procedurePrices?.[proc.id],
+                            ),
+                          };
+                        }),
+                      );
+                    }}
+                    disabled={professionalsForCart.length === 0}
                   >
-                    <option value="">—</option>
-                    {professionalsForCart.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · {p.specialty}
-                      </option>
-                    ))}
+                    <option value="">
+                      {professionalsForCart.length === 0
+                        ? "Nenhum profissional para estes serviços"
+                        : "—"}
+                    </option>
+                    {professionalsForCart.map((p) => {
+                      const single = cart.length === 1 ? cart[0] : null;
+                      const proc = single
+                        ? procedures.find((item) => item.id === single.procedureId)
+                        : null;
+                      const priceLabel =
+                        proc
+                          ? ` · ${formatBRL(
+                              resolveServicePrice(
+                                proc.basePrice,
+                                p.procedurePrices?.[proc.id],
+                              ),
+                            )}`
+                          : "";
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.name} · {p.specialty}
+                          {priceLabel}
+                        </option>
+                      );
+                    })}
                   </Select>
+                  {professionalsForCart.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Vincule o serviço ao profissional em Cadastros →
+                      Profissionais (tipos de atendimento).
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Ao escolher o profissional, o carrinho usa o preço dele
+                      para cada serviço.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>Campanha</Label>

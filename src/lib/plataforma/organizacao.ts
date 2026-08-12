@@ -23,6 +23,8 @@ export async function criarOrganizacao(entrada: {
   plan?: string;
   adminName?: string;
   adminEmail: string;
+  affiliateCode?: string;
+  affiliateActorId?: string;
 }) {
   const slug = entrada.slug.trim().toLowerCase();
   if (!/^[a-z0-9]([a-z0-9-]{1,46}[a-z0-9])?$/.test(slug)) {
@@ -110,6 +112,21 @@ export async function criarOrganizacao(entrada: {
 
     await ensureModulesForClinic(clinic.id);
   });
+
+  if (entrada.affiliateCode?.trim()) {
+    const { linkReferralToOrganization } = await import("@/lib/affiliates");
+    try {
+      await linkReferralToOrganization({
+        organizationId: org.id,
+        affiliateCode: entrada.affiliateCode.trim(),
+        source: "ADMIN",
+        actorId: entrada.affiliateActorId || null,
+        reason: "Vinculado na criação da organização",
+      });
+    } catch {
+      // Não falha o provisionamento se o código for inválido; admin pode vincular depois.
+    }
+  }
 
   return {
     organizationId: org.id,

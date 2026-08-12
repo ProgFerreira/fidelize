@@ -160,7 +160,72 @@ enum AuditAction {
   PREDICTION_RUN
   PUSH_DEVICE
   SCHEDULE_CHANGE
+  AFFILIATE_APPROVE
+  AFFILIATE_REJECT
+  AFFILIATE_SUSPEND
+  AFFILIATE_BLOCK
+  AFFILIATE_REACTIVATE
+  AFFILIATE_PLAN_CHANGE
+  AFFILIATE_REFERRAL_LINK
+  AFFILIATE_COMMISSION_BLOCK
+  AFFILIATE_COMMISSION_CANCEL
+  AFFILIATE_PAYOUT
+  AFFILIATE_PROFILE_CHANGE
+  PLATFORM_SALE_CONFIRM
+  PLATFORM_SALE_CANCEL
   OTHER
+}
+
+enum AffiliateType {
+  AFFILIATE
+  PARTNER
+}
+
+enum AffiliateStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  BLOCKED
+}
+
+enum AffiliateCommissionType {
+  PERCENT
+  FIXED
+}
+
+enum AffiliateCommissionStatus {
+  PENDING
+  APPROVED
+  AVAILABLE
+  PAID
+  CANCELLED
+  BLOCKED
+}
+
+enum AffiliateCommissionKind {
+  PRIMARY
+  ADJUSTMENT
+}
+
+enum AffiliatePayoutStatus {
+  DRAFT
+  PROCESSING
+  PAID
+  CANCELLED
+}
+
+enum AffiliateReferralSource {
+  COOKIE
+  MANUAL
+  ADMIN
+}
+
+enum PlatformSaleStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REFUNDED
 }
 
 enum ModuleCode {
@@ -363,9 +428,11 @@ model Organization {
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  clinics          Clinic[]
-  users            User[]
-  platformAccesses PlatformAccess[]
+  clinics            Clinic[]
+  users              User[]
+  platformAccesses   PlatformAccess[]
+  affiliateReferrals AffiliateReferral[]
+  platformSales      PlatformSale[]
 
   @@index([active])
   @@index([deletedAt])
@@ -559,6 +626,7 @@ model User {
   ledgerEntries    LedgerEntry[]   @relation("LedgerOperator")
   redemptions      Redemption[]
   platformAccesses PlatformAccess[]
+  affiliateProfile Affiliate?
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -2232,4 +2300,217 @@ model MobileSession {
   @@index([clinicId, patientId])
   @@index([expiresAt])
   @@index([organizationId])
+}
+
+/// Plano de comissão de afiliados da plataforma (SaaS).
+model AffiliateCommissionPlan {
+  id                   String                  @id @default(cuid())
+  name                 String
+  commissionType       AffiliateCommissionType @default(PERCENT)
+  commissionValue      Decimal                 @db.Decimal(19, 4)
+  active               Boolean                 @default(true)
+  holdDays             Int                     @default(14)
+  attributionDays      Int                     @default(30)
+  minPayoutAmount      Decimal?                @db.Decimal(19, 4)
+  firstPurchaseOnly    Boolean                 @default(true)
+  eligiblePlanCodes    Json?
+  startsAt             DateTime?
+  endsAt               DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  affiliates Affiliate[]
+
+  @@index([active])
+}
+
+model Affiliate {
+  id                 String          @id @default(cuid())
+  code               String          @unique
+  type               AffiliateType   @default(AFFILIATE)
+  status             AffiliateStatus @default(PENDING)
+  name               String
+  document           String?
+  email              String
+  phone              String?
+  userId             String?         @unique
+  commissionPlanId   String
+  customCommissionType  AffiliateCommissionType?
+  customCommissionValue Decimal?     @db.Decimal(19, 4)
+  pixKey             String?
+  payoutNotes        String?         @db.Text
+  approvedAt         DateTime?
+  approvedByUserId   String?
+  termsAcceptedAt    DateTime?
+  termsVersion       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  user           User?                    @relation(fields: [userId], references: [id])
+  commissionPlan AffiliateCommissionPlan  @relation(fields: [commissionPlanId], references: [id])
+  visits         AffiliateVisit[]
+  referrals      AffiliateReferral[]
+  commissions    AffiliateCommission[]
+  payouts        AffiliatePayout[]
+
+  @@index([status])
+  @@index([type, status])
+  @@index([email])
+  @@index([document])
+}
+
+model AffiliateVisit {
+  id           String   @id @default(cuid())
+  affiliateId  String
+  code         String
+  visitToken   String
+  landingPath  String?
+  referer      String?  @db.Text
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  ipHash       String?
+  userAgent    String?  @db.Text
+  expiresAt    DateTime
+  organizationId String?
+  createdAt    DateTime @default(now())
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id])
+
+  @@index([affiliateId, createdAt])
+  @@index([visitToken])
+  @@index([code, createdAt])
+  @@index([expiresAt])
+}
+
+model AffiliateReferral {
+  id             String                  @id @default(cuid())
+  affiliateId    String
+  organizationId String
+  visitId        String?
+  source         AffiliateReferralSource @default(ADMIN)
+  active         Boolean                 @default(true)
+  linkedByUserId String?
+  linkReason     String?                 @db.Text
+  previousAffiliateId String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  affiliate    Affiliate    @relation(fields: [affiliateId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  commissions  AffiliateCommission[]
+
+  /// Preenchido com organizationId enquanto active=true; null quando inativo (unique parcial).
+  activeOrganizationKey String? @unique
+
+  @@index([affiliateId, createdAt])
+  @@index([organizationId, active])
+}
+
+model PlatformSale {
+  id               String             @id @default(cuid())
+  organizationId   String
+  planCode         String
+  grossAmount      Decimal            @db.Decimal(19, 4)
+  discountAmount   Decimal            @default(0) @db.Decimal(19, 4)
+  netAmount        Decimal            @db.Decimal(19, 4)
+  status           PlatformSaleStatus @default(PENDING)
+  idempotencyKey   String             @unique
+  notes            String?            @db.Text
+  confirmedAt      DateTime?
+  confirmedByUserId String?
+  cancelledAt      DateTime?
+  cancelReason     String?            @db.Text
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  commissions  AffiliateCommission[]
+
+  @@index([organizationId, status])
+  @@index([status, confirmedAt])
+}
+
+model AffiliateCommission {
+  id              String                     @id @default(cuid())
+  affiliateId     String
+  referralId      String?
+  platformSaleId  String
+  kind            AffiliateCommissionKind    @default(PRIMARY)
+  status          AffiliateCommissionStatus  @default(PENDING)
+  baseAmount      Decimal                    @db.Decimal(19, 4)
+  amount          Decimal                    @db.Decimal(19, 4)
+  ruleSnapshot    Json
+  availableAt     DateTime?
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?                    @db.Text
+  blockReason     String?                    @db.Text
+  fraudFlags      Json?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  affiliate    Affiliate                   @relation(fields: [affiliateId], references: [id])
+  referral     AffiliateReferral?          @relation(fields: [referralId], references: [id])
+  platformSale PlatformSale                @relation(fields: [platformSaleId], references: [id])
+  payoutItems  AffiliatePayoutItem[]
+
+  @@unique([platformSaleId, kind])
+  @@index([affiliateId, status])
+  @@index([status, availableAt])
+  @@index([referralId])
+}
+
+model AffiliatePayout {
+  id              String                @id @default(cuid())
+  affiliateId     String
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  totalAmount     Decimal               @db.Decimal(19, 4)
+  status          AffiliatePayoutStatus @default(DRAFT)
+  method          String?
+  payoutKeyUsed   String?
+  paidAt          DateTime?
+  paidByUserId    String?
+  notes           String?               @db.Text
+  receiptPath     String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  affiliate Affiliate             @relation(fields: [affiliateId], references: [id])
+  items     AffiliatePayoutItem[]
+
+  @@index([affiliateId, status])
+  @@index([status, paidAt])
+}
+
+model AffiliatePayoutItem {
+  id           String   @id @default(cuid())
+  payoutId     String
+  commissionId String
+  amount       Decimal  @db.Decimal(19, 4)
+  createdAt    DateTime @default(now())
+
+  payout     AffiliatePayout     @relation(fields: [payoutId], references: [id])
+  commission AffiliateCommission @relation(fields: [commissionId], references: [id])
+
+  @@unique([payoutId, commissionId])
+  @@index([commissionId])
+}
+
+model AffiliateAuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  actorUserId String?
+  entityType String
+  entityId   String
+  beforeData Json?
+  afterData  Json?
+  reason     String?  @db.Text
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
 }

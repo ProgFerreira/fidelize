@@ -268,6 +268,30 @@ async function main() {
     },
   });
 
+  await prisma.role.create({
+    data: {
+      organizationId: null,
+      clinicId: null,
+      code: "AFFILIATE",
+      name: "Afiliado / Parceiro",
+      isSystem: true,
+    },
+  });
+
+  await prisma.affiliateCommissionPlan.create({
+    data: {
+      id: "aff_plan_default_10",
+      name: "Padrão 10% primeira compra",
+      commissionType: "PERCENT",
+      commissionValue: "10",
+      active: true,
+      holdDays: 14,
+      attributionDays: 30,
+      firstPurchaseOnly: true,
+      eligiblePlanCodes: ["start", "pro", "vip"],
+    },
+  });
+
   await prisma.user.create({
     data: {
       organizationId: null,

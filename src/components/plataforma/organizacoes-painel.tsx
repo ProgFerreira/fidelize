@@ -117,6 +117,9 @@ export function OrganizacoesPainel({ initial }: { initial: OrgRow[] }) {
           <Campo label="Nome admin">
             <Input name="adminName" />
           </Campo>
+          <Campo label="Código afiliado (opcional)">
+            <Input name="affiliateCode" placeholder="ex: abc12xyz" />
+          </Campo>
           <div className="sm:col-span-2">
             <Button type="submit" carregando={pending}>
               Criar organização

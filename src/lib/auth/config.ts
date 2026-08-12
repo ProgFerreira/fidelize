@@ -33,6 +33,7 @@ export const authConfig = {
         token.permissions = user.permissions;
         token.mfaEnabled = user.mfaEnabled;
         token.ehAdminPlataforma = user.ehAdminPlataforma;
+        token.affiliateId = user.affiliateId ?? null;
         token.suporteAcessoId = user.suporteAcessoId ?? null;
         token.suporteMotivo = user.suporteMotivo ?? null;
         token.suporteOrganizacaoNome = user.suporteOrganizacaoNome ?? null;
@@ -94,6 +95,8 @@ export const authConfig = {
           (token.permissions as PermissionCode[] | undefined) ?? [];
         session.user.mfaEnabled = Boolean(token.mfaEnabled);
         session.user.ehAdminPlataforma = Boolean(token.ehAdminPlataforma);
+        session.user.affiliateId =
+          (token.affiliateId as string | null | undefined) ?? null;
         session.user.suporteAcessoId =
           (token.suporteAcessoId as string | null | undefined) ?? null;
         session.user.suporteMotivo =

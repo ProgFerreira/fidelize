@@ -13,9 +13,11 @@ export default async function LoginPage() {
   const session = await auth();
   if (session?.user) {
     redirect(
-      session.user.ehAdminPlataforma && !session.user.suporteAcessoId
-        ? "/organizacoes"
-        : "/dashboard",
+      session.user.roleCode === "AFFILIATE"
+        ? "/afiliado"
+        : session.user.ehAdminPlataforma && !session.user.suporteAcessoId
+          ? "/organizacoes"
+          : "/dashboard",
     );
   }
 

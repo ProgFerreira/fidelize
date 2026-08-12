@@ -24,6 +24,14 @@ export default async function OrganizacoesPage() {
         <p className="mt-1 text-sm text-slate-500">
           Administração da plataforma Fidelize
         </p>
+        <p className="mt-3">
+          <a
+            href="/organizacoes/afiliados"
+            className="text-sm font-medium text-blue-700 underline-offset-2 hover:underline"
+          >
+            Programa de afiliados e parceiros
+          </a>
+        </p>
       </div>
       <OrganizacoesPainel initial={orgs} />
     </div>

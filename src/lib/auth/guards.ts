@@ -76,3 +76,25 @@ export function hasPermission(
 ) {
   return Boolean(permissions?.includes(permission));
 }
+
+export async function requirePlatformAdmin() {
+  const session = await requireSession();
+  if (!session.user.ehAdminPlataforma || session.user.roleCode !== "PLATFORM_ADMIN") {
+    redirect("/login");
+  }
+  if (session.user.suporteAcessoId) {
+    redirect("/dashboard");
+  }
+  return session;
+}
+
+export async function requireAffiliateSession() {
+  const session = await requireSession();
+  if (session.user.roleCode !== "AFFILIATE" || !session.user.affiliateId) {
+    redirect("/login");
+  }
+  return {
+    ...session,
+    affiliateId: session.user.affiliateId as string,
+  };
+}

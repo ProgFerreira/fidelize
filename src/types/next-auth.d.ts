@@ -11,6 +11,7 @@ declare module "next-auth" {
     permissions: PermissionCode[];
     mfaEnabled: boolean;
     ehAdminPlataforma: boolean;
+    affiliateId?: string | null;
     suporteAcessoId?: string | null;
     suporteMotivo?: string | null;
     suporteOrganizacaoNome?: string | null;
@@ -27,6 +28,7 @@ declare module "next-auth" {
       permissions: PermissionCode[];
       mfaEnabled: boolean;
       ehAdminPlataforma: boolean;
+      affiliateId?: string | null;
       suporteAcessoId?: string | null;
       suporteMotivo?: string | null;
       suporteOrganizacaoNome?: string | null;
@@ -44,6 +46,7 @@ declare module "next-auth/jwt" {
     permissions?: PermissionCode[];
     mfaEnabled?: boolean;
     ehAdminPlataforma?: boolean;
+    affiliateId?: string | null;
     suporteAcessoId?: string | null;
     suporteMotivo?: string | null;
     suporteOrganizacaoNome?: string | null;

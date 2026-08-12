@@ -6,6 +6,10 @@ import {
   HEADER_REQUEST_ID,
   resolverHost,
 } from "@/lib/organization-host";
+import {
+  AFFILIATE_COOKIE,
+  buildAffCookieFromRequest,
+} from "@/lib/affiliates/cookie";
 
 const { auth } = NextAuth(authConfig);
 
@@ -22,6 +26,7 @@ const ROTAS_PUBLICAS = [
   "/api/integration",
   "/api/webhooks",
   "/api/v1",
+  "/api/affiliates",
 ];
 
 function respostaJsonApi(status: number, mensagem: string) {
@@ -33,6 +38,29 @@ function novoRequestId() {
     globalThis.crypto?.randomUUID?.() ??
     `req-${Date.now()}-${Math.random()}`
   );
+}
+
+function comCookieRef(
+  req: { nextUrl: URL; cookies: { get: (n: string) => { value: string } | undefined } },
+  res: NextResponse,
+) {
+  const ref = req.nextUrl.searchParams.get("ref");
+  if (!ref || ref.length > 32) return res;
+  const built = buildAffCookieFromRequest({
+    code: ref,
+    pathname: req.nextUrl.pathname,
+    utmSource: req.nextUrl.searchParams.get("utm_source"),
+    utmMedium: req.nextUrl.searchParams.get("utm_medium"),
+    utmCampaign: req.nextUrl.searchParams.get("utm_campaign"),
+  });
+  res.cookies.set(AFFILIATE_COOKIE, built.value, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: built.maxAgeSeconds,
+    secure: process.env.NODE_ENV === "production",
+  });
+  return res;
 }
 
 export default auth((req) => {
@@ -51,20 +79,18 @@ export default auth((req) => {
     HEADER_REQUEST_ID,
     req.headers.get(HEADER_REQUEST_ID) ?? novoRequestId(),
   );
-  const seguir = () => NextResponse.next({ request: { headers: cabecalhos } });
+  const seguir = () =>
+    comCookieRef(req, NextResponse.next({ request: { headers: cabecalhos } }));
 
   if (ROTAS_PUBLICAS.some((r) => pathname === r || pathname.startsWith(`${r}/`))) {
     const res = seguir();
     if (pathname.startsWith("/embed/widget")) {
-      // Defesa em profundidade: página também emite CSP via meta.
-      // Aqui reforçamos X-Frame-Options genérico quando não há clínica.
       res.headers.set("X-Content-Type-Options", "nosniff");
       res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     }
     return res;
   }
 
-  // Staff paths and platform require session
   const precisaAuth =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/recepcao") ||
@@ -95,6 +121,7 @@ export default auth((req) => {
     pathname.startsWith("/planos") ||
     pathname.startsWith("/loyalty360") ||
     pathname.startsWith("/organizacoes") ||
+    pathname.startsWith("/afiliado") ||
     pathname.startsWith("/api/plataforma") ||
     pathname.startsWith("/api/import");
 
@@ -106,10 +133,11 @@ export default auth((req) => {
     if (ehApi) return respostaJsonApi(401, "Não autenticado");
     const url = new URL("/login", req.url);
     if (pathname !== "/") url.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(url);
+    return comCookieRef(req, NextResponse.redirect(url));
   }
 
   const slugSessao = sessao.user.organizationSlug ?? null;
+  const ehAfiliado = sessao.user.roleCode === "AFFILIATE";
 
   if (host.tipo === "organizacao") {
     if (slugSessao !== host.slug) {
@@ -120,10 +148,27 @@ export default auth((req) => {
     }
   } else if (host.tipo === "plataforma") {
     const ehAdmin = Boolean(sessao.user.ehAdminPlataforma);
-    if (slugSessao !== null || !ehAdmin) {
+    if (slugSessao !== null || (!ehAdmin && !ehAfiliado)) {
       if (ehApi) return respostaJsonApi(403, "Acesso restrito à plataforma");
       return NextResponse.redirect(new URL("/login", req.url));
     }
+    if (
+      ehAfiliado &&
+      !pathname.startsWith("/afiliado") &&
+      !pathname.startsWith("/api/auth")
+    ) {
+      return NextResponse.redirect(new URL("/afiliado", req.url));
+    }
+  }
+
+  if (ehAfiliado) {
+    if (
+      !pathname.startsWith("/afiliado") &&
+      !pathname.startsWith("/api/auth")
+    ) {
+      return NextResponse.redirect(new URL("/afiliado", req.url));
+    }
+    return seguir();
   }
 
   if (sessao.user.ehAdminPlataforma && !sessao.user.suporteAcessoId) {

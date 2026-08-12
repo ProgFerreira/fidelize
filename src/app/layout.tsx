@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { AffiliateTracker } from "@/components/affiliates/affiliate-tracker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,7 +38,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <SessionProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <Suspense fallback={null}>
+              <AffiliateTracker />
+            </Suspense>
+            {children}
+          </ToastProvider>
         </SessionProvider>
       </body>
     </html>

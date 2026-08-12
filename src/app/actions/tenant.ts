@@ -29,6 +29,8 @@ export async function createOrganizationAction(formData: FormData) {
     contactPhone: String(formData.get("contactPhone") || "") || undefined,
     adminName: String(formData.get("adminName") || "") || undefined,
     adminEmail: String(formData.get("adminEmail") || ""),
+    affiliateCode: String(formData.get("affiliateCode") || "") || undefined,
+    affiliateActorId: session?.user?.id,
   });
 }
 

@@ -157,7 +157,19 @@ const nextAuth = NextAuth({
           (rp) => rp.permission.code as PermissionCode,
         );
 
-        const ehAdminPlataforma = user.organizationId === null;
+        const ehAdminPlataforma =
+          user.organizationId === null && user.role.code === "PLATFORM_ADMIN";
+
+        let affiliateId: string | null = null;
+        if (user.role.code === "AFFILIATE") {
+          const profile = await semOrganizacao(() =>
+            prisma.affiliate.findUnique({
+              where: { userId: user.id },
+              select: { id: true },
+            }),
+          );
+          affiliateId = profile?.id ?? null;
+        }
 
         return {
           id: user.id,
@@ -171,6 +183,7 @@ const nextAuth = NextAuth({
           permissions,
           mfaEnabled: user.mfaEnabled,
           ehAdminPlataforma,
+          affiliateId,
         };
       },
     }),

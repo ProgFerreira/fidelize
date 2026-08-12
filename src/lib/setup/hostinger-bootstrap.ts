@@ -81,6 +81,38 @@ async function tableExists(table: string): Promise<boolean> {
 }
 
 export async function diagnoseDb() {
+  let dbPing: { ok: true } | { ok: false; error: string } = { ok: true };
+  try {
+    await prisma.$queryRawUnsafe("SELECT 1 AS ok");
+  } catch (error) {
+    dbPing = {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+    return {
+      prismaCli: findPrismaCli(),
+      tsxCli: findTsxCli(),
+      migrationsDir: findMigrationsDir(),
+      embeddedMigrations: EMBEDDED_MIGRATIONS.length,
+      dbPing,
+      hasMigrationsTable: false,
+      hasUserTable: false,
+      hasOrganizationTable: false,
+      userCount: null,
+      orgCount: null,
+      hasDermaphiosAdmin: null,
+      databaseUrlHost: (() => {
+        try {
+          return new URL(process.env.DATABASE_URL || "").hostname || null;
+        } catch {
+          return null;
+        }
+      })(),
+      hint:
+        "MySQL inacessível. No hPanel → Databases, confira host/usuário/senha/banco e atualize DATABASE_URL no hostinger.env. Em Node.js da Hostinger o host às vezes NÃO é localhost.",
+    };
+  }
+
   const hasMigrationsTable = await tableExists("_prisma_migrations").catch(
     () => false,
   );
@@ -113,6 +145,7 @@ export async function diagnoseDb() {
     tsxCli: findTsxCli(),
     migrationsDir: findMigrationsDir(),
     embeddedMigrations: EMBEDDED_MIGRATIONS.length,
+    dbPing,
     hasMigrationsTable,
     hasUserTable,
     hasOrganizationTable,

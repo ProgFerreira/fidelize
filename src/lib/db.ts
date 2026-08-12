@@ -10,7 +10,7 @@ import { extensaoTenant } from "@/lib/prisma-tenant";
  * Bump `PRISMA_CLIENT_REV` quando o schema mudar campos de modelos já existentes
  * (ex.: Procedure.imageUrl), para invalidar o singleton em hot-reload do Next.
  */
-const PRISMA_CLIENT_REV = 4;
+const PRISMA_CLIENT_REV = 5;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof criarPrisma>;
@@ -38,10 +38,12 @@ function criarPrisma() {
   // Evita ficar em "Salvando..." sem feedback quando o MySQL não responde.
   acquireTimeout: 8_000,
   connectTimeout: 6_000,
-    // Sem isso, a Hostinger negocia UTF8MB4_BIN na conexão, colidindo com a
-    // collation das tabelas (utf8mb4_unicode_ci) em qualquer LIKE/contains.
-    charset: "utf8mb4",
-    collation: "UTF8MB4_UNICODE_CI",
+  // Hostinger negocia UTF8MB4_BIN no handshake. A opção `collation` sozinha
+  // NÃO emite SET NAMES quando o índice é <= 255 — LIKE/contains quebra com
+  // "Illegal mix of collations (utf8mb4_unicode_ci … utf8mb4_bin)".
+  charset: "utf8mb4",
+  collation: "UTF8MB4_UNICODE_CI",
+  initSql: "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
   });
 
   return new PrismaClient({ adapter }).$extends(extensaoTenant);

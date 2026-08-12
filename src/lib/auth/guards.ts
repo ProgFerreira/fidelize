@@ -32,6 +32,20 @@ export async function requireClinicContext(): Promise<StaffContext> {
   }
 
   let clinicId = session.user.clinicId ?? null;
+  let unitId = session.user.unitId ?? null;
+
+  // JWT pode ficar com clinicId/unitId de outro banco (ex.: trocou DATABASE_URL).
+  if (clinicId && session.user.organizationId) {
+    const clinic = await comOrganizacao(
+      { organizationId: session.user.organizationId },
+      () =>
+        prisma.clinic.findFirst({
+          where: { id: clinicId!, active: true },
+          select: { id: true },
+        }),
+    );
+    if (!clinic) clinicId = null;
+  }
 
   if (!clinicId && session.user.organizationId) {
     const clinic = await comOrganizacao(
@@ -50,6 +64,18 @@ export async function requireClinicContext(): Promise<StaffContext> {
     redirect("/dashboard?erro=sem-clinica");
   }
 
+  if (unitId) {
+    const unit = await comOrganizacao(
+      { organizationId: session.user.organizationId },
+      () =>
+        prisma.unit.findFirst({
+          where: { id: unitId!, clinicId, active: true },
+          select: { id: true },
+        }),
+    );
+    if (!unit) unitId = null;
+  }
+
   // Reafirma tenant após awaits (RSC pode perder enterWith entre hops).
   await estabelecerOrganizacao({
     organizationId: session.user.organizationId,
@@ -61,8 +87,6 @@ export async function requireClinicContext(): Promise<StaffContext> {
           }
         : undefined,
   });
-
-  const unitId = session.user.unitId ?? null;
 
   return {
     ...session,

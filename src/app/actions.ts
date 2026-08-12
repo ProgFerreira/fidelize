@@ -39,15 +39,31 @@ export async function createPatientAction(formData: FormData) {
 function redirectErroCadastroPaciente(err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);
   const name = err instanceof Error ? err.name : "";
+  const zodIssues =
+    err instanceof z.ZodError
+      ? err.issues
+      : err &&
+          typeof err === "object" &&
+          "issues" in err &&
+          Array.isArray((err as { issues: unknown }).issues)
+        ? (err as z.ZodError).issues
+        : null;
 
-  if (err instanceof z.ZodError) {
-    const detalhe = err.issues[0]?.message ?? "Dados inválidos";
+  if (zodIssues?.length) {
+    const detalhe = zodIssues[0]?.message ?? "Dados inválidos";
     redirect(
       `/pacientes/novo?erro=validacao&detalhe=${encodeURIComponent(detalhe)}`,
     );
   }
   if (/pool timeout|P2039|acquireTimeout|Can't connect|ECONNREFUSED/i.test(msg)) {
     redirect("/pacientes/novo?erro=banco-indisponivel");
+  }
+  if (/Illegal mix of collations|1267/i.test(msg)) {
+    redirect(
+      `/pacientes/novo?erro=validacao&detalhe=${encodeURIComponent(
+        "Falha de collation no MySQL. Reinicie o servidor local (npm run dev) e tente de novo.",
+      )}`,
+    );
   }
   if (
     name === "SemContextoTenantError" ||
@@ -63,6 +79,9 @@ function redirectErroCadastroPaciente(err: unknown): never {
     /Limite do plano|Organização suspensa|trial encerrado/i.test(msg)
   ) {
     redirect("/pacientes/novo?erro=limite-plano");
+  }
+  if (/Foreign key constraint|clinicId|userId/i.test(msg)) {
+    redirect("/pacientes/novo?erro=sessao-org");
   }
   redirect("/pacientes/novo?erro=cadastro-falhou");
 }

@@ -65,8 +65,14 @@ function findMigrationsDir(cwd = process.cwd()): string | null {
 function splitSqlStatements(sql: string): string[] {
   return sql
     .split(/;\s*(?:\r?\n|$)/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !/^--/.test(s));
+    .map((s) =>
+      s
+        .split(/\r?\n/)
+        .filter((line) => !/^\s*--/.test(line))
+        .join("\n")
+        .trim(),
+    )
+    .filter((s) => s.length > 0);
 }
 
 async function tableExists(table: string): Promise<boolean> {

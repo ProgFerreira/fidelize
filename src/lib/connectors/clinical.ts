@@ -57,6 +57,7 @@ export function parseClinicalAppointmentPayload(body: unknown) {
 export async function ingestClinicalAppointment(input: {
   clinicId: string;
   operatorId: string;
+  organizationId: string;
   payload: AppointmentIngestInput;
 }) {
   const data = input.payload;
@@ -88,6 +89,7 @@ export async function ingestClinicalAppointment(input: {
     patient = await createPatient({
       clinicId: input.clinicId,
       actorId: input.operatorId,
+      organizationId: input.organizationId,
       data: {
         fullName: data.patient.fullName,
         cpf,

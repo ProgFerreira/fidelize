@@ -31,6 +31,9 @@ export async function POST(request: Request) {
   if (!session.user.clinicId) {
     return NextResponse.json({ error: "Clínica não definida na sessão" }, { status: 400 });
   }
+  if (!session.user.organizationId) {
+    return NextResponse.json({ error: "Organização não definida na sessão" }, { status: 400 });
+  }
 
   for (let i = 0; i < rows.length; i++) {
     const [fullName, cpf, phone, email, externalCode] = rows[i]
@@ -40,6 +43,7 @@ export async function POST(request: Request) {
       const patient = await createPatient({
         clinicId: session.user.clinicId,
         actorId: session.user.id,
+        organizationId: session.user.organizationId,
         data: {
           fullName,
           cpf: onlyDigits(cpf),

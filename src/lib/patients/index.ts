@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 import { onlyDigits, isValidCpf } from "@/lib/patients/cpf";
+import { comOrganizacao } from "@/lib/tenant";
 
 export { onlyDigits, isValidCpf } from "@/lib/patients/cpf";
 
@@ -69,6 +70,18 @@ export async function findPatientDuplicates(params: {
 }
 
 export async function createPatient(params: {
+  clinicId: string;
+  actorId: string;
+  organizationId: string;
+  data: PatientInput;
+}) {
+  return comOrganizacao(
+    { organizationId: params.organizationId },
+    () => createPatientComContexto(params),
+  );
+}
+
+async function createPatientComContexto(params: {
   clinicId: string;
   actorId: string;
   data: PatientInput;

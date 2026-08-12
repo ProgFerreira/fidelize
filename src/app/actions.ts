@@ -27,6 +27,7 @@ export async function createPatientAction(formData: FormData) {
   const patient = await createPatient({
     clinicId: session.user.clinicId,
     actorId: session.user.id,
+    organizationId: session.organizationId,
     data,
   });
 

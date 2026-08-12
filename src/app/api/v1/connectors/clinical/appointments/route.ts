@@ -50,6 +50,7 @@ export async function POST(request: Request) {
   if (!clinic?.organizationId) {
     return NextResponse.json({ error: "Clínica inválida" }, { status: 400 });
   }
+  const organizationId = clinic.organizationId;
 
   try {
     const body = await request.json();
@@ -74,16 +75,17 @@ export async function POST(request: Request) {
     }
 
     const result = await comOrganizacao(
-      { organizationId: clinic.organizationId },
+      { organizationId },
       () =>
         ingestClinicalAppointment({
           clinicId: cred.clinicId,
           operatorId: operator.id,
+          organizationId,
           payload,
         }),
     );
 
-    await comOrganizacao({ organizationId: clinic.organizationId }, () =>
+    await comOrganizacao({ organizationId }, () =>
       logIntegration({
         clinicId: cred.clinicId,
         direction: "IN",

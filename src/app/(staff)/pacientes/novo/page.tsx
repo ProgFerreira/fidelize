@@ -25,19 +25,48 @@ import {
 import { createPatientFormAction } from "@/app/actions";
 import { comOrganizacao } from "@/lib/tenant";
 
-export default async function NovoPacientePage() {
+export const dynamic = "force-dynamic";
+
+const ERROS_CADASTRO: Record<string, string> = {
+  "banco-indisponivel":
+    "O banco está lento ou sem conexão no momento. Aguarde alguns segundos e tente de novo.",
+  "sessao-org":
+    "Sua sessão perdeu a organização. Saia e entre novamente, depois tente cadastrar.",
+  "cpf-duplicado": "Já existe paciente com este CPF nesta clínica.",
+  "limite-plano":
+    "Limite do plano atingido ou organização suspensa. Verifique Planos.",
+  validacao: "Confira nome, CPF e telefone — algum campo está inválido.",
+  "cadastro-falhou": "Não foi possível cadastrar o paciente. Tente de novo.",
+};
+
+export default async function NovoPacientePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string }>;
+}) {
   const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
   const clinicId = session.clinicId;
+  const { erro } = await searchParams;
+  const erroMsg = erro ? ERROS_CADASTRO[erro] ?? ERROS_CADASTRO["cadastro-falhou"] : null;
   // comOrganizacao reforça o tenant (ALS.run) — evita 500 intermitente no soft-nav
   // quando enterWith do auth() se perde entre boundaries do RSC.
-  const units = await comOrganizacao(
-    { organizationId: session.organizationId },
-    () =>
-      prisma.unit.findMany({
-        where: { clinicId, active: true },
-        orderBy: { name: "asc" },
-      }),
-  );
+  // try/catch: pool MySQL esgotado na Hostinger não pode derrubar o formulário inteiro.
+  let units: { id: string; name: string }[] = [];
+  let unitsError = false;
+  try {
+    units = await comOrganizacao(
+      { organizationId: session.organizationId },
+      () =>
+        prisma.unit.findMany({
+          where: { clinicId, active: true },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        }),
+    );
+  } catch (err) {
+    unitsError = true;
+    console.error("[pacientes/novo] falha ao carregar unidades", err);
+  }
 
   return (
     <div className="patients-page patient-new">
@@ -57,6 +86,15 @@ export default async function NovoPacientePage() {
           </Link>
         }
       />
+
+      {erroMsg ? (
+        <div
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="alert"
+        >
+          {erroMsg}
+        </div>
+      ) : null}
 
       <section className="patient-new__hero" aria-label="Resumo do cadastro">
         <div className="patient-new__hero-main">
@@ -223,6 +261,12 @@ export default async function NovoPacientePage() {
                     </option>
                   ))}
                 </Select>
+                {unitsError ? (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Não foi possível carregar as unidades agora. Você ainda pode
+                    cadastrar o paciente sem unidade e ajustar depois.
+                  </p>
+                ) : null}
               </div>
               <div className="patient-new__field">
                 <Label htmlFor="externalCode">Código no sistema clínico</Label>

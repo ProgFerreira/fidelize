@@ -10,13 +10,16 @@ import { config as loadEnv } from "dotenv";
  * costuma ocultar arquivos `.env`.
  */
 function collectEnvCandidates(startDir: string): string[] {
+  // Com override:false, o PRIMEIRO arquivo que definir a chave ganha.
+  // Preferir .env* local; hostinger.env só preenche o que faltar (produção
+  // Hostinger costuma ter só hostinger.env na raiz do domínio).
   const names = [
-    "hostinger.env",
-    "fidelize.env",
-    ".env",
-    ".env.production",
     ".env.local",
     ".env.production.local",
+    ".env",
+    ".env.production",
+    "hostinger.env",
+    "fidelize.env",
   ];
   const dirs: string[] = [];
   let dir = startDir;

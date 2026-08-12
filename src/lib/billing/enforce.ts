@@ -10,19 +10,23 @@ export class PlanLimitError extends Error {
 }
 
 export async function getOrganizationPlan(organizationId: string) {
-  const org = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: {
-      id: true,
-      plan: true,
-      maxUsers: true,
-      maxClinics: true,
-      maxPatients: true,
-      trialEndsAt: true,
-      active: true,
-      suspendedAt: true,
-    },
-  });
+  // Organization é global (fora do isolamento por tenant).
+  const { semOrganizacao } = await import("@/lib/tenant");
+  const org = await semOrganizacao(() =>
+    prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        id: true,
+        plan: true,
+        maxUsers: true,
+        maxClinics: true,
+        maxPatients: true,
+        trialEndsAt: true,
+        active: true,
+        suspendedAt: true,
+      },
+    }),
+  );
   if (!org) throw new Error("Organização não encontrada");
   const catalog = getPlan(org.plan);
   return {

@@ -10,7 +10,7 @@ import { extensaoTenant } from "@/lib/prisma-tenant";
  * Bump `PRISMA_CLIENT_REV` quando o schema mudar campos de modelos já existentes
  * (ex.: Procedure.imageUrl), para invalidar o singleton em hot-reload do Next.
  */
-const PRISMA_CLIENT_REV = 3;
+const PRISMA_CLIENT_REV = 4;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof criarPrisma>;
@@ -32,11 +32,12 @@ function criarPrisma() {
     user: decodeURIComponent(parsed.username || "root"),
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, ""),
-    // Hostinger MySQL compartilha limite baixo; 10 por processo esgota o pool.
-    connectionLimit: 5,
-    // Evita ficar em "Salvando..." sem feedback quando o MySQL não responde.
-    acquireTimeout: 10_000,
-    connectTimeout: 8_000,
+  // Hostinger MySQL compartilha limite baixo; processos Node concorrentes
+  // esgotam o pool com facilidade (sintoma: active=0 idle=0 / P2039).
+  connectionLimit: 3,
+  // Evita ficar em "Salvando..." sem feedback quando o MySQL não responde.
+  acquireTimeout: 8_000,
+  connectTimeout: 6_000,
     // Sem isso, a Hostinger negocia UTF8MB4_BIN na conexão, colidindo com a
     // collation das tabelas (utf8mb4_unicode_ci) em qualquer LIKE/contains.
     charset: "utf8mb4",

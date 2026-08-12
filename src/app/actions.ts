@@ -35,10 +35,40 @@ export async function createPatientAction(formData: FormData) {
   return { ok: true as const, patientId: patient.id };
 }
 
+function mensagemErroCadastroPaciente(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const name = err instanceof Error ? err.name : "";
+  if (/pool timeout|P2039|acquireTimeout|Can't connect|ECONNREFUSED/i.test(msg)) {
+    return "banco-indisponivel";
+  }
+  if (
+    name === "SemContextoTenantError" ||
+    /sem contexto de organização/i.test(msg)
+  ) {
+    return "sessao-org";
+  }
+  if (/Já existe paciente com este CPF/i.test(msg)) {
+    return "cpf-duplicado";
+  }
+  if (/PlanLimitError|Limite do plano|Organização suspensa|trial encerrado/i.test(msg)) {
+    return "limite-plano";
+  }
+  if (/CPF inválido|Nome obrigatório|Telefone obrigatório/i.test(msg)) {
+    return "validacao";
+  }
+  return "cadastro-falhou";
+}
+
 /** Action de formulário: cria e redireciona (evita inline "use server" na page). */
 export async function createPatientFormAction(formData: FormData) {
-  const result = await createPatientAction(formData);
-  redirect(`/pacientes/${result.patientId}`);
+  try {
+    const result = await createPatientAction(formData);
+    redirect(`/pacientes/${result.patientId}`);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("[createPatientFormAction]", err);
+    redirect(`/pacientes/novo?erro=${mensagemErroCadastroPaciente(err)}`);
+  }
 }
 
 export async function updatePatientAction(patientId: string, formData: FormData) {

@@ -52,6 +52,7 @@ export type SimulationInput = {
   categoryCashbackPercent?: number | null;
   procedureCashbackPercent?: number | null;
   campaignExtraPercent?: number | null;
+  membershipExtraPercent?: number | null;
   grossAmount: number;
   discountAmount?: number;
   benefitToUse?: number;
@@ -207,6 +208,9 @@ export async function simulateBenefit(
   }
   if (input.campaignExtraPercent) {
     percent = percent.plus(input.campaignExtraPercent);
+  }
+  if (input.membershipExtraPercent) {
+    percent = percent.plus(input.membershipExtraPercent);
   }
 
   let cashback = percentOf(paid, percent);

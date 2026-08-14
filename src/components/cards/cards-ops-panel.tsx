@@ -224,7 +224,7 @@ export function CardsOpsPanel({
             </Select>
           </div>
           <div className="cartoes-stock-form__action">
-            <Button type="submit" variant="gold" disabled={busy === "stock"}>
+            <Button type="submit" variante="gold" disabled={busy === "stock"}>
               {busy === "stock" ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
@@ -270,7 +270,7 @@ export function CardsOpsPanel({
                 />
                 <Button
                   type="button"
-                  variant="contorno"
+                  variante="contorno"
                   onClick={() => setScannerOpen(true)}
                   aria-label="Ler QR com a câmera"
                 >
@@ -378,7 +378,7 @@ export function CardsOpsPanel({
                 placeholder="Opcional"
               />
             </div>
-            <Button type="submit" variant="gold" disabled={busy === "virtual"}>
+            <Button type="submit" variante="gold" disabled={busy === "virtual"}>
               Emitir virtual
             </Button>
           </form>
@@ -427,7 +427,7 @@ export function CardsOpsPanel({
                 placeholder="Vazio = sem validade"
               />
             </div>
-            <Button type="submit" variant="contorno" disabled={busy === "settings"}>
+            <Button type="submit" variante="contorno" disabled={busy === "settings"}>
               Salvar
             </Button>
           </form>

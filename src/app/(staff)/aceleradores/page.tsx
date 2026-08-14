@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listAccelerators } from "@/lib/accelerators";
-import { PageHeader, Card, Badge, Button, Input, Label } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Campo } from "@/components/ui";
 import { createAcceleratorAction } from "@/app/v2-actions";
 
 export default async function AceleradoresPage() {
@@ -14,45 +14,40 @@ export default async function AceleradoresPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Aceleradores"
-        description="Multiplicadores temporários de pontos e cashback."
+      <CabecalhoPagina
+        titulo="Aceleradores"
+        descricao="Multiplicadores temporários de pontos e cashback."
       />
       <Card className="mb-6 max-w-3xl">
         <form action={createAcceleratorAction} className="grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label>Nome</Label>
-            <Input name="name" required defaultValue="Pontos em dobro" />
+            <Campo label="Nome" obrigatorio>
+              <Input name="name" required defaultValue="Pontos em dobro" />
+            </Campo>
           </div>
-          <div>
-            <Label>Multiplicador de pontos</Label>
+          <Campo label="Multiplicador de pontos">
             <Input name="multiplierPoints" type="number" step="0.1" defaultValue="2" />
-          </div>
-          <div>
-            <Label>Cashback extra %</Label>
+          </Campo>
+          <Campo label="Cashback extra %">
             <Input name="extraCashbackPct" type="number" step="0.01" />
-          </div>
-          <div>
-            <Label>Bônus fixo</Label>
+          </Campo>
+          <Campo label="Bônus fixo">
             <Input name="bonusFixed" type="number" step="0.01" />
-          </div>
-          <div>
-            <Label>Teto financeiro</Label>
+          </Campo>
+          <Campo label="Teto financeiro">
             <Input name="financialCap" type="number" step="0.01" />
-          </div>
-          <div>
-            <Label>Início</Label>
+          </Campo>
+          <Campo label="Início" obrigatorio>
             <Input name="startsAt" type="datetime-local" defaultValue={start} required />
-          </div>
-          <div>
-            <Label>Fim</Label>
+          </Campo>
+          <Campo label="Fim" obrigatorio>
             <Input name="endsAt" type="datetime-local" defaultValue={end} required />
-          </div>
+          </Campo>
           <label className="flex items-center gap-2 text-sm md:col-span-2">
             <input type="checkbox" name="stackable" />
             Combinável com outros aceleradores
           </label>
-          <Button type="submit" variant="gold">Ativar acelerador</Button>
+          <Button type="submit" variante="gold">Ativar acelerador</Button>
         </form>
       </Card>
 

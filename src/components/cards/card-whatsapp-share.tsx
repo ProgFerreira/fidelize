@@ -160,7 +160,7 @@ export function CardWhatsAppShare(props: Props) {
       <div className="cartao-wa__actions">
         <Button
           type="button"
-          variant="gold"
+          variante="gold"
           onClick={() => void shareNative()}
           disabled={busy !== null}
         >
@@ -169,14 +169,14 @@ export function CardWhatsAppShare(props: Props) {
         </Button>
         <Button
           type="button"
-          variant="contorno"
+          variante="contorno"
           onClick={() => void downloadPng()}
           disabled={busy !== null}
         >
           <Download className="h-4 w-4" aria-hidden />
           {busy === "png" ? "Gerando…" : "Baixar PNG"}
         </Button>
-        <Button type="button" variant="secundario" onClick={openWhatsApp}>
+        <Button type="button" variante="secundario" onClick={openWhatsApp}>
           <MessageCircle className="h-4 w-4" aria-hidden />
           Abrir conversa
         </Button>

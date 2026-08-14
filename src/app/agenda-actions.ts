@@ -144,6 +144,51 @@ export async function searchAgendaPatientsAction(query: string) {
   return toPlain(patients);
 }
 
+async function setAgendaStatus(id: string, status: "COMPLETED" | "NO_SHOW") {
+  const session = await requirePermission(PERMISSIONS.AGENDA_MANAGE);
+  const existing = await prisma.scheduleEvent.findFirst({
+    where: { id, clinicId: session.clinicId },
+  });
+  if (!existing) throw new Error("Compromisso não encontrado");
+  const event = await updateAgendaEvent({
+    clinicId: session.clinicId,
+    actorId: session.user.id,
+    id,
+    data: {
+      title: existing.title,
+      startsAt: existing.startsAt,
+      endsAt: existing.endsAt,
+      patientId: existing.patientId,
+      procedureId: existing.procedureId,
+      professionalId: existing.professionalId,
+      unitId: existing.unitId,
+      professionalName: existing.professionalName,
+      notes: existing.notes,
+      status,
+      color: existing.color,
+    },
+  });
+  revalidateAgenda();
+  revalidatePath("/recepcao");
+  return { ok: true as const, event: toPlain(event) };
+}
+
+export async function completeAgendaEventAction(id: string) {
+  return setAgendaStatus(id, "COMPLETED");
+}
+
+export async function markNoShowAgendaEventAction(id: string) {
+  return setAgendaStatus(id, "NO_SHOW");
+}
+
+export async function confirmAgendaPixDepositAction(id: string) {
+  const session = await requirePermission(PERMISSIONS.AGENDA_MANAGE);
+  const { confirmPixDeposit } = await import("@/lib/agenda/deposit");
+  await confirmPixDeposit({ clinicId: session.clinicId, eventId: id });
+  revalidateAgenda();
+  return { ok: true as const };
+}
+
 export async function listAgendaProceduresAction() {
   const session = await requirePermission(PERMISSIONS.AGENDA_MANAGE);
   const procedures = await prisma.procedure.findMany({

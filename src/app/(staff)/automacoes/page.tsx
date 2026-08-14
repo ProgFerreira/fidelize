@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listAutomations } from "@/lib/automations";
-import { PageHeader, Card, Badge, Button, Input, Label, Select, Textarea } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Select, Textarea, Campo } from "@/components/ui";
 import {
   createAutomationAction,
   setAutomationStatusAction,
@@ -17,23 +17,21 @@ export default async function AutomacoesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Automações"
-        description="Motor gatilho → condição → ação, com idempotência."
+      <CabecalhoPagina
+        titulo="Automações"
+        descricao="Motor gatilho → condição → ação, com idempotência."
       />
       <form action={seedAutomationsAction} className="mb-4">
-        <Button type="submit" variant="secondary">Carregar modelos iniciais</Button>
+        <Button type="submit" variante="secundario">Carregar modelos iniciais</Button>
       </form>
 
       <Card className="mb-6 max-w-3xl">
         <h2 className="text-lg font-semibold">Nova automação</h2>
         <form action={createAutomationAction} className="mt-3 grid gap-3 md:grid-cols-2">
-          <div>
-            <Label>Nome</Label>
+          <Campo label="Nome" obrigatorio>
             <Input name="name" required />
-          </div>
-          <div>
-            <Label>Gatilho</Label>
+          </Campo>
+          <Campo label="Gatilho">
             <Select name="trigger" defaultValue="PATIENT_REGISTERED">
               <option value="PATIENT_REGISTERED">Paciente cadastrado</option>
               <option value="PAYMENT_CONFIRMED">Pagamento confirmado</option>
@@ -43,9 +41,8 @@ export default async function AutomacoesPage() {
               <option value="NPS_RESPONDED">NPS respondido</option>
               <option value="REFERRAL_CONVERTED">Indicação convertida</option>
             </Select>
-          </div>
-          <div>
-            <Label>Ação</Label>
+          </Campo>
+          <Campo label="Ação">
             <Select name="actionType" defaultValue="SEND_INTERNAL">
               <option value="SEND_INTERNAL">Notificação interna</option>
               <option value="SEND_WHATSAPP">WhatsApp</option>
@@ -55,12 +52,13 @@ export default async function AutomacoesPage() {
               <option value="ISSUE_VOUCHER">Emitir voucher</option>
               <option value="CREATE_TASK">Criar tarefa</option>
             </Select>
-          </div>
+          </Campo>
           <div className="md:col-span-2">
-            <Label>Mensagem / config</Label>
-            <Textarea name="body" defaultValue="Olá {{nome_paciente}}!" />
+            <Campo label="Mensagem / config">
+              <Textarea name="body" defaultValue="Olá {{nome_paciente}}!" />
+            </Campo>
           </div>
-          <Button type="submit" variant="gold">Criar</Button>
+          <Button type="submit" variante="gold">Criar</Button>
         </form>
       </Card>
 
@@ -86,13 +84,13 @@ export default async function AutomacoesPage() {
                     name="status"
                     value={auto.status === "ACTIVE" ? "PAUSED" : "ACTIVE"}
                   />
-                  <Button type="submit" size="sm" variant="secondary">
+                  <Button type="submit" tamanho="sm" variante="secundario">
                     {auto.status === "ACTIVE" ? "Pausar" : "Ativar"}
                   </Button>
                 </form>
                 <form action={duplicateAutomationAction}>
                   <input type="hidden" name="automationId" value={auto.id} />
-                  <Button type="submit" size="sm" variant="contorno">
+                  <Button type="submit" tamanho="sm" variante="contorno">
                     Duplicar
                   </Button>
                 </form>

@@ -10,7 +10,7 @@ describe("classesBotao", () => {
   });
 
   it("aceita o alias gold/secondary usado no portal", () => {
-    expect(classesBotao({ variant: "gold" })).toContain("bg-blue-600");
+    expect(classesBotao({ variante: "gold" })).toContain("bg-brand-gold");
     expect(classesBotao({ variant: "secondary" })).toContain("bg-slate-100");
   });
 });

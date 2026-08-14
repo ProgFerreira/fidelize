@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listRecoveryCases } from "@/lib/recovery";
-import { PageHeader, Card, Badge, Button, StatCard } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, StatCard } from "@/components/ui";
 import { runRecoveryAction } from "@/app/v2-actions";
 import { labelPt } from "@/lib/i18n/labels";
 
@@ -18,12 +18,12 @@ export default async function RecuperacaoPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Recuperação de inativos"
-        description="Classificação automática e réguas de retorno."
+      <CabecalhoPagina
+        titulo="Recuperação de inativos"
+        descricao="Classificação automática e réguas de retorno."
       />
       <form action={runRecoveryAction} className="mb-4">
-        <Button type="submit" variant="secondary">Recalcular inatividade</Button>
+        <Button type="submit" variante="secundario">Recalcular inatividade</Button>
       </form>
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Atenção" value={String(counts.ATTENTION)} />

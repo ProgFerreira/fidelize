@@ -7,10 +7,11 @@ import { extensaoTenant } from "@/lib/prisma-tenant";
  * Cliente Prisma com isolamento multiempresa embutido.
  * Não existe cliente "cru" exportado — use `semOrganizacao()` para ops globais.
  *
- * Bump `PRISMA_CLIENT_REV` quando o schema mudar campos de modelos já existentes
- * (ex.: Procedure.imageUrl), para invalidar o singleton em hot-reload do Next.
+ * Bump `PRISMA_CLIENT_REV` quando o schema ganhar models ou campos novos
+ * (ex.: TreatmentPackage, Procedure.imageUrl), para invalidar o singleton
+ * em hot-reload do Next.
  */
-const PRISMA_CLIENT_REV = 6;
+const PRISMA_CLIENT_REV = 7;
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof criarPrisma>;
@@ -61,6 +62,7 @@ function clienteAtualizado(
         professional?: { findMany?: unknown };
         appointmentItem?: { findMany?: unknown };
         procedure?: { findMany?: unknown };
+        treatmentPackage?: { findMany?: unknown };
       }
     | undefined;
   return (
@@ -69,7 +71,8 @@ function clienteAtualizado(
     typeof c.scheduleEvent?.findMany === "function" &&
     typeof c.professional?.findMany === "function" &&
     typeof c.appointmentItem?.findMany === "function" &&
-    typeof c.procedure?.findMany === "function"
+    typeof c.procedure?.findMany === "function" &&
+    typeof c.treatmentPackage?.findMany === "function"
   );
 }
 

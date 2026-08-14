@@ -16,6 +16,11 @@ export const CLINICAL_CONNECTORS = [
     description: "Gestão de clínicas — sincroniza atendimentos confirmados.",
   },
   {
+    code: "iclinic",
+    name: "iClinic",
+    description: "Prontuário e agenda — ingestão de atendimentos confirmados.",
+  },
+  {
     code: "generic_appointment",
     name: "Agenda genérica",
     description: "Contrato JSON padrão FIDELIZE para qualquer ERP clínico.",
@@ -26,7 +31,7 @@ export type ClinicalConnectorCode = (typeof CLINICAL_CONNECTORS)[number]["code"]
 
 const appointmentIngestSchema = z.object({
   connector: z
-    .enum(["feegow", "clinicorp", "generic_appointment"])
+    .enum(["feegow", "clinicorp", "iclinic", "generic_appointment"])
     .default("generic_appointment"),
   externalId: z.string().min(1).optional(),
   patient: z.object({

@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listReceipts } from "@/lib/receipts";
-import { PageHeader, Card, Badge, Button, Input, Label } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Select, Campo } from "@/components/ui";
 import { submitReceiptAction, reviewReceiptAction } from "@/app/v2-actions";
 import { labelPt } from "@/lib/i18n/labels";
 import { formatBRL } from "@/lib/money";
@@ -22,42 +22,38 @@ export default async function ComprovantesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Comprovantes"
-        description="Upload com OCR, score antifraude e crédito após aprovação."
+      <CabecalhoPagina
+        titulo="Comprovantes"
+        descricao="Upload com OCR, score antifraude e crédito após aprovação."
       />
 
       <Card className="mb-6 max-w-3xl">
         <h2 className="text-lg font-semibold">Registrar comprovante</h2>
         <form action={submitReceiptAction} className="mt-3 grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label>Paciente</Label>
-            <select
-              name="patientId"
-              required
-              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-            >
-              <option value="">Selecione</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName}
-                </option>
-              ))}
-            </select>
+            <Campo label="Paciente" obrigatorio>
+              <Select name="patientId" required>
+                <option value="">Selecione</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fullName}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
           </div>
           <div className="md:col-span-2">
-            <Label>URL da imagem</Label>
-            <Input name="imageUrl" type="url" placeholder="https://..." />
+            <Campo label="URL da imagem">
+              <Input name="imageUrl" type="url" placeholder="https://..." />
+            </Campo>
           </div>
-          <div>
-            <Label>Valor declarado</Label>
+          <Campo label="Valor declarado">
             <Input name="declaredAmount" type="number" step="0.01" />
-          </div>
-          <div>
-            <Label>Estabelecimento</Label>
+          </Campo>
+          <Campo label="Estabelecimento">
             <Input name="merchantName" />
-          </div>
-          <Button type="submit" variant="gold">Enviar para OCR</Button>
+          </Campo>
+          <Button type="submit" variante="gold">Enviar para OCR</Button>
         </form>
       </Card>
 
@@ -95,8 +91,7 @@ export default async function ComprovantesPage() {
                 <form action={reviewReceiptAction} className="flex flex-wrap items-end gap-2">
                   <input type="hidden" name="receiptId" value={r.id} />
                   <input type="hidden" name="decision" value="APPROVED" />
-                  <div>
-                    <Label>Crédito</Label>
+                  <Campo label="Crédito">
                     <Input
                       name="creditAmount"
                       type="number"
@@ -104,15 +99,15 @@ export default async function ComprovantesPage() {
                       defaultValue={r.extractedAmount ? String(r.extractedAmount) : ""}
                       className="w-28"
                     />
-                  </div>
-                  <Button type="submit" size="sm" variant="gold">
+                  </Campo>
+                  <Button type="submit" tamanho="sm" variante="gold">
                     Aprovar
                   </Button>
                 </form>
                 <form action={reviewReceiptAction}>
                   <input type="hidden" name="receiptId" value={r.id} />
                   <input type="hidden" name="decision" value="REJECTED" />
-                  <Button type="submit" size="sm" variant="perigo">
+                  <Button type="submit" tamanho="sm" variante="perigo">
                     Rejeitar
                   </Button>
                 </form>

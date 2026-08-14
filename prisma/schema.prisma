@@ -435,9 +435,36 @@ model Organization {
   platformAccesses   PlatformAccess[]
   affiliateReferrals AffiliateReferral[]
   platformSales      PlatformSale[]
+  invoices           OrganizationInvoice[]
 
   @@index([active])
   @@index([deletedAt])
+}
+
+enum OrganizationInvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model OrganizationInvoice {
+  id             String                     @id @default(cuid())
+  organizationId String
+  planCode       String
+  amount         Decimal                    @db.Decimal(19, 4)
+  status         OrganizationInvoiceStatus  @default(PENDING)
+  periodStart    DateTime
+  periodEnd      DateTime
+  paidAt         DateTime?
+  notes          String?                    @db.Text
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([status, periodEnd])
 }
 
 model PlatformAccess {
@@ -526,6 +553,9 @@ model Clinic {
   widgetOrigins         WidgetOrigin[]
   mobileSessions        MobileSession[]
   videoCallRooms        VideoCallRoom[]
+  treatmentPackages     TreatmentPackage[]
+  membershipPlans       MembershipPlan[]
+  memberships           PatientMembership[]
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, active])
@@ -691,6 +721,9 @@ model Patient {
   commercialNotes   String?       @db.Text
   regulationConsent Boolean       @default(false)
   marketingConsent  Boolean       @default(false)
+  holderPatientId   String?
+  bookingBlockedUntil DateTime?
+  noShowCount       Int           @default(0)
   registeredAt      DateTime      @default(now())
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -723,6 +756,10 @@ model Patient {
   predictionScores PredictionScore[]
   mobileSessions MobileSession[]
   videoCallRooms VideoCallRoom[]
+  treatmentPackages TreatmentPackage[]
+  holder         Patient?       @relation("PatientFamily", fields: [holderPatientId], references: [id], onDelete: SetNull)
+  dependents     Patient[]      @relation("PatientFamily")
+  memberships    PatientMembership[]
 
   @@unique([clinicId, cpf])
   @@index([clinicId, phone])
@@ -730,6 +767,7 @@ model Patient {
   @@index([clinicId, status])
   @@index([clinicId, fullName])
   @@index([clinicId, birthDate])
+  @@index([holderPatientId])
   @@index([organizationId])
 }
 
@@ -852,6 +890,12 @@ model Procedure {
   compareAtPrice  Decimal? @db.Decimal(19, 4)
   /** Validade do serviço/produto em dias após a venda ou realização. */
   validityDays    Int?
+  /** Intervalo sugerido para retorno (régua WhatsApp 30/7/1 dia antes). */
+  intervaloRetornoDias Int?
+  /** Se >= 2, a venda no PDV emite um pacote com N sessões. */
+  packageSessions Int?
+  stockQty        Int?
+  stockAlertAt    Int?
   /** Duração típica do atendimento em minutos (agenda / PDV). */
   durationMinutes Int?     @default(60)
   cashbackPercent Decimal? @db.Decimal(8, 4)
@@ -867,6 +911,7 @@ model Procedure {
   scheduleEvents ScheduleEvent[]
   professionalLinks ProfessionalProcedure[]
   campaigns      CampaignProcedure[]
+  treatmentPackages TreatmentPackage[]
 
   @@unique([clinicId, code])
   @@index([clinicId, active])
@@ -885,6 +930,7 @@ model Professional {
   notes          String?  @db.Text
   active         Boolean  @default(true)
   color          String?
+  commissionPercent Decimal? @db.Decimal(8, 4)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -927,6 +973,10 @@ model ScheduleEvent {
   professionalName String?
   notes            String?             @db.Text
   color            String?
+  depositAmount    Decimal?            @db.Decimal(19, 4)
+  depositMethod    String?
+  depositStatus    String?
+  depositLedgerId  String?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -937,6 +987,7 @@ model ScheduleEvent {
   professional Professional? @relation(fields: [professionalId], references: [id])
   createdBy    User?         @relation("ScheduleEventCreator", fields: [createdById], references: [id])
   videoCallRoom VideoCallRoom?
+  packageUses  TreatmentPackageUse[]
 
   @@index([clinicId, startsAt])
   @@index([clinicId, status])
@@ -1053,6 +1104,7 @@ model Appointment {
   ledgerEntries LedgerEntry[]
   redemptions   Redemption[]
   items         AppointmentItem[]
+  treatmentPackages TreatmentPackage[]
 
   @@unique([clinicId, idempotencyKey])
   @@index([clinicId, occurredAt])
@@ -1082,6 +1134,102 @@ model AppointmentItem {
 
   @@index([appointmentId])
   @@index([clinicId, procedureId])
+  @@index([organizationId])
+}
+
+enum TreatmentPackageStatus {
+  ACTIVE
+  EXHAUSTED
+  EXPIRED
+  CANCELLED
+}
+
+/// Pacote de sessões vendido no PDV (ex.: 6 sessões de laser).
+model TreatmentPackage {
+  id                 String                  @id @default(cuid())
+  organizationId     String?
+  clinicId           String
+  patientId          String
+  procedureId        String
+  appointmentId      String?
+  totalSessions      Int
+  remainingSessions  Int
+  expiresAt          DateTime?
+  status             TreatmentPackageStatus  @default(ACTIVE)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  clinic      Clinic                @relation(fields: [clinicId], references: [id])
+  patient     Patient               @relation(fields: [patientId], references: [id])
+  procedure   Procedure             @relation(fields: [procedureId], references: [id])
+  appointment Appointment?          @relation(fields: [appointmentId], references: [id])
+  uses        TreatmentPackageUse[]
+
+  @@index([clinicId, patientId, status])
+  @@index([clinicId, procedureId, status])
+  @@index([organizationId])
+}
+
+model TreatmentPackageUse {
+  id              String   @id @default(cuid())
+  packageId       String
+  scheduleEventId String?
+  appointmentId   String?
+  createdAt       DateTime @default(now())
+
+  package       TreatmentPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  scheduleEvent ScheduleEvent?   @relation(fields: [scheduleEventId], references: [id])
+
+  @@unique([packageId, scheduleEventId])
+  @@index([packageId, createdAt])
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+model MembershipPlan {
+  id                 String   @id @default(cuid())
+  organizationId     String?
+  clinicId           String
+  name               String
+  monthlyPrice       Decimal  @db.Decimal(19, 4)
+  extraCashbackPct   Decimal  @default(0) @db.Decimal(8, 4)
+  courtesyNote       String?  @db.Text
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  clinic       Clinic              @relation(fields: [clinicId], references: [id])
+  memberships  PatientMembership[]
+
+  @@index([clinicId, active])
+  @@index([organizationId])
+}
+
+model PatientMembership {
+  id          String           @id @default(cuid())
+  organizationId String?
+  clinicId    String
+  patientId   String
+  planId      String
+  status      MembershipStatus @default(PENDING)
+  startedAt   DateTime         @default(now())
+  renewsAt    DateTime
+  paidMethod  String?
+  paidAmount  Decimal?         @db.Decimal(19, 4)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  clinic  Clinic         @relation(fields: [clinicId], references: [id])
+  patient Patient        @relation(fields: [patientId], references: [id])
+  plan    MembershipPlan @relation(fields: [planId], references: [id])
+
+  @@index([clinicId, status])
+  @@index([patientId, status])
   @@index([organizationId])
 }
 

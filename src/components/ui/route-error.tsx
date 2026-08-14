@@ -38,7 +38,7 @@ export function RouteError({
       ) : null}
       <div className="mt-6 flex flex-wrap gap-3">
         {tentarDeNovo ? (
-          <Button type="button" variant="gold" onClick={tentarDeNovo}>
+          <Button type="button" variante="gold" onClick={tentarDeNovo}>
             Tentar novamente
           </Button>
         ) : null}

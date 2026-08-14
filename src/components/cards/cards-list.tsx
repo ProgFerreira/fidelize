@@ -190,7 +190,7 @@ export function CardsList({
               <div className="cartao-row__actions">
                 <Link
                   href={`/cartoes/${card.id}`}
-                  className={classesBotao({ variante: "contorno", size: "sm" })}
+                  className={classesBotao({ variante: "contorno", tamanho: "sm" })}
                 >
                   <History className="h-3.5 w-3.5" aria-hidden />
                   Detalhe / WhatsApp
@@ -198,7 +198,7 @@ export function CardsList({
                 {card.status === "AVAILABLE" ? (
                   <Link
                     href={`/cartoes/imprimir?ids=${card.id}`}
-                    className={classesBotao({ variante: "contorno", size: "sm" })}
+                    className={classesBotao({ variante: "contorno", tamanho: "sm" })}
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden />
                     QR
@@ -207,8 +207,8 @@ export function CardsList({
                 {canUnblock ? (
                   <Button
                     type="button"
-                    size="sm"
-                    variant="secundario"
+                    tamanho="sm"
+                    variante="secundario"
                     disabled={busyId === card.id}
                     onClick={() => void onUnblock(card.id)}
                   >
@@ -219,8 +219,8 @@ export function CardsList({
                 {canReplace ? (
                   <Button
                     type="button"
-                    size="sm"
-                    variant="contorno"
+                    tamanho="sm"
+                    variante="contorno"
                     onClick={() =>
                       setReplaceFor((cur) => (cur === card.id ? null : card.id))
                     }
@@ -245,8 +245,8 @@ export function CardsList({
                     />
                     <Button
                       type="submit"
-                      variant="danger"
-                      size="sm"
+                      variante="perigo"
+                      tamanho="sm"
                       disabled={busyId === card.id}
                     >
                       <ShieldOff className="h-3.5 w-3.5" aria-hidden />
@@ -282,7 +282,7 @@ export function CardsList({
                     placeholder="Motivo (perda, dano…)"
                     defaultValue="2ª via"
                   />
-                  <Button type="submit" size="sm" disabled={busyId === card.id}>
+                  <Button type="submit" tamanho="sm" disabled={busyId === card.id}>
                     Confirmar substituição
                   </Button>
                 </div>

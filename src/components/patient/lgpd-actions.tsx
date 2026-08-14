@@ -17,7 +17,7 @@ export function LgpdPatientActions() {
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          variant="secondary"
+          variante="secundario"
           disabled={pending}
           onClick={() => {
             setError(null);
@@ -35,7 +35,7 @@ export function LgpdPatientActions() {
         </Button>
         <Button
           type="button"
-          variant="perigo"
+          variante="perigo"
           disabled={pending}
           onClick={() => {
             if (

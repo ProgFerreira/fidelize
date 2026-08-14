@@ -186,16 +186,26 @@ export async function confirmAppointment(params: {
   });
   if (existing) return { appointment: existing, reused: true };
 
-  const wallet = await prisma.wallet.findFirst({
-    where: {
-      id: params.walletId,
-      clinicId: params.clinicId,
-      patientId: params.patientId,
-      status: "ACTIVE",
-    },
-    include: { category: true },
+  const { resolveBenefitWallet } = await import("@/lib/family");
+  const family = await resolveBenefitWallet({
+    clinicId: params.clinicId,
+    patientId: params.patientId,
   });
-  if (!wallet) throw new Error("Carteira inválida");
+  const wallet = family.wallet;
+  if (
+    params.walletId !== wallet.id &&
+    wallet.patientId !== params.patientId
+  ) {
+    // carteira familiar do titular — permitido
+  }
+
+  const { getActiveMembership } = await import("@/lib/membership");
+  const membership = await getActiveMembership(params.clinicId, family.holderPatientId);
+  const membershipExtraPercent = membership
+    ? Number(membership.plan.extraCashbackPct)
+    : null;
+
+  const { assertStockAvailable } = await import("@/lib/inventory");
 
   const cartItems = (params.items ?? [])
     .map((item) => ({
@@ -226,6 +236,16 @@ export async function confirmAppointment(params: {
       })
     : [];
   const procedureById = Object.fromEntries(procedures.map((p) => [p.id, p]));
+
+  await assertStockAvailable({
+    clinicId: params.clinicId,
+    items: [
+      ...cartItems,
+      ...(params.procedureId
+        ? [{ procedureId: params.procedureId, quantity: 1 }]
+        : []),
+    ],
+  });
 
   const primaryProcedureId =
     params.procedureId ||
@@ -271,6 +291,7 @@ export async function confirmAppointment(params: {
       : null,
     procedureCashbackPercent,
     campaignExtraPercent: campaign ? Number(campaign.extraCashbackPct) : null,
+    membershipExtraPercent,
     grossAmount: cartGross,
     discountAmount: params.discountAmount ?? 0,
     benefitToUse: params.benefitToUse ?? 0,
@@ -348,7 +369,7 @@ export async function confirmAppointment(params: {
         clinicId: params.clinicId,
         unitId: params.unitId ?? null,
         patientId: params.patientId,
-        walletId: params.walletId,
+        walletId: wallet.id,
         procedureId: primaryProcedureId,
         operatorId: params.operatorId,
         professionalName: params.professionalName,
@@ -426,7 +447,7 @@ export async function confirmAppointment(params: {
       clinicId: params.clinicId,
       unitId: params.unitId,
       patientId: params.patientId,
-      walletId: params.walletId,
+      walletId: wallet.id,
       appointmentId: appointment.id,
       operatorId: params.operatorId,
       simulation,
@@ -450,7 +471,7 @@ export async function confirmAppointment(params: {
   },
   );
 
-  await recalculateCategory(params.walletId);
+  await recalculateCategory(wallet.id);
 
   await writeAuditLog({
     clinicId: params.clinicId,
@@ -507,7 +528,7 @@ export async function confirmAppointment(params: {
       trigger: "PAYMENT_CONFIRMED",
       patientId: params.patientId,
       triggerRef: result.id,
-      context: { walletId: params.walletId, unitId: params.unitId },
+      context: { walletId: wallet.id, unitId: params.unitId },
     });
 
     if (campaign) {
@@ -531,6 +552,40 @@ export async function confirmAppointment(params: {
       },
       idempotencyKey: `appointment.confirmed:${result.id}`,
     });
+
+    const { issuePackagesFromSale } = await import("@/lib/packages");
+    await issuePackagesFromSale({
+      clinicId: params.clinicId,
+      patientId: params.patientId,
+      appointmentId: result.id,
+      items: cartItems.map((item) => ({
+        procedureId: item.procedureId,
+        quantity: item.quantity,
+      })),
+    });
+
+    const { decrementStock } = await import("@/lib/inventory");
+    await decrementStock({
+      clinicId: params.clinicId,
+      items: cartItems.map((item) => ({
+        procedureId: item.procedureId,
+        quantity: item.quantity,
+      })),
+    });
+
+    const { enqueueReturnReminders } = await import("@/lib/whatsapp/reminders");
+    for (const proc of procedures) {
+      if (proc.packageSessions && proc.packageSessions >= 2) continue;
+      if (!proc.intervaloRetornoDias || proc.intervaloRetornoDias <= 1) continue;
+      await enqueueReturnReminders({
+        clinicId: params.clinicId,
+        patientId: params.patientId,
+        procedureName: proc.name,
+        intervaloDias: proc.intervaloRetornoDias,
+        completedAt: new Date(),
+        ref: `sale:${result.id}:${proc.id}`,
+      });
+    }
   } catch {
     // side-effects best-effort
   }

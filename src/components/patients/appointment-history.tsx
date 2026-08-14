@@ -126,8 +126,8 @@ export function AppointmentHistoryCard({
                       {item.status === "CONFIRMED" ? (
                         <Button
                           type="button"
-                          size="sm"
-                          variant="secondary"
+                          tamanho="sm"
+                          variante="secundario"
                           onClick={() => onEdit(item.id)}
                         >
                           Editar

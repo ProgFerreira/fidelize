@@ -2,9 +2,10 @@ import { requirePatientSession } from "@/lib/otp/session";
 import { listRewards } from "@/lib/rewards";
 import { isModuleEnabled } from "@/lib/modules";
 import { prisma } from "@/lib/db";
-import { PageHeader, Card, Badge, Button, EmptyState } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, EmptyState } from "@/components/ui";
 import { redeemReward } from "@/lib/rewards";
 import { randomUUID } from "crypto";
+import { redirect } from "next/navigation";
 import { labelPt } from "@/lib/i18n/labels";
 
 async function redeemAction(formData: FormData) {
@@ -16,6 +17,7 @@ async function redeemAction(formData: FormData) {
     rewardId: String(formData.get("rewardId")),
     idempotencyKey: randomUUID(),
   });
+  redirect("/p/recompensas?ok=resgatado");
 }
 
 export default async function PortalRecompensasPage() {
@@ -24,7 +26,7 @@ export default async function PortalRecompensasPage() {
   if (!(await isModuleEnabled(session.clinicId, "REWARDS"))) {
     return (
       <div>
-        <PageHeader title="Recompensas" description="Módulo desativado no momento." />
+        <CabecalhoPagina titulo="Recompensas" descricao="Módulo desativado no momento." />
       </div>
     );
   }
@@ -40,9 +42,9 @@ export default async function PortalRecompensasPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Recompensas"
-        description={`Seus pontos: ${wallet?.pointsBalance ?? 0}`}
+      <CabecalhoPagina
+        titulo="Recompensas"
+        descricao={`Seus pontos: ${wallet?.pointsBalance ?? 0}`}
       />
       <div className="grid gap-3">
         {active.length === 0 ? (
@@ -65,7 +67,7 @@ export default async function PortalRecompensasPage() {
                 <input type="hidden" name="rewardId" value={reward.id} />
                 <Button
                   type="submit"
-                  size="sm"
+                  tamanho="sm"
                   disabled={(wallet?.pointsBalance ?? 0) < reward.pointsCost}
                 >
                   Resgatar

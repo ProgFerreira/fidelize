@@ -20,6 +20,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatBRL } from "@/lib/money";
 import { getFinancialSummary } from "@/lib/finance/summary";
+import { getCashbackLiability } from "@/lib/finance/liability";
 import {
   ResumoChannelChart,
   ResumoDailyChart,
@@ -52,7 +53,10 @@ export default async function ResumoFinanceiroPage({
 }) {
   const session = await requirePermission(PERMISSIONS.REPORTS_VIEW);
   const { mes } = await searchParams;
-  const data = await getFinancialSummary(session.clinicId, mes);
+  const [data, liability] = await Promise.all([
+    getFinancialSummary(session.clinicId, mes),
+    getCashbackLiability(session.clinicId),
+  ]);
 
   const prev = new Date(data.period.start);
   prev.setMonth(prev.getMonth() - 1);
@@ -232,6 +236,38 @@ export default async function ResumoFinanceiroPage({
               ))}
             </ul>
           )}
+        </article>
+      </section>
+
+      <section className="rf-grid mt-6">
+        <article className="rf-card">
+          <h2 className="rf-card__title">Passivo de cashback</h2>
+          <ul className="rf-highlights">
+            <li className="rf-highlight">
+              <div>
+                <p className="rf-highlight__title">Provisionado</p>
+                <p className="rf-highlight__detail">
+                  {liability.provisioned} (disponível {liability.available} +
+                  a liberar {liability.pending})
+                </p>
+              </div>
+            </li>
+            <li className="rf-highlight">
+              <div>
+                <p className="rf-highlight__title">Vence em 30 dias</p>
+                <p className="rf-highlight__detail">{liability.expiring30}</p>
+              </div>
+            </li>
+            <li className="rf-highlight">
+              <div>
+                <p className="rf-highlight__title">Movimento do mês</p>
+                <p className="rf-highlight__detail">
+                  Emitido {liability.issuedMonth} · resgatado{" "}
+                  {liability.redeemedMonth} · expirado {liability.expiredMonth}
+                </p>
+              </div>
+            </li>
+          </ul>
         </article>
       </section>
 

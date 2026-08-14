@@ -98,7 +98,7 @@ export function CardQrScanner({ onDetected, onClose }: Props) {
       <div className="cartoes-scanner__card">
         <div className="cartoes-scanner__head">
           <h3>Ler QR do cartão</h3>
-          <Button type="button" variant="fantasma" size="icone" onClick={onClose} aria-label="Fechar">
+          <Button type="button" variante="fantasma" tamanho="icone" onClick={onClose} aria-label="Fechar">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -117,7 +117,7 @@ export function CardQrScanner({ onDetected, onClose }: Props) {
             placeholder="Ou cole o token aqui"
             aria-label="Token manual"
           />
-          <Button type="submit" size="sm">
+          <Button type="submit" tamanho="sm">
             Usar
           </Button>
         </form>

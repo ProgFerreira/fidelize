@@ -332,7 +332,7 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
           <div className="services-toolbar__actions">
             <Button
               type="button"
-              variant="gold"
+              variante="gold"
               onClick={() => setDraft(emptyDraft())}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -366,7 +366,7 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
             {campaigns.length > 0 ? (
               <Button
                 type="button"
-                variant="contorno"
+                variante="contorno"
                 onClick={() => {
                   setQuery("");
                   setStatusFilter("all");
@@ -377,7 +377,7 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
             ) : null}
             <Button
               type="button"
-              variant="gold"
+              variante="gold"
               onClick={() => setDraft(emptyDraft())}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -486,8 +486,8 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
                 <div className="service-card__footer">
                   <Button
                     type="button"
-                    size="sm"
-                    variant="contorno"
+                    tamanho="sm"
+                    variante="contorno"
                     onClick={() => setViewing(campaign)}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -495,8 +495,8 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
-                    variant="secondary"
+                    tamanho="sm"
+                    variante="secundario"
                     onClick={() => setDraft(fromCampaign(campaign))}
                   >
                     <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -522,8 +522,8 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
               <h2>Detalhes da campanha</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setViewing(null)}
               >
                 Fechar
@@ -615,14 +615,14 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
               <div className="service-view__actions">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variante="secundario"
                   onClick={() => setViewing(null)}
                 >
                   Fechar
                 </Button>
                 <Button
                   type="button"
-                  variant="gold"
+                  variante="gold"
                   onClick={() => {
                     setDraft(fromCampaign(viewing));
                     setViewing(null);
@@ -650,8 +650,8 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
               <h2>{draft.id ? "Editar campanha" : "Nova campanha"}</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
               >
                 Fechar
@@ -797,12 +797,12 @@ export function CampaignsClient({ initialCampaigns, initialRois }: Props) {
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" variant="gold" disabled={saving}>
+                  <Button type="submit" variante="gold" disabled={saving}>
                     {saving ? "Salvando..." : "Salvar"}
                   </Button>
                 </div>

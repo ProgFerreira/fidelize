@@ -14,6 +14,10 @@ import { toPlain } from "@/lib/serialize";
 
 function parseServiceForm(formData: FormData, imageUrl: string | null) {
   const validityRaw = String(formData.get("validityDays") || "").trim();
+  const retornoRaw = String(formData.get("intervaloRetornoDias") || "").trim();
+  const packageRaw = String(formData.get("packageSessions") || "").trim();
+  const stockRaw = String(formData.get("stockQty") || "").trim();
+  const stockAlertRaw = String(formData.get("stockAlertAt") || "").trim();
   const durationRaw = String(formData.get("durationMinutes") || "").trim();
   const cashbackRaw = String(formData.get("cashbackPercent") || "").trim();
   const pointsRaw = String(formData.get("pointsPerReal") || "").trim();
@@ -26,6 +30,10 @@ function parseServiceForm(formData: FormData, imageUrl: string | null) {
     basePrice: formData.get("basePrice"),
     compareAtPrice: String(formData.get("compareAtPrice") || "").trim() || null,
     validityDays: validityRaw === "" ? null : validityRaw,
+    intervaloRetornoDias: retornoRaw === "" ? null : retornoRaw,
+    packageSessions: packageRaw === "" ? null : packageRaw,
+    stockQty: stockRaw === "" ? null : stockRaw,
+    stockAlertAt: stockAlertRaw === "" ? null : stockAlertRaw,
     durationMinutes: durationRaw === "" ? 60 : durationRaw,
     cashbackPercent: cashbackRaw === "" ? null : cashbackRaw,
     pointsPerReal: pointsRaw === "" ? null : pointsRaw,

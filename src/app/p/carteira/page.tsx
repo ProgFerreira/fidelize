@@ -4,12 +4,21 @@ import { requirePatientSession } from "@/lib/otp/session";
 import { generateCardQrDataUrl } from "@/lib/cards";
 import { loyaltyCardWhatsAppText } from "@/lib/cards/image";
 import { CardWhatsAppShare } from "@/components/cards/card-whatsapp-share";
+import { CabecalhoPagina } from "@/components/ui";
 
 export default async function CarteiraPage() {
   const session = await requirePatientSession();
 
+  const { resolveBenefitWallet } = await import("@/lib/family");
+  const family = await resolveBenefitWallet({
+    clinicId: session.clinicId,
+    patientId: session.patientId,
+  }).catch(() => null);
+
   const wallet = await prisma.wallet.findFirst({
-    where: { patientId: session.patientId, clinicId: session.clinicId },
+    where: family
+      ? { id: family.wallet.id }
+      : { patientId: session.patientId, clinicId: session.clinicId },
     include: {
       category: true,
       cards: { where: { status: "ACTIVE" } },
@@ -37,13 +46,13 @@ export default async function CarteiraPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl text-slate-900">Carteira</h1>
+      <CabecalhoPagina titulo="Carteira" />
       <div className="digital-card min-h-[420px]">
         <p className="text-xs uppercase tracking-[0.25em] text-blue-200">
           {clinicName}
         </p>
         <h2 className="mt-10 text-4xl">{wallet.patient.fullName}</h2>
-        <p className="mt-3 text-blue-600">{wallet.category?.name}</p>
+        <p className="mt-3 text-blue-200">{wallet.category?.name}</p>
         <p className="mt-8 font-mono text-lg tracking-widest">
           {card?.cardNumber ?? "Sem cartão vinculado"}
         </p>

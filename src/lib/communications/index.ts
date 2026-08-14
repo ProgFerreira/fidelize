@@ -25,6 +25,7 @@ export const enqueueSchema = z.object({
   automationId: z.string().optional().nullable(),
   idempotencyKey: z.string().optional().nullable(),
   variables: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   estimatedCost: z.number().optional().nullable(),
 });
 
@@ -178,6 +179,7 @@ export async function enqueueCommunication(input: {
       automationId: data.automationId ?? null,
       scheduledAt,
       idempotencyKey: data.idempotencyKey ?? null,
+      metadata: data.metadata ?? undefined,
       estimatedCost:
         data.estimatedCost != null ? String(data.estimatedCost) : null,
     },
@@ -347,7 +349,11 @@ export async function processCommunicationQueue(clinicId?: string, limit = 50) {
         providerId: send.providerId ?? null,
         errorMessage: send.error ?? null,
         errorReason: send.ok ? null : "PROVIDER_ERROR",
-        metadata: { provider: send.provider, simulated: send.simulated },
+        metadata: {
+          ...((item.metadata as Record<string, unknown> | null) ?? {}),
+          provider: send.provider,
+          simulated: send.simulated,
+        },
       },
     });
     await prisma.communicationEvent.create({
@@ -383,14 +389,36 @@ export async function cancelQueuedForPatient(clinicId: string, patientId: string
   });
 }
 
-export async function listCommunications(clinicId: string) {
+export async function listCommunications(
+  clinicId: string,
+  opts?: { status?: CommunicationStatus; channel?: CommunicationChannel },
+) {
   return prisma.communication.findMany({
-    where: { clinicId },
+    where: {
+      clinicId,
+      ...(opts?.status ? { status: opts.status } : {}),
+      ...(opts?.channel ? { channel: opts.channel } : {}),
+    },
     include: {
       patient: { select: { id: true, fullName: true, phone: true } },
       template: { select: { id: true, name: true, code: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 100,
+  });
+}
+
+export async function cancelCommunicationsByKeys(
+  clinicId: string,
+  keys: string[],
+) {
+  if (keys.length === 0) return { count: 0 };
+  return prisma.communication.updateMany({
+    where: {
+      clinicId,
+      idempotencyKey: { in: keys },
+      status: { in: ["QUEUED", "SCHEDULED"] },
+    },
+    data: { status: "CANCELLED", errorReason: "RESCHEDULED" },
   });
 }

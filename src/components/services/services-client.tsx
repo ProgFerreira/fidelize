@@ -52,6 +52,10 @@ type Draft = {
   basePrice: string;
   compareAtPrice: string;
   validityDays: string;
+  intervaloRetornoDias: string;
+  packageSessions: string;
+  stockQty: string;
+  stockAlertAt: string;
   durationMinutes: string;
   cashbackPercent: string;
   pointsPerReal: string;
@@ -73,6 +77,10 @@ function emptyDraft(): Draft {
     basePrice: "0",
     compareAtPrice: "",
     validityDays: "90",
+    intervaloRetornoDias: "",
+    packageSessions: "",
+    stockQty: "",
+    stockAlertAt: "",
     durationMinutes: "60",
     cashbackPercent: "",
     pointsPerReal: "",
@@ -95,6 +103,12 @@ function fromService(s: ServiceDTO): Draft {
     compareAtPrice:
       s.compareAtPrice == null ? "" : String(s.compareAtPrice),
     validityDays: s.validityDays == null ? "" : String(s.validityDays),
+    intervaloRetornoDias:
+      s.intervaloRetornoDias == null ? "" : String(s.intervaloRetornoDias),
+    packageSessions:
+      s.packageSessions == null ? "" : String(s.packageSessions),
+    stockQty: s.stockQty == null ? "" : String(s.stockQty),
+    stockAlertAt: s.stockAlertAt == null ? "" : String(s.stockAlertAt),
     durationMinutes:
       s.durationMinutes == null ? "60" : String(s.durationMinutes),
     cashbackPercent:
@@ -339,7 +353,7 @@ export function ServicesClient({ initialServices }: Props) {
           </div>
 
           <div className="services-toolbar__actions">
-            <Button type="button" variant="gold" onClick={() => setDraft(emptyDraft())}>
+            <Button type="button" variante="gold" onClick={() => setDraft(emptyDraft())}>
               <Plus className="h-4 w-4" aria-hidden />
               Novo serviço
             </Button>
@@ -371,7 +385,7 @@ export function ServicesClient({ initialServices }: Props) {
             {items.length > 0 ? (
               <Button
                 type="button"
-                variant="contorno"
+                variante="contorno"
                 onClick={() => {
                   setQuery("");
                   setStatusFilter("all");
@@ -380,7 +394,7 @@ export function ServicesClient({ initialServices }: Props) {
                 Limpar filtros
               </Button>
             ) : null}
-            <Button type="button" variant="gold" onClick={() => setDraft(emptyDraft())}>
+            <Button type="button" variante="gold" onClick={() => setDraft(emptyDraft())}>
               <Plus className="h-4 w-4" aria-hidden />
               Cadastrar serviço
             </Button>
@@ -490,8 +504,8 @@ export function ServicesClient({ initialServices }: Props) {
               <div className="service-card__footer">
                 <Button
                   type="button"
-                  size="sm"
-                  variant="contorno"
+                  tamanho="sm"
+                  variante="contorno"
                   onClick={() => setViewing(s)}
                 >
                   <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -499,8 +513,8 @@ export function ServicesClient({ initialServices }: Props) {
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
-                  variant="secondary"
+                  tamanho="sm"
+                  variante="secundario"
                   onClick={() => setDraft(fromService(s))}
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -508,8 +522,8 @@ export function ServicesClient({ initialServices }: Props) {
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
-                  variant={s.active ? "danger" : "secondary"}
+                  tamanho="sm"
+                  variante={s.active ? "perigo" : "secundario"}
                   onClick={() => void onToggle(s.id, !s.active)}
                 >
                   <Power className="h-3.5 w-3.5" aria-hidden />
@@ -534,8 +548,8 @@ export function ServicesClient({ initialServices }: Props) {
               <h2>Detalhes do serviço</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setViewing(null)}
               >
                 Fechar
@@ -654,14 +668,14 @@ export function ServicesClient({ initialServices }: Props) {
               <div className="service-view__actions">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variante="secundario"
                   onClick={() => setViewing(null)}
                 >
                   Fechar
                 </Button>
                 <Button
                   type="button"
-                  variant="gold"
+                  variante="gold"
                   onClick={() => {
                     setDraft(fromService(viewing));
                     setViewing(null);
@@ -689,8 +703,8 @@ export function ServicesClient({ initialServices }: Props) {
               <h2>{draft.id ? "Editar serviço" : "Novo serviço"}</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
               >
                 Fechar
@@ -727,8 +741,8 @@ export function ServicesClient({ initialServices }: Props) {
                     />
                     <Button
                       type="button"
-                      variant="secondary"
-                      size="sm"
+                      variante="secundario"
+                      tamanho="sm"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <ImagePlus className="h-3.5 w-3.5" aria-hidden />
@@ -737,8 +751,8 @@ export function ServicesClient({ initialServices }: Props) {
                     {draftPreviewSrc(draft) ? (
                       <Button
                         type="button"
-                        variant="contorno"
-                        size="sm"
+                        variante="contorno"
+                        tamanho="sm"
                         onClick={onRemoveImage}
                       >
                         <ImageOff className="h-3.5 w-3.5" aria-hidden />
@@ -850,6 +864,74 @@ export function ServicesClient({ initialServices }: Props) {
               </div>
 
               <div className="agenda__form-grid">
+                <Campo
+                  label="Retorno (dias)"
+                  dica="Régua WhatsApp 30/7/1 dia antes desta data."
+                >
+                  <Input
+                    name="intervaloRetornoDias"
+                    type="number"
+                    min="0"
+                    value={draft.intervaloRetornoDias}
+                    onChange={(e) =>
+                      setDraft((p) =>
+                        p ? { ...p, intervaloRetornoDias: e.target.value } : p,
+                      )
+                    }
+                    placeholder="Ex.: 120"
+                  />
+                </Campo>
+                <Campo
+                  label="Sessões do pacote"
+                  dica="2 ou mais: a venda no PDV emite um pacote."
+                >
+                  <Input
+                    name="packageSessions"
+                    type="number"
+                    min="0"
+                    value={draft.packageSessions}
+                    onChange={(e) =>
+                      setDraft((p) =>
+                        p ? { ...p, packageSessions: e.target.value } : p,
+                      )
+                    }
+                    placeholder="Ex.: 6"
+                  />
+                </Campo>
+                <Campo
+                  label="Estoque"
+                  dica="Deixe vazio para serviço sem controle de estoque."
+                >
+                  <Input
+                    name="stockQty"
+                    type="number"
+                    min="0"
+                    value={draft.stockQty}
+                    onChange={(e) =>
+                      setDraft((p) =>
+                        p ? { ...p, stockQty: e.target.value } : p,
+                      )
+                    }
+                    placeholder="Unidades"
+                  />
+                </Campo>
+                <Campo label="Alerta de estoque">
+                  <Input
+                    name="stockAlertAt"
+                    type="number"
+                    min="0"
+                    value={draft.stockAlertAt}
+                    onChange={(e) =>
+                      setDraft((p) =>
+                        p ? { ...p, stockAlertAt: e.target.value } : p,
+                      )
+                    }
+                    placeholder="Ex.: 5"
+                  />
+                </Campo>
+              </div>
+
+              <div className="agenda__form-grid">
                 <Campo label="Cashback % (opcional)">
                   <Input
                     name="cashbackPercent"
@@ -916,7 +998,7 @@ export function ServicesClient({ initialServices }: Props) {
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Cancelar

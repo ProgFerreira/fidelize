@@ -36,6 +36,7 @@ function parseProfessionalForm(formData: FormData) {
     notes: String(formData.get("notes") || "") || null,
     active: formData.get("active") === "on" || formData.get("active") === "true",
     color: String(formData.get("color") || "") || null,
+    commissionPercent: String(formData.get("commissionPercent") || "").trim() || null,
     procedureIds,
     procedurePrices: procedurePricesFromForm(formData, procedureIds),
   });

@@ -5,7 +5,7 @@ import { requireModule, isModuleEnabled } from "@/lib/modules";
 import { enqueueCommunication } from "@/lib/communications";
 import { assignTag, removeTag } from "@/lib/tags";
 import { creditWallet } from "@/lib/ledger";
-import type { AutomationTrigger, Prisma } from "@/generated/prisma/client";
+import type { AutomationTrigger, CommunicationChannel, Prisma } from "@/generated/prisma/client";
 
 export const automationSchema = z.object({
   name: z.string().min(2).max(120),
@@ -47,7 +47,7 @@ export const AUTOMATION_PRESETS = [
     trigger: "PATIENT_REGISTERED" as const,
     steps: [
       {
-        actionType: "SEND_INTERNAL",
+        actionType: "SEND_WHATSAPP",
         config: { body: "Bem-vindo(a), {{nome_paciente}}! Seu clube de benefícios está ativo." },
         delayMinutes: 0,
       },
@@ -91,7 +91,7 @@ export const AUTOMATION_PRESETS = [
     trigger: "BIRTHDAY" as const,
     steps: [
       {
-        actionType: "SEND_INTERNAL",
+        actionType: "SEND_WHATSAPP",
         config: { body: "Feliz aniversário, {{nome_paciente}}! Temos um benefício especial para você." },
         delayMinutes: 0,
       },
@@ -112,7 +112,7 @@ export const AUTOMATION_PRESETS = [
     trigger: "BALANCE_EXPIRING" as const,
     steps: [
       {
-        actionType: "SEND_INTERNAL",
+        actionType: "SEND_WHATSAPP",
         config: { body: "{{nome_paciente}}, seu saldo de {{saldo}} vence em breve." },
         delayMinutes: 0,
       },
@@ -128,7 +128,7 @@ export const AUTOMATION_PRESETS = [
         delayMinutes: 0,
       },
       {
-        actionType: "SEND_INTERNAL",
+        actionType: "SEND_WHATSAPP",
         config: { body: "Sentimos sua falta, {{nome_paciente}}. Que tal agendar um retorno?" },
         delayMinutes: 0,
       },
@@ -149,7 +149,7 @@ export const AUTOMATION_PRESETS = [
         delayMinutes: 0,
       },
       {
-        actionType: "SEND_INTERNAL",
+        actionType: "SEND_WHATSAPP",
         config: { body: "{{nome_paciente}}, preparamos um benefício especial para o seu retorno." },
         delayMinutes: 0,
       },
@@ -386,7 +386,7 @@ export async function runAutomationsForTrigger(input: {
 
         const config = step.config as Record<string, unknown>;
         if (step.delayMinutes > 0 && String(step.actionType).startsWith("SEND_")) {
-          const channel =
+          let channel: CommunicationChannel =
             step.actionType === "SEND_WHATSAPP"
               ? "WHATSAPP"
               : step.actionType === "SEND_EMAIL"
@@ -394,24 +394,31 @@ export async function runAutomationsForTrigger(input: {
                 : step.actionType === "SEND_SMS"
                   ? "SMS"
                   : "INTERNAL";
-          await enqueueCommunication({
-            clinicId: input.clinicId,
-            data: {
-              patientId: input.patientId,
-              channel,
-              purpose: "SERVICE",
-              body: String(config.body ?? ""),
-              variables: {
-                nome_paciente: patient.fullName,
-                saldo: wallet ? String(wallet.availableBalance) : "0",
-                pontos: wallet?.pointsBalance ?? 0,
-                ...input.context?.variables,
+          if (channel === "WHATSAPP" && !(await isModuleEnabled(input.clinicId, "WHATSAPP"))) {
+            channel = "INTERNAL";
+          }
+          try {
+            await enqueueCommunication({
+              clinicId: input.clinicId,
+              data: {
+                patientId: input.patientId,
+                channel,
+                purpose: "SERVICE",
+                body: String(config.body ?? ""),
+                variables: {
+                  nome_paciente: patient.fullName,
+                  saldo: wallet ? String(wallet.availableBalance) : "0",
+                  pontos: wallet?.pointsBalance ?? 0,
+                  ...input.context?.variables,
+                },
+                automationId: automation.id,
+                scheduledAt: new Date(Date.now() + step.delayMinutes * 60_000),
+                idempotencyKey: `auto:${automation.id}:${input.triggerRef}:${channel}:d${step.delayMinutes}`,
               },
-              automationId: automation.id,
-              scheduledAt: new Date(Date.now() + step.delayMinutes * 60_000),
-              idempotencyKey: `auto:${automation.id}:${input.triggerRef}:${channel}:d${step.delayMinutes}`,
-            },
-          });
+            });
+          } catch {
+            // canal indisponível
+          }
         } else {
           await executeStep({
             clinicId: input.clinicId,
@@ -476,7 +483,7 @@ async function executeStep(input: {
     case "SEND_EMAIL":
     case "SEND_SMS":
     case "SEND_INTERNAL": {
-      const channel =
+      let channel: CommunicationChannel =
         input.actionType === "SEND_WHATSAPP"
           ? "WHATSAPP"
           : input.actionType === "SEND_EMAIL"
@@ -484,18 +491,41 @@ async function executeStep(input: {
             : input.actionType === "SEND_SMS"
               ? "SMS"
               : "INTERNAL";
-      await enqueueCommunication({
-        clinicId: input.clinicId,
-        data: {
-          patientId: input.patientId,
-          channel,
-          purpose: "SERVICE",
-          body: String(input.config.body ?? ""),
-          variables: input.variables,
-          automationId: input.automationId,
-          idempotencyKey: `auto:${input.automationId}:${input.triggerRef}:${channel}`,
-        },
-      });
+      if (channel === "WHATSAPP") {
+        const { isModuleEnabled } = await import("@/lib/modules");
+        if (!(await isModuleEnabled(input.clinicId, "WHATSAPP"))) {
+          channel = "INTERNAL";
+        }
+      }
+      try {
+        await enqueueCommunication({
+          clinicId: input.clinicId,
+          data: {
+            patientId: input.patientId,
+            channel,
+            purpose: "SERVICE",
+            body: String(input.config.body ?? ""),
+            variables: input.variables,
+            automationId: input.automationId,
+            idempotencyKey: `auto:${input.automationId}:${input.triggerRef}:${channel}`,
+          },
+        });
+      } catch {
+        if (channel !== "INTERNAL") {
+          await enqueueCommunication({
+            clinicId: input.clinicId,
+            data: {
+              patientId: input.patientId,
+              channel: "INTERNAL",
+              purpose: "SERVICE",
+              body: String(input.config.body ?? ""),
+              variables: input.variables,
+              automationId: input.automationId,
+              idempotencyKey: `auto:${input.automationId}:${input.triggerRef}:INTERNAL`,
+            },
+          });
+        }
+      }
       break;
     }
     case "CREDIT_POINTS":
@@ -692,19 +722,44 @@ export async function testAutomation(input: {
 }
 
 export async function seedPresetAutomations(clinicId: string) {
+  const operational = new Set([
+    "Boas-vindas",
+    "Aniversário",
+    "Saldo vencendo",
+    "Paciente ausente 30 dias",
+    "Paciente ausente 60 dias",
+  ]);
   for (const preset of AUTOMATION_PRESETS) {
     const exists = await prisma.automation.findFirst({
       where: { clinicId, name: preset.name },
-    });
-    if (exists) continue;
-    await createAutomation({
-      clinicId,
-      data: {
-        name: preset.name,
-        trigger: preset.trigger,
-        steps: preset.steps,
+      include: {
+        versions: {
+          orderBy: { version: "desc" },
+          take: 1,
+          include: { steps: true },
+        },
       },
     });
+    if (!exists) {
+      await createAutomation({
+        clinicId,
+        data: {
+          name: preset.name,
+          trigger: preset.trigger,
+          steps: preset.steps,
+        },
+      });
+      continue;
+    }
+    if (!operational.has(preset.name)) continue;
+    const steps = exists.versions[0]?.steps ?? [];
+    for (const step of steps) {
+      if (step.actionType !== "SEND_INTERNAL") continue;
+      await prisma.automationStep.update({
+        where: { id: step.id },
+        data: { actionType: "SEND_WHATSAPP" },
+      });
+    }
   }
 }
 

@@ -14,7 +14,7 @@ export function CopyLinkButton({ url }: { url: string }) {
   }
 
   return (
-    <Button type="button" size="sm" variant="secondary" onClick={handleClick}>
+    <Button type="button" tamanho="sm" variante="secundario" onClick={handleClick}>
       <Link2 className="h-4 w-4" /> Copiar link do paciente
     </Button>
   );

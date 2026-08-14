@@ -2,7 +2,8 @@ import { requireAffiliateSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { formatBRL } from "@/lib/money";
 import { semOrganizacao } from "@/lib/tenant";
-import { Card } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
+import { labelPt } from "@/lib/i18n/labels";
 
 export default async function AfiliadoPagamentosPage() {
   const session = await requireAffiliateSession();
@@ -16,9 +17,10 @@ export default async function AfiliadoPagamentosPage() {
 
   if (rows.length === 0) {
     return (
-      <Card>
-        <p className="text-sm text-slate-500">Nenhum pagamento registrado.</p>
-      </Card>
+      <EmptyState
+        titulo="Nenhum pagamento registrado"
+        descricao="Quando a plataforma liquidar suas comissões, o comprovante aparece aqui."
+      />
     );
   }
 
@@ -30,7 +32,7 @@ export default async function AfiliadoPagamentosPage() {
             <div>
               <p className="font-medium">{formatBRL(p.totalAmount)}</p>
               <p className="text-xs text-slate-500">
-                {p.status}
+                {labelPt(p.status)}
                 {p.paidAt
                   ? ` · pago em ${p.paidAt.toLocaleDateString("pt-BR")}`
                   : ""}

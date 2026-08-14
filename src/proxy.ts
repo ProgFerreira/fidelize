@@ -29,6 +29,7 @@ const ROTAS_PUBLICAS = [
   "/embed",
   "/calculadora",
   "/i",
+  "/indicacao",
   "/api/auth",
   "/api/health",
   "/api/setup",

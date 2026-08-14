@@ -3,6 +3,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import type { ModuleCode } from "@/generated/prisma/client";
 
 export type MenuAreaId =
+  | "frequentes"
   | "inicio"
   | "atendimento"
   | "clientes"
@@ -36,6 +37,7 @@ export type MenuGrupo = {
 };
 
 export const MENU_AREAS: MenuAreaDef[] = [
+  { id: "frequentes", label: "Frequentes" },
   { id: "inicio", label: null },
   { id: "atendimento", label: "Atendimento" },
   { id: "clientes", label: "Clientes" },
@@ -61,7 +63,7 @@ export const MENUS: MenuDef[] = [
     label: "Resumo financeiro",
     rota: "/resumo-financeiro",
     icone: "TrendingUp",
-    area: "inicio",
+    area: "relatorios",
     permission: PERMISSIONS.REPORTS_VIEW,
   },
   {
@@ -154,6 +156,22 @@ export const MENUS: MenuDef[] = [
     icone: "Megaphone",
     area: "marketing",
     permission: PERMISSIONS.CAMPAIGNS_MANAGE,
+  },
+  {
+    id: "clube-vip",
+    label: "Clube VIP",
+    rota: "/clube-vip",
+    icone: "Crown",
+    area: "fidelidade",
+    permission: PERMISSIONS.CARDS_MANAGE,
+  },
+  {
+    id: "comissoes",
+    label: "Comissões",
+    rota: "/comissoes",
+    icone: "Percent",
+    area: "relatorios",
+    permission: PERMISSIONS.REPORTS_VIEW,
   },
   {
     id: "recompensas",
@@ -372,18 +390,39 @@ export function menusVisiveis(
   });
 }
 
+const FAVORITOS_POR_PAPEL: Record<string, string[]> = {
+  RECEPTION: ["recepcao", "pacientes", "extrato-dia"],
+  FINANCE: ["resumo-financeiro", "extrato-dia", "relatorios"],
+  MANAGER: ["dashboard", "recepcao", "pacientes"],
+  ADMIN: ["dashboard", "recepcao", "pacientes"],
+};
+
+const FAVORITOS_PADRAO = ["dashboard", "recepcao", "pacientes"];
+
 /** Agrupa itens visíveis por área, omitindo áreas sem nenhum item. */
 export function menusAgrupados(
   permissions: PermissionCode[],
   enabledModules?: Set<string> | string[],
+  roleCode?: string,
 ): MenuGrupo[] {
   const items = menusVisiveis(permissions, enabledModules);
   const porArea = new Map<MenuAreaId, MenuDef[]>();
 
+  const idsFavoritos = FAVORITOS_POR_PAPEL[roleCode ?? ""] ?? FAVORITOS_PADRAO;
+  const frequentes = idsFavoritos
+    .map((id) => items.find((item) => item.id === id))
+    .filter((item): item is MenuDef => Boolean(item));
+  const idsEmFrequentes = new Set(frequentes.map((item) => item.id));
+
   for (const item of items) {
+    if (idsEmFrequentes.has(item.id)) continue;
     const lista = porArea.get(item.area) ?? [];
     lista.push(item);
     porArea.set(item.area, lista);
+  }
+
+  if (frequentes.length > 0) {
+    porArea.set("frequentes", frequentes);
   }
 
   return MENU_AREAS.flatMap((area) => {

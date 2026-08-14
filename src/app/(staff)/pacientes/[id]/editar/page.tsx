@@ -59,7 +59,7 @@ export default async function EditarPacientePage({
   const clinicId = session.clinicId;
   const { id } = await params;
 
-  const [patient, units] = await comOrganizacao(
+  const [patient, units, holders] = await comOrganizacao(
     { organizationId: session.organizationId },
     () =>
       Promise.all([
@@ -69,6 +69,17 @@ export default async function EditarPacientePage({
         prisma.unit.findMany({
           where: { clinicId, active: true },
           orderBy: { name: "asc" },
+        }),
+        prisma.patient.findMany({
+          where: {
+            clinicId,
+            status: { not: "BLOCKED" },
+            holderPatientId: null,
+            NOT: { id },
+          },
+          select: { id: true, fullName: true },
+          orderBy: { fullName: "asc" },
+          take: 200,
         }),
       ]),
   );
@@ -254,6 +265,21 @@ export default async function EditarPacientePage({
                   defaultValue={patient.address ?? ""}
                 />
               </div>
+              <div className="patient-new__field patient-new__field--full">
+                <Label htmlFor="holderPatientId">Titular da carteira (dependente)</Label>
+                <Select
+                  id="holderPatientId"
+                  name="holderPatientId"
+                  defaultValue={patient.holderPatientId ?? ""}
+                >
+                  <option value="">Paciente é o titular</option>
+                  {holders.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.fullName}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
           </section>
 
@@ -383,7 +409,7 @@ export default async function EditarPacientePage({
             >
               Cancelar
             </Link>
-            <Button type="submit" variant="primario" className="patient-new__submit">
+            <Button type="submit" variante="primario" className="patient-new__submit">
               <Pencil className="h-4 w-4" aria-hidden />
               Salvar alterações
             </Button>

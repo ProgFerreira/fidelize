@@ -399,6 +399,12 @@ export async function simulateReceptionAction(input: {
     }
   }
 
+  const { getActiveMembership } = await import("@/lib/membership");
+  const membership = await getActiveMembership(
+    session.user.clinicId,
+    wallet.patientId,
+  );
+
   const simulation = await simulateBenefit({
     clinicId: session.user.clinicId,
     patientId: wallet.patientId,
@@ -411,6 +417,9 @@ export async function simulateReceptionAction(input: {
       campaign && campaignAllowed
         ? Number(campaign.extraCashbackPct)
         : null,
+    membershipExtraPercent: membership
+      ? Number(membership.plan.extraCashbackPct)
+      : null,
     grossAmount,
     discountAmount: input.discountAmount,
     benefitToUse: input.benefitToUse,
@@ -881,6 +890,16 @@ export async function searchPatientsAction(query: string) {
         where: { status: "ACTIVE" },
         include: { category: true, cards: { where: { status: "ACTIVE" } } },
       },
+      holder: {
+        select: {
+          id: true,
+          fullName: true,
+          wallets: {
+            where: { status: "ACTIVE" },
+            include: { category: true, cards: { where: { status: "ACTIVE" } } },
+          },
+        },
+      },
       unit: true,
     },
     orderBy: { fullName: "asc" },
@@ -895,7 +914,18 @@ export async function searchPatientsAction(query: string) {
     return true;
   });
 
-  return toPlain(unique);
+  return toPlain(
+    unique.map((p) => {
+      const holderWallets = p.holder?.wallets ?? [];
+      const shared = Boolean(p.holderPatientId) && holderWallets.length > 0;
+      return {
+        ...p,
+        wallets: shared ? holderWallets : p.wallets,
+        holderName: p.holder?.fullName ?? null,
+        sharedWallet: shared,
+      };
+    }),
+  );
 }
 
 export async function getPatientAppointmentHistoryAction(patientId: string) {
@@ -921,4 +951,16 @@ export async function getPatientAppointmentHistoryAction(patientId: string) {
       take: 20,
     }),
   );
+}
+
+export async function getReceptionCopilotAction(patientId: string, walletId: string) {
+  const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
+  if (!patientId || !walletId) return null;
+  const { getReceptionCopilot } = await import("@/lib/reception/copilot");
+  const data = await getReceptionCopilot({
+    clinicId: session.clinicId,
+    patientId,
+    walletId,
+  });
+  return data ? toPlain(data) : null;
 }

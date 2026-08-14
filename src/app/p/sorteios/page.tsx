@@ -1,8 +1,9 @@
 import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
 import { listRaffles, buyRaffleTicket } from "@/lib/raffles";
-import { PageHeader, Card, Button, Badge, EmptyState } from "@/components/ui";
+import { CabecalhoPagina, Card, Button, Badge, EmptyState } from "@/components/ui";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 async function buyTicketAction(formData: FormData) {
   "use server";
@@ -14,6 +15,7 @@ async function buyTicketAction(formData: FormData) {
     quantity: 1,
   });
   revalidatePath("/p/sorteios");
+  redirect("/p/sorteios?ok=bilhete");
 }
 
 export default async function PortalSorteiosPage() {
@@ -21,7 +23,7 @@ export default async function PortalSorteiosPage() {
   if (!(await isModuleEnabled(session.clinicId, "RAFFLES"))) {
     return (
       <div>
-        <PageHeader title="Sorteios" description="Módulo desativado." />
+        <CabecalhoPagina titulo="Sorteios" descricao="Módulo desativado." />
       </div>
     );
   }
@@ -32,7 +34,7 @@ export default async function PortalSorteiosPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl text-slate-900">Sorteios</h1>
+      <CabecalhoPagina titulo="Sorteios" />
       {raffles.length === 0 ? (
         <EmptyState
           titulo="Nenhum sorteio ativo"
@@ -53,7 +55,7 @@ export default async function PortalSorteiosPage() {
             </div>
             <form action={buyTicketAction} className="mt-3">
               <input type="hidden" name="raffleId" value={r.id} />
-              <Button type="submit" variant="gold">
+              <Button type="submit" variante="gold">
                 Comprar bilhete
               </Button>
             </form>

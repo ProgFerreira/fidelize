@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { Badge, Button, Campo, Card, Input, PageHeader } from "@/components/ui";
+import { Badge, Button, Campo, Card, Input, CabecalhoPagina } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
 import { prisma } from "@/lib/db";
 import { getDailyExtract } from "@/lib/reception/daily-extract";
@@ -39,14 +39,14 @@ export default async function ExtratoDiaPage({
 
   return (
     <div className="services-page pdv-extract">
-      <PageHeader
-        title="Extrato"
-        description={
+      <CabecalhoPagina
+        titulo="Extrato"
+        descricao={
           period.isRange
             ? `Vendas confirmadas de ${formatYmdPt(period.fromYmd)} a ${formatYmdPt(period.toYmd)} · fuso ${timezone.replace("_", " ")}`
             : `Vendas confirmadas em ${formatYmdPt(period.fromYmd)} · fuso ${timezone.replace("_", " ")}`
         }
-        actions={
+        acoes={
           <div className="flex flex-wrap gap-2 pdv-extract__no-print">
             <PrintExtractButton />
             <Link href="/recepcao" className="pdv-extract-link">
@@ -63,7 +63,7 @@ export default async function ExtratoDiaPage({
         <Campo label="Até">
           <Input type="date" name="ate" defaultValue={period.toYmd} required />
         </Campo>
-        <Button type="submit" variant="contorno">
+        <Button type="submit" variante="contorno">
           Ver período
         </Button>
       </form>

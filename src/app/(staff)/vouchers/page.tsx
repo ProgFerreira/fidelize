@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listVouchers } from "@/lib/vouchers";
 import { prisma } from "@/lib/db";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import {
   VouchersClient,
   type VoucherDTO,
@@ -26,10 +26,10 @@ export default async function VouchersPage() {
 
   return (
     <div className="services-page">
-      <PageHeader
-        title="Cupons"
-        description="Cupons rastreáveis com código único — emissão, validade e resgate na recepção."
-        actions={
+      <CabecalhoPagina
+        titulo="Cupons"
+        descricao="Cupons rastreáveis com código único — emissão, validade e resgate na recepção."
+        acoes={
           <span className="services-page__pill">
             <Ticket className="h-3.5 w-3.5" aria-hidden />
             Vouchers

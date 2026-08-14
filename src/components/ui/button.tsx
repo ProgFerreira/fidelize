@@ -2,12 +2,14 @@ import { Loader2 } from "lucide-react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type Variante = "primario" | "secundario" | "perigo" | "fantasma" | "contorno";
+type Variante = "primario" | "secundario" | "perigo" | "fantasma" | "contorno" | "gold";
 type Tamanho = "sm" | "md" | "lg" | "icone";
 
 const VARIANTES: Record<Variante, string> = {
   primario:
-    "bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600",
+    "bg-brand-blue text-white hover:bg-blue-700 focus-visible:outline-brand-blue",
+  gold:
+    "bg-brand-gold text-brand-navy hover:bg-brand-gold-dark hover:text-white focus-visible:outline-brand-gold",
   secundario:
     "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
   perigo: "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600",
@@ -26,7 +28,7 @@ const TAMANHOS: Record<Tamanho, string> = {
 
 const VARIANT_ALIAS: Record<string, Variante> = {
   primary: "primario",
-  gold: "primario",
+  gold: "gold",
   ghost: "fantasma",
   danger: "perigo",
   outline: "contorno",

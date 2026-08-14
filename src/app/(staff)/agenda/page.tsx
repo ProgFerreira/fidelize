@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { AgendaClient } from "@/components/agenda/agenda-client";
 import { listAgendaEvents, toDateOnly, weekBounds } from "@/lib/agenda";
 import { listProfessionals } from "@/lib/professionals";
@@ -39,9 +39,9 @@ export default async function AgendaPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Agenda"
-        description="Grade semanal de compromissos com pacientes — agende, busque e acompanhe a semana."
+      <CabecalhoPagina
+        titulo="Agenda"
+        descricao="Grade semanal de compromissos com pacientes — agende, busque e acompanhe a semana."
       />
       <AgendaClient
         initialWeekStart={toDateOnly(start)}

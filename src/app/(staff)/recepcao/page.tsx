@@ -1,21 +1,19 @@
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader } from "@/components/ui";
 import { ReceptionClient } from "@/components/reception/reception-client";
 import { listProfessionals } from "@/lib/professionals";
 import { toPlain } from "@/lib/serialize";
 import { isModuleEnabled } from "@/lib/modules";
 import { ensureSystemRolePermissions } from "@/lib/auth/sync-roles";
-import Link from "next/link";
-import { ClipboardList } from "lucide-react";
+import { getReceptionKpi } from "@/lib/reception/kpi";
 
 export default async function RecepcaoPage() {
   const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
   const clinicId = session.clinicId;
   await ensureSystemRolePermissions(clinicId);
 
-  const [procedures, professionals, campaigns, availableCards, giftCardEnabled] =
+  const [procedures, professionals, campaigns, availableCards, giftCardEnabled, kpi] =
     await Promise.all([
       prisma.procedure.findMany({
         where: { clinicId, active: true },
@@ -32,20 +30,11 @@ export default async function RecepcaoPage() {
         orderBy: { createdAt: "desc" },
       }),
       isModuleEnabled(clinicId, "GIFT_CARD"),
+      getReceptionKpi(clinicId),
     ]);
 
   return (
     <div>
-      <PageHeader
-        title="Recepção"
-        description="PDV de atendimento: escolha o profissional, os serviços do portfólio, simule benefício e confirme a venda."
-        actions={
-          <Link href="/extrato-dia" className="pdv-extract-link">
-            <ClipboardList className="h-4 w-4" aria-hidden />
-            Extrato
-          </Link>
-        }
-      />
       <ReceptionClient
         procedures={toPlain(
           procedures.map((p) => ({
@@ -58,6 +47,7 @@ export default async function RecepcaoPage() {
             durationMinutes: p.durationMinutes,
             cashbackPercent:
               p.cashbackPercent == null ? null : Number(p.cashbackPercent),
+            packageSessions: p.packageSessions,
           })),
         )}
         professionals={toPlain(
@@ -80,6 +70,7 @@ export default async function RecepcaoPage() {
           publicToken: c.publicToken,
         }))}
         giftCardEnabled={giftCardEnabled}
+        kpi={kpi}
       />
     </div>
   );

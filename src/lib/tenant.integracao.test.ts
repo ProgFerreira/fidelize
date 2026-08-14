@@ -124,6 +124,7 @@ describe.runIf(runDb)("tenant isolation", () => {
   it("extensão cobre models com organizationId", () => {
     expect(_internos.MODELOS_TENANT.has("Clinic")).toBe(true);
     expect(_internos.MODELOS_TENANT.has("Patient")).toBe(true);
+    expect(_internos.MODELOS_TENANT.has("TreatmentPackage")).toBe(true);
     expect(_internos.MODELOS_TENANT.has("Permission")).toBe(false);
   });
 });

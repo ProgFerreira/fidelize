@@ -389,15 +389,15 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
       <canvas ref={canvasRef} className="hidden" />
 
       <Card className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="icone" onClick={toggleMic} aria-label="Microfone">
+        <Button variante="secundario" tamanho="icone" onClick={toggleMic} aria-label="Microfone">
           {micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
         </Button>
-        <Button variant="secondary" size="icone" onClick={toggleCam} aria-label="Câmera">
+        <Button variante="secundario" tamanho="icone" onClick={toggleCam} aria-label="Câmera">
           {camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
         </Button>
         {role === "PROFISSIONAL" && (
           <Button
-            variant={recording ? "danger" : "secondary"}
+            variante={recording ? "perigo" : "secundario"}
             onClick={recording ? stopRecordingAndUpload : startRecording}
             disabled={phase !== "in-call"}
           >
@@ -413,7 +413,7 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
           </Button>
         )}
         {recording && <Badge tone="warning">Gravando</Badge>}
-        <Button variant="danger" onClick={endCall} className="ml-auto">
+        <Button variante="perigo" onClick={endCall} className="ml-auto">
           <PhoneOff className="h-4 w-4" /> Encerrar chamada
         </Button>
       </Card>

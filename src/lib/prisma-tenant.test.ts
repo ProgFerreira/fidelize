@@ -26,4 +26,9 @@ describe("extensão tenant", () => {
     expect(_internos.LEITURAS.has("findUnique")).toBe(false);
     expect(_internos.LEITURAS.has("findFirst")).toBe(true);
   });
+
+  it("isola TreatmentPackage por organizationId", () => {
+    expect(_internos.MODELOS_TENANT.has("TreatmentPackage")).toBe(true);
+    expect(_internos.MODELOS_TENANT.has("TreatmentPackageUse")).toBe(false);
+  });
 });

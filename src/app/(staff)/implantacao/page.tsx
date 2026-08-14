@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getOnboardingProgress } from "@/lib/onboarding";
-import { PageHeader, Card, Badge, Button } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button } from "@/components/ui";
 import { completeOnboardingStepAction } from "@/app/v2-actions";
 import { labelPt } from "@/lib/i18n/labels";
 
@@ -12,9 +12,9 @@ export default async function ImplantacaoPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Assistente de implantação"
-        description={`${progress.percent}% concluído · ${progress.pending.length} pendência(s)`}
+      <CabecalhoPagina
+        titulo="Assistente de implantação"
+        descricao={`${progress.percent}% concluído · ${progress.pending.length} pendência(s)`}
       />
       <Card className="mb-6">
         <div className="h-3 overflow-hidden rounded-full bg-slate-100">
@@ -49,7 +49,7 @@ export default async function ImplantacaoPage() {
                   <form action={completeOnboardingStepAction}>
                     <input type="hidden" name="step" value={step.step} />
                     <input type="hidden" name="completed" value="true" />
-                    <Button type="submit" size="sm">Marcar concluído</Button>
+                    <Button type="submit" tamanho="sm">Marcar concluído</Button>
                   </form>
                 )}
               </div>

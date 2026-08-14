@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Search,
   UserPlus,
   Users,
   UserCheck,
@@ -8,7 +7,6 @@ import {
   IdCard,
   MapPin,
   ChevronRight,
-  Filter,
   ShieldAlert,
   Pencil,
 } from "lucide-react";
@@ -16,10 +14,11 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission, hasPermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Badge, Button, classesBotao, Input, Select, Paginacao } from "@/components/ui";
+import { CabecalhoPagina, Badge, classesBotao, Paginacao } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
 import { onlyDigits } from "@/lib/patients/cpf";
 import { labelPt } from "@/lib/i18n/labels";
+import { PatientsSearchForm } from "@/components/patients/patients-search-form";
 
 const PAGE_SIZE = 50;
 const PATIENT_STATUSES = ["ACTIVE", "INACTIVE", "BLOCKED"] as const;
@@ -162,14 +161,16 @@ export default async function PacientesPage({
 
   return (
     <div className="patients-page">
-      <PageHeader
-        title="Pacientes"
-        description="Cadastro comercial do clube — encontre membros, saldos e categorias com facilidade."
-        actions={
-          <Link href="/pacientes/novo" className={classesBotao({ variant: "gold" })}>
-            <UserPlus className="h-4 w-4" aria-hidden />
-            Novo paciente
-          </Link>
+      <CabecalhoPagina
+        titulo="Pacientes"
+        descricao="Cadastro comercial do clube — encontre membros, saldos e categorias com facilidade."
+        acoes={
+          canWrite ? (
+            <Link href="/pacientes/novo" className={classesBotao({ variante: "gold" })}>
+              <UserPlus className="h-4 w-4" aria-hidden />
+              Novo paciente
+            </Link>
+          ) : undefined
         }
       />
 
@@ -203,84 +204,15 @@ export default async function PacientesPage({
         </div>
       </div>
 
-      <div className="patients-search">
-        <form className="patients-search__form">
-          <div className="patients-search__row">
-            <div className="patients-search__field">
-              <Search aria-hidden />
-              <Input
-                name="q"
-                type="search"
-                defaultValue={q}
-                placeholder="Buscar por nome, CPF ou telefone"
-                aria-label="Buscar pacientes"
-              />
-            </div>
-            <Button type="submit">Buscar</Button>
-            {hasFilters ? (
-              <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>
-                Limpar
-              </Link>
-            ) : null}
-          </div>
-
-          <div className="patients-search__filters">
-            <div className="patients-search__filter">
-              <label htmlFor="filtro-status">Status</label>
-              <Select
-                id="filtro-status"
-                name="status"
-                defaultValue={status ?? ""}
-                aria-label="Filtrar por status"
-              >
-                <option value="">Todos</option>
-                {PATIENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {labelPt(s)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="patients-search__filter">
-              <label htmlFor="filtro-categoria">Categoria</label>
-              <Select
-                id="filtro-categoria"
-                name="categoria"
-                defaultValue={categoria ?? ""}
-                aria-label="Filtrar por categoria"
-              >
-                <option value="">Todas</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="patients-search__filter">
-              <label htmlFor="filtro-unidade">Unidade</label>
-              <Select
-                id="filtro-unidade"
-                name="unidade"
-                defaultValue={unidade ?? ""}
-                aria-label="Filtrar por unidade"
-              >
-                <option value="">Todas</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-        </form>
-        <p className="patients-search__hint">
-          <Filter className="patients-search__hint-icon" aria-hidden />
-          Dica: use os filtros junto com a busca. Digite parte do nome ou só os
-          números do CPF/telefone.
-        </p>
-      </div>
+      <PatientsSearchForm
+        q={q}
+        status={status}
+        categoria={categoria}
+        unidade={unidade}
+        hasFilters={hasFilters}
+        categories={categories}
+        units={units}
+      />
 
       {filteredTotal > 0 ? (
         <div className="patients-range" role="status">
@@ -319,10 +251,12 @@ export default async function PacientesPage({
                 Ver todos
               </Link>
             ) : null}
-            <Link href="/pacientes/novo" className={classesBotao({ variant: "gold" })}>
-              <UserPlus className="h-4 w-4" aria-hidden />
-              Cadastrar paciente
-            </Link>
+            {canWrite ? (
+              <Link href="/pacientes/novo" className={classesBotao({ variante: "gold" })}>
+                <UserPlus className="h-4 w-4" aria-hidden />
+                Cadastrar paciente
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -392,7 +326,7 @@ export default async function PacientesPage({
                       <div className="patient-row__actions">
                         <Link
                           href={`/pacientes/${patient.id}/editar`}
-                          className={classesBotao({ size: "sm", variante: "contorno" })}
+                          className={classesBotao({ tamanho: "sm", variante: "contorno" })}
                         >
                           <Pencil className="h-3.5 w-3.5" aria-hidden />
                           Editar

@@ -27,7 +27,11 @@ export default async function StaffLayout({
 
   return (
     <Shell
-      grupos={menusAgrupados(session.user.permissions, enabled)}
+      grupos={menusAgrupados(
+        session.user.permissions,
+        enabled,
+        session.user.roleCode,
+      )}
       usuario={{
         nome: session.user.name ?? "",
         email: session.user.email ?? "",

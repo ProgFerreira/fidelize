@@ -351,7 +351,7 @@ export function SaleEditClient({
               </Select>
               <Button
                 type="button"
-                variant="contorno"
+                variante="contorno"
                 onClick={addProcedure}
                 disabled={!addProcedureId}
               >
@@ -407,7 +407,7 @@ export function SaleEditClient({
                   />
                   <Button
                     type="button"
-                    variant="contorno"
+                    variante="contorno"
                     onClick={lookupGift}
                     disabled={pending || !giftCardCode.trim()}
                   >
@@ -451,11 +451,11 @@ export function SaleEditClient({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={simulate} disabled={pending}>
+          <Button variante="secundario" onClick={simulate} disabled={pending}>
             Simular
           </Button>
           <Button
-            variant="gold"
+            variante="gold"
             onClick={save}
             disabled={pending || !simulation}
           >

@@ -2,7 +2,7 @@ import { requireAffiliateSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db";
 import { formatBRL } from "@/lib/money";
 import { semOrganizacao } from "@/lib/tenant";
-import { Card } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
 
 const STATUS_HELP: Record<string, string> = {
   PENDING: "Aguardando prazo de segurança",
@@ -26,9 +26,10 @@ export default async function AfiliadoComissoesPage() {
 
   if (rows.length === 0) {
     return (
-      <Card>
-        <p className="text-sm text-slate-500">Nenhuma comissão registrada.</p>
-      </Card>
+      <EmptyState
+        titulo="Nenhuma comissão registrada"
+        descricao="Quando uma indicação converter em venda, a comissão aparece nesta lista."
+      />
     );
   }
 

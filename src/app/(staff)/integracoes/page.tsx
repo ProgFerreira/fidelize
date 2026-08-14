@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listIntegrations } from "@/lib/integrations";
-import { PageHeader, Card, Badge, Button, Input, Label, Select } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Select, Campo } from "@/components/ui";
 import {
   createApiKeyAction,
   revokeApiKeyAction,
@@ -38,9 +38,9 @@ export default async function IntegracoesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Integrações"
-        description="Chaves de API, webhooks, conectores clínicos, provedores, widget e contrato mobile."
+      <CabecalhoPagina
+        titulo="Integrações"
+        descricao="Chaves de API, webhooks, conectores clínicos, provedores, widget e contrato mobile."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -82,18 +82,16 @@ export default async function IntegracoesPage() {
         <Card>
           <h2 className="text-lg font-semibold">Nova chave de API</h2>
           <form action={createApiKeyAction} className="mt-3 grid gap-3">
-            <div>
-              <Label>Nome</Label>
+            <Campo label="Nome" obrigatorio>
               <Input name="name" required defaultValue="Integração clínica" />
-            </div>
-            <div>
-              <Label>Ambiente</Label>
+            </Campo>
+            <Campo label="Ambiente">
               <Select name="environment" defaultValue="test">
                 <option value="test">Teste</option>
                 <option value="live">Produção</option>
               </Select>
-            </div>
-            <Button type="submit" variant="gold">
+            </Campo>
+            <Button type="submit" variante="gold">
               Gerar chave
             </Button>
             <p className="text-xs text-slate-500">
@@ -105,17 +103,15 @@ export default async function IntegracoesPage() {
         <Card>
           <h2 className="text-lg font-semibold">Webhook</h2>
           <form action={createWebhookAction} className="mt-3 grid gap-3">
-            <div>
-              <Label>URL</Label>
+            <Campo label="URL" obrigatorio>
               <Input name="url" type="url" required placeholder="https://..." />
-            </div>
-            <div>
-              <Label>Eventos (separados por vírgula)</Label>
+            </Campo>
+            <Campo label="Eventos (separados por vírgula)">
               <Input
                 name="events"
                 defaultValue="appointment.confirmed,*,referral.converted"
               />
-            </div>
+            </Campo>
             <Button type="submit">Salvar endpoint</Button>
           </form>
         </Card>
@@ -156,7 +152,7 @@ export default async function IntegracoesPage() {
                 {!cred.revokedAt && (
                   <form action={revokeApiKeyAction}>
                     <input type="hidden" name="credentialId" value={cred.id} />
-                    <Button type="submit" size="sm" variant="perigo">
+                    <Button type="submit" tamanho="sm" variante="perigo">
                       Revogar
                     </Button>
                   </form>
@@ -189,7 +185,7 @@ export default async function IntegracoesPage() {
             required
             className="max-w-md"
           />
-          <Button type="submit" variant="secondary">
+          <Button type="submit" variante="secundario">
             Permitir origem
           </Button>
         </form>

@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listTemplates, SAFE_VARIABLES } from "@/lib/templates";
-import { PageHeader, Card, Badge, Button, Input, Label, Select, Textarea } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Select, Textarea, Campo } from "@/components/ui";
 import { createTemplateAction, approveTemplateAction } from "@/app/v2-actions";
 import { labelPt } from "@/lib/i18n/labels";
 
@@ -13,9 +13,9 @@ export default async function TemplatesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Modelos de mensagens"
-        description="Variáveis seguras, versões e aprovação administrativa."
+      <CabecalhoPagina
+        titulo="Modelos de mensagens"
+        descricao="Variáveis seguras, versões e aprovação administrativa."
       />
       <Card className="mb-6 max-w-3xl">
         <h2 className="text-lg font-semibold">Novo modelo</h2>
@@ -23,36 +23,33 @@ export default async function TemplatesPage() {
           Variáveis: {SAFE_VARIABLES.map((v) => `{{${v}}}`).join(", ")}
         </p>
         <form action={createTemplateAction} className="mt-3 grid gap-3 md:grid-cols-2">
-          <div>
-            <Label>Código</Label>
+          <Campo label="Código" obrigatorio>
             <Input name="code" required placeholder="boas_vindas" />
-          </div>
-          <div>
-            <Label>Nome</Label>
+          </Campo>
+          <Campo label="Nome" obrigatorio>
             <Input name="name" required />
-          </div>
-          <div>
-            <Label>Canal</Label>
+          </Campo>
+          <Campo label="Canal">
             <Select name="channel" defaultValue="INTERNAL">
               <option value="INTERNAL">Interno</option>
               <option value="WHATSAPP">WhatsApp</option>
               <option value="EMAIL">E-mail</option>
               <option value="SMS">SMS</option>
             </Select>
-          </div>
-          <div>
-            <Label>Assunto</Label>
+          </Campo>
+          <Campo label="Assunto">
             <Input name="subject" />
-          </div>
+          </Campo>
           <div className="md:col-span-2">
-            <Label>Corpo</Label>
-            <Textarea
-              name="body"
-              required
-              defaultValue="Olá {{nome_paciente}}, seu saldo é {{saldo}}."
-            />
+            <Campo label="Corpo" obrigatorio>
+              <Textarea
+                name="body"
+                required
+                defaultValue="Olá {{nome_paciente}}, seu saldo é {{saldo}}."
+              />
+            </Campo>
           </div>
-          <Button type="submit" variant="gold">Salvar rascunho</Button>
+          <Button type="submit" variante="gold">Salvar rascunho</Button>
         </form>
       </Card>
 
@@ -86,7 +83,7 @@ export default async function TemplatesPage() {
                   <form action={approveTemplateAction}>
                     <input type="hidden" name="templateId" value={tpl.id} />
                     <input type="hidden" name="status" value="APPROVED" />
-                    <Button type="submit" size="sm">Aprovar</Button>
+                    <Button type="submit" tamanho="sm">Aprovar</Button>
                   </form>
                 )}
               </div>

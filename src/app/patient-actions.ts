@@ -142,7 +142,7 @@ export async function updatePatientPreferencesAction(formData: FormData) {
     }
   });
 
-  redirect("/p/perfil");
+  redirect("/p/perfil?ok=salvo");
 }
 
 export async function exportMyDataAction() {

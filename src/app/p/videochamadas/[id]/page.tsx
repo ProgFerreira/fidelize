@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
 import { getVideoCallRoom } from "@/lib/videocalls";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { CallRoom } from "@/components/videochamadas/call-room";
 
 export default async function PortalVideochamadaPage({
@@ -19,7 +19,7 @@ export default async function PortalVideochamadaPage({
   if (!moduleEnabled) {
     return (
       <div>
-        <PageHeader title="Videochamada" description="Módulo desativado." />
+        <CabecalhoPagina titulo="Videochamada" descricao="Módulo desativado." />
       </div>
     );
   }
@@ -28,7 +28,7 @@ export default async function PortalVideochamadaPage({
 
   return (
     <div>
-      <PageHeader title="Videochamada" />
+      <CabecalhoPagina titulo="Videochamada" />
       <CallRoom roomId={room.id} role="PACIENTE" />
     </div>
   );

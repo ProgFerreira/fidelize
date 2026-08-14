@@ -8,7 +8,7 @@ import {
   type RewardRedemptionDTO,
 } from "@/lib/rewards";
 import { prisma } from "@/lib/db";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { RewardsClient } from "@/components/rewards/rewards-client";
 import { toPlain } from "@/lib/serialize";
 
@@ -28,10 +28,10 @@ export default async function RecompensasPage() {
 
   return (
     <div className="services-page">
-      <PageHeader
-        title="Recompensas"
-        description="Catálogo de trocas por pontos — estoque, limites e confirmação na recepção."
-        actions={
+      <CabecalhoPagina
+        titulo="Recompensas"
+        descricao="Catálogo de trocas por pontos — estoque, limites e confirmação na recepção."
+        acoes={
           <span className="services-page__pill">
             <Gift className="h-3.5 w-3.5" aria-hidden />
             Pontos

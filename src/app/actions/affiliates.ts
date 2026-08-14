@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAffiliateSession, requirePlatformAdmin } from "@/lib/auth/guards";
 import {
   blockOrCancelCommission,
@@ -154,4 +155,5 @@ export async function updateAffiliateProfileAction(formData: FormData) {
     },
   });
   revalidatePath("/afiliado");
+  redirect("/afiliado/perfil?ok=salvo");
 }

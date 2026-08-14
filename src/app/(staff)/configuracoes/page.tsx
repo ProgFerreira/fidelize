@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Card, Badge } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Campo } from "@/components/ui";
 import { getBenefitSettings } from "@/lib/cashback";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { CategoryPlanCard } from "@/components/settings/category-plan-card";
 import { Building2, MapPin } from "lucide-react";
 import { updateCustomDomainAction } from "@/app/v2-actions";
-import { Button, Input, Label } from "@/components/ui";
 
 export default async function ConfiguracoesPage() {
   const session = await requirePermission(PERMISSIONS.SETTINGS_MANAGE);
@@ -28,9 +27,9 @@ export default async function ConfiguracoesPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Configurações"
-        description="Regras comerciais e planos de relacionamento da clínica."
+      <CabecalhoPagina
+        titulo="Configurações"
+        descricao="Regras comerciais e planos de relacionamento da clínica."
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -58,17 +57,18 @@ export default async function ConfiguracoesPage() {
             </div>
           </div>
           <form action={updateCustomDomainAction} className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-            <Label>Domínio personalizado do portal</Label>
-            <Input
-              name="customDomain"
-              placeholder="fidelidade.suaclinica.com.br"
-              defaultValue={clinic?.customDomain ?? ""}
-            />
+            <Campo label="Domínio personalizado do portal">
+              <Input
+                name="customDomain"
+                placeholder="fidelidade.suaclinica.com.br"
+                defaultValue={clinic?.customDomain ?? ""}
+              />
+            </Campo>
             <p className="text-xs text-slate-500">
               Aponte o DNS (CNAME) para este host e use HTTPS. O portal do
               paciente resolve por <code>customDomain</code> ou subdomain do slug.
             </p>
-            <Button type="submit" size="sm" variant="secondary">
+            <Button type="submit" tamanho="sm" variante="secundario">
               Salvar domínio
             </Button>
           </form>

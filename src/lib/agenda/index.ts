@@ -50,6 +50,9 @@ export type AgendaEventDTO = {
   procedureId: string | null;
   procedureName: string | null;
   unitId: string | null;
+  depositAmount: number | null;
+  depositMethod: string | null;
+  depositStatus: string | null;
 };
 
 const eventInclude = {
@@ -77,6 +80,10 @@ function toDTO(
     procedureId: event.procedureId,
     procedureName: event.procedure?.name ?? null,
     unitId: event.unitId,
+    depositAmount:
+      event.depositAmount == null ? null : Number(event.depositAmount),
+    depositMethod: event.depositMethod ?? null,
+    depositStatus: event.depositStatus ?? null,
   };
 }
 
@@ -209,7 +216,7 @@ async function assertRefs(params: {
 
 export async function createAgendaEvent(params: {
   clinicId: string;
-  actorId: string;
+  actorId?: string;
   unitId?: string | null;
   data: ScheduleEventInput;
 }) {
@@ -230,7 +237,7 @@ export async function createAgendaEvent(params: {
       patientId: data.patientId || null,
       procedureId: data.procedureId || null,
       professionalId: data.professionalId || null,
-      createdById: params.actorId,
+      createdById: params.actorId || null,
       title: data.title,
       startsAt: data.startsAt,
       endsAt: data.endsAt,
@@ -256,12 +263,27 @@ export async function createAgendaEvent(params: {
     },
   });
 
+  if (
+    event.patientId &&
+    (event.status === "SCHEDULED" || event.status === "CONFIRMED")
+  ) {
+    const { enqueueAppointmentReminders } = await import("@/lib/whatsapp/reminders");
+    await enqueueAppointmentReminders({
+      clinicId: params.clinicId,
+      eventId: event.id,
+      patientId: event.patientId,
+      title: event.title,
+      startsAt: event.startsAt,
+      professionalName: event.professional?.name ?? event.professionalName,
+    }).catch(() => undefined);
+  }
+
   return toDTO(event);
 }
 
 export async function updateAgendaEvent(params: {
   clinicId: string;
-  actorId: string;
+  actorId?: string;
   id: string;
   data: Partial<ScheduleEventInput>;
 }) {
@@ -342,12 +364,87 @@ export async function updateAgendaEvent(params: {
     },
   });
 
+  const cancelled = event.status === "CANCELLED" || event.status === "NO_SHOW";
+  const startsChanged = existing.startsAt.getTime() !== event.startsAt.getTime();
+
+  if (existing.status !== event.status) {
+    const { settleDepositOnStatus } = await import("@/lib/agenda/deposit");
+    await settleDepositOnStatus({
+      clinicId: params.clinicId,
+      eventId: event.id,
+      nextStatus: event.status,
+    }).catch(() => undefined);
+  }
+
+  if (event.status === "NO_SHOW" && existing.status !== "NO_SHOW" && event.patientId) {
+    const until = new Date();
+    until.setDate(until.getDate() + 7);
+    await prisma.patient.update({
+      where: { id: event.patientId },
+      data: {
+        noShowCount: { increment: 1 },
+        bookingBlockedUntil: until,
+      },
+    }).catch(() => undefined);
+  }
+
+  if (cancelled) {
+    const { cancelAppointmentReminders } = await import("@/lib/whatsapp/reminders");
+    await cancelAppointmentReminders(params.clinicId, event.id).catch(() => undefined);
+  } else if (
+    event.patientId &&
+    (startsChanged || existing.status !== event.status) &&
+    (event.status === "SCHEDULED" || event.status === "CONFIRMED")
+  ) {
+    const { enqueueAppointmentReminders } = await import("@/lib/whatsapp/reminders");
+    await enqueueAppointmentReminders({
+      clinicId: params.clinicId,
+      eventId: event.id,
+      patientId: event.patientId,
+      title: event.title,
+      startsAt: event.startsAt,
+      professionalName: event.professional?.name ?? event.professionalName,
+    }).catch(() => undefined);
+  }
+
+  if (
+    event.status === "COMPLETED" &&
+    existing.status !== "COMPLETED" &&
+    event.patientId
+  ) {
+    const { consumePackageSession } = await import("@/lib/packages");
+    await consumePackageSession({
+      clinicId: params.clinicId,
+      patientId: event.patientId,
+      procedureId: event.procedureId,
+      scheduleEventId: event.id,
+    }).catch(() => undefined);
+
+    if (event.procedureId) {
+      const procedure = await prisma.procedure.findFirst({
+        where: { id: event.procedureId, clinicId: params.clinicId },
+        select: { name: true, intervaloRetornoDias: true },
+      });
+      if (procedure?.intervaloRetornoDias && procedure.intervaloRetornoDias > 1) {
+        const { enqueueReturnReminders } = await import("@/lib/whatsapp/reminders");
+        await enqueueReturnReminders({
+          clinicId: params.clinicId,
+          patientId: event.patientId,
+          procedureName: procedure.name,
+          intervaloDias: procedure.intervaloRetornoDias,
+          completedAt: event.endsAt,
+          ref: event.id,
+        }).catch(() => undefined);
+      }
+    }
+  }
+
   return toDTO(event);
 }
 
 export async function cancelAgendaEvent(params: {
   clinicId: string;
-  actorId: string;
+  actorId?: string;
   id: string;
 }) {
   return updateAgendaEvent({

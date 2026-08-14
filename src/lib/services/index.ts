@@ -31,6 +31,10 @@ export const serviceSchema = z.object({
     z.coerce.number().min(0, "Valor de tabela inválido").nullable().optional(),
   ),
   validityDays: z.coerce.number().int().min(0).optional().nullable(),
+  intervaloRetornoDias: z.coerce.number().int().min(0).max(730).optional().nullable(),
+  packageSessions: z.coerce.number().int().min(0).max(99).optional().nullable(),
+  stockQty: z.coerce.number().int().min(0).optional().nullable(),
+  stockAlertAt: z.coerce.number().int().min(0).optional().nullable(),
   durationMinutes: z.coerce.number().int().min(5).max(24 * 60).optional().nullable(),
   cashbackPercent: z.coerce.number().min(0).max(100).optional().nullable(),
   pointsPerReal: z.coerce.number().min(0).optional().nullable(),
@@ -62,6 +66,10 @@ export type ServiceDTO = {
   basePrice: number;
   compareAtPrice: number | null;
   validityDays: number | null;
+  intervaloRetornoDias: number | null;
+  packageSessions: number | null;
+  stockQty: number | null;
+  stockAlertAt: number | null;
   durationMinutes: number | null;
   cashbackPercent: number | null;
   pointsPerReal: number | null;
@@ -113,6 +121,10 @@ function toDTO(row: {
   basePrice: unknown;
   compareAtPrice: unknown;
   validityDays: number | null;
+  intervaloRetornoDias: number | null;
+  packageSessions: number | null;
+  stockQty: number | null;
+  stockAlertAt: number | null;
   durationMinutes: number | null;
   cashbackPercent: unknown;
   pointsPerReal: unknown;
@@ -138,6 +150,10 @@ function toDTO(row: {
     compareAtPrice:
       row.compareAtPrice == null ? null : Number(row.compareAtPrice),
     validityDays: row.validityDays,
+    intervaloRetornoDias: row.intervaloRetornoDias,
+    packageSessions: row.packageSessions,
+    stockQty: row.stockQty,
+    stockAlertAt: row.stockAlertAt,
     durationMinutes: row.durationMinutes,
     cashbackPercent:
       row.cashbackPercent == null ? null : Number(row.cashbackPercent),
@@ -204,6 +220,10 @@ export async function createService(params: {
           ? null
           : moneyToString(data.compareAtPrice),
       validityDays: data.validityDays || null,
+      intervaloRetornoDias: data.intervaloRetornoDias || null,
+      packageSessions: data.packageSessions || null,
+      stockQty: data.stockQty ?? null,
+      stockAlertAt: data.stockAlertAt ?? null,
       durationMinutes: data.durationMinutes ?? 60,
       cashbackPercent:
         data.cashbackPercent == null || Number.isNaN(data.cashbackPercent)
@@ -286,6 +306,10 @@ export async function updateService(params: {
           ? null
           : moneyToString(data.compareAtPrice),
       validityDays: data.validityDays || null,
+      intervaloRetornoDias: data.intervaloRetornoDias || null,
+      packageSessions: data.packageSessions || null,
+      stockQty: data.stockQty ?? null,
+      stockAlertAt: data.stockAlertAt ?? null,
       durationMinutes: data.durationMinutes ?? 60,
       cashbackPercent:
         data.cashbackPercent == null || Number.isNaN(data.cashbackPercent)

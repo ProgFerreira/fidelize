@@ -2,7 +2,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listSegments } from "@/lib/segments";
 import { listTags } from "@/lib/tags";
-import { PageHeader, Card, Badge, Button, Input, Label, Select, Textarea } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Select, Textarea, Campo } from "@/components/ui";
 import { createSegmentAction, refreshSegmentAction, createTagAction } from "@/app/v2-actions";
 
 export default async function SegmentosPage() {
@@ -15,24 +15,22 @@ export default async function SegmentosPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Segmentos e etiquetas"
-        description="Públicos dinâmicos e etiquetas CRM para campanhas."
+      <CabecalhoPagina
+        titulo="Segmentos e etiquetas"
+        descricao="Públicos dinâmicos e etiquetas CRM para campanhas."
       />
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card>
           <h2 className="text-lg font-semibold">Nova etiqueta</h2>
           <form action={createTagAction} className="mt-3 grid gap-3">
-            <div>
-              <Label>Nome</Label>
+            <Campo label="Nome" obrigatorio>
               <Input name="name" required />
-            </div>
-            <div>
-              <Label>Cor</Label>
+            </Campo>
+            <Campo label="Cor">
               <Input name="color" type="color" defaultValue="#64748b" />
-            </div>
-            <Button type="submit" variant="gold">Criar etiqueta</Button>
+            </Campo>
+            <Button type="submit" variante="gold">Criar etiqueta</Button>
           </form>
           <div className="mt-4 flex flex-wrap gap-2">
             {tags.map((tag) => (
@@ -50,16 +48,13 @@ export default async function SegmentosPage() {
         <Card>
           <h2 className="text-lg font-semibold">Novo segmento</h2>
           <form action={createSegmentAction} className="mt-3 grid gap-3">
-            <div>
-              <Label>Nome</Label>
+            <Campo label="Nome" obrigatorio>
               <Input name="name" required />
-            </div>
-            <div>
-              <Label>Descrição</Label>
+            </Campo>
+            <Campo label="Descrição">
               <Textarea name="description" />
-            </div>
-            <div>
-              <Label>Campo</Label>
+            </Campo>
+            <Campo label="Campo">
               <Select name="field" defaultValue="marketingConsent">
                 <option value="marketingConsent">Consentimento marketing</option>
                 <option value="minSpend">Gasto mínimo anual</option>
@@ -71,20 +66,18 @@ export default async function SegmentosPage() {
                 <option value="categoryId">Categoria</option>
                 <option value="unitId">Unidade</option>
               </Select>
-            </div>
-            <div>
-              <Label>Operador</Label>
+            </Campo>
+            <Campo label="Operador">
               <Select name="operator" defaultValue="eq">
                 <option value="eq">Igual</option>
                 <option value="gte">Maior ou igual</option>
                 <option value="lte">Menor ou igual</option>
               </Select>
-            </div>
-            <div>
-              <Label>Valor</Label>
+            </Campo>
+            <Campo label="Valor" obrigatorio>
               <Input name="value" placeholder="true / 100 / slug ou id" required />
-            </div>
-            <Button type="submit" variant="gold">Salvar segmento</Button>
+            </Campo>
+            <Button type="submit" variante="gold">Salvar segmento</Button>
           </form>
         </Card>
       </div>
@@ -104,7 +97,7 @@ export default async function SegmentosPage() {
                 <Badge tone="muted">{segment.estimatedCount ?? 0} destinatários</Badge>
                 <form action={refreshSegmentAction}>
                   <input type="hidden" name="segmentId" value={segment.id} />
-                  <Button type="submit" size="sm" variant="secondary">Atualizar contagem</Button>
+                  <Button type="submit" tamanho="sm" variante="secundario">Atualizar contagem</Button>
                 </form>
               </div>
             </div>

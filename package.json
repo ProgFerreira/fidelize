@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
+    "cron": "tsx scripts/cron-loop.ts",
     "test": "vitest run",
     "test:db": "cross-env RUN_DB_TESTS=1 vitest run",
     "typecheck": "tsc --noEmit"

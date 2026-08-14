@@ -28,7 +28,7 @@ export default function PacientesError({
         <p className="mt-2 text-xs text-slate-400">Ref: {error.digest}</p>
       ) : null}
       <div className="mt-6 flex flex-wrap gap-3">
-        <Button type="button" variant="gold" onClick={retry}>
+        <Button type="button" variante="gold" onClick={retry}>
           Tentar novamente
         </Button>
         <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>

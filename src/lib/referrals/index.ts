@@ -407,6 +407,25 @@ export async function convertReferralOnAppointment(input: {
 
   if (!referral) return null;
   if (referral.referrerId === input.patientId) return null;
+
+  const referrer = await prisma.patient.findFirst({
+    where: { id: referral.referrerId },
+    select: { address: true, phone: true, cpf: true },
+  });
+  const sameAddress =
+    patient.address &&
+    referrer?.address &&
+    patient.address.trim().toLowerCase() === referrer.address.trim().toLowerCase();
+  if (sameAddress || patient.cpf === referrer?.cpf) {
+    await prisma.referral.update({
+      where: { id: referral.id },
+      data: {
+        status: "SUSPICIOUS",
+        fraudFlags: sameAddress ? ["ADDRESS_MATCH"] : ["CPF_MATCH"],
+      },
+    });
+    return null;
+  }
   if (Number(referral.program.minFirstAppointment) > input.paidAmount) {
     await prisma.referral.update({
       where: { id: referral.id },
@@ -546,4 +565,25 @@ export async function listReferrals(clinicId: string) {
     orderBy: { createdAt: "desc" },
     take: 100,
   });
+}
+
+export async function getReferrerStats(clinicId: string, patientId: string) {
+  const rows = await prisma.referral.findMany({
+    where: {
+      clinicId,
+      referrerId: patientId,
+      OR: [{ leadPhone: { not: null } }, { referredId: { not: null } }],
+    },
+    select: { status: true, referredId: true, leadName: true },
+  });
+  const cadastrados = rows.filter((r) => r.referredId || r.leadName).length;
+  const vieram = rows.filter((r) =>
+    ["CONVERTED", "BENEFIT_GRANTED", "BENEFIT_PENDING", "APPOINTMENT_SCHEDULED"].includes(
+      r.status,
+    ),
+  ).length;
+  const convertidos = rows.filter((r) =>
+    ["CONVERTED", "BENEFIT_GRANTED"].includes(r.status),
+  ).length;
+  return { cadastrados, vieram, convertidos, total: rows.length };
 }

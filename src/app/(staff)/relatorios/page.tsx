@@ -17,7 +17,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
-  PageHeader,
+  CabecalhoPagina,
   Card,
   Badge,
   Button,
@@ -306,10 +306,10 @@ export default async function RelatoriosPage({
 
   return (
     <div className="relatorios-page">
-      <PageHeader
-        title="Relatórios"
-        description="Movimentações, pacientes, ROI de campanhas e passivo promocional."
-        actions={
+      <CabecalhoPagina
+        titulo="Relatórios"
+        descricao="Movimentações, pacientes, ROI de campanhas e passivo promocional."
+        acoes={
           <div className="relatorios-tabs">
             <Link href="/relatorios?type=ledger" className={tabClass("ledger")}>
               Extrato
@@ -331,7 +331,7 @@ export default async function RelatoriosPage({
                 de: deParam,
                 ate: ateParam,
               })}
-              className={classesBotao({ variant: "gold" })}
+              className={classesBotao({ variante: "gold" })}
             >
               Exportar CSV
             </Link>
@@ -687,7 +687,7 @@ export default async function RelatoriosPage({
                             />
                             <Button
                               type="submit"
-                              variant="danger"
+                              variante="perigo"
                               className="h-8 shrink-0 px-2.5 text-xs"
                             >
                               Estornar

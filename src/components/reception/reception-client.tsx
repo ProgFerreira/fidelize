@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Banknote,
+  ClipboardList,
   CreditCard,
   Gift,
   Link2,
@@ -14,11 +16,24 @@ import {
   Smartphone,
   Stethoscope,
   Trash2,
+  UserPlus,
   UserRound,
   WalletCards,
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import { Button, Campo, Card, EmptyState, Input, Label, Select, Badge } from "@/components/ui";
+import {
+  Button,
+  Campo,
+  Card,
+  EmptyState,
+  Input,
+  Label,
+  Select,
+  Badge,
+  CabecalhoPagina,
+  classesBotao,
+  toast,
+} from "@/components/ui";
 import {
   searchPatientsAction,
   simulateReceptionAction,
@@ -28,15 +43,16 @@ import {
   linkCardFormAction,
   getPatientAppointmentHistoryAction,
   lookupReceptionGiftCardAction,
+  getReceptionCopilotAction,
 } from "@/app/actions";
 import { formatBRL } from "@/lib/money";
+import { onlyDigits } from "@/lib/patients/cpf";
 import { resolveServicePrice } from "@/lib/professionals/price";
 import {
   AppointmentHistoryCard,
   type AppointmentHistoryItem,
 } from "@/components/patients/appointment-history";
 import { cn } from "@/lib/utils";
-import { toast } from "@/components/ui";
 import { PDV_PAYMENT_METHODS, paymentMethodLabel } from "@/lib/payments/methods";
 
 type PatientResult = Awaited<ReturnType<typeof searchPatientsAction>>[number];
@@ -50,6 +66,7 @@ type ProcedureOption = {
   validityDays: number | null;
   durationMinutes: number | null;
   cashbackPercent: number | null;
+  packageSessions: number | null;
 };
 
 type ProfessionalOption = {
@@ -88,22 +105,46 @@ function initials(name: string) {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
+function formatCpf(value: string) {
+  const d = onlyDigits(value);
+  if (d.length !== 11) return value;
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+}
+
+function formatPhone(value: string) {
+  const d = onlyDigits(value);
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  return value;
+}
+
 export function ReceptionClient({
   procedures,
   professionals,
   campaigns,
   availableCards,
   giftCardEnabled = false,
+  kpi,
 }: {
   procedures: ProcedureOption[];
   professionals: ProfessionalOption[];
   campaigns: Array<{ id: string; name: string; extraCashbackPct: number }>;
   availableCards: Array<{ id: string; cardNumber: string; publicToken: string }>;
   giftCardEnabled?: boolean;
+  kpi?: {
+    sales: number;
+    withCard: number;
+    withBenefit: number;
+    scheduled: number;
+    identifiedPct: number;
+  };
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PatientResult[]>([]);
   const [selected, setSelected] = useState<PatientResult | null>(null);
+  const [copilot, setCopilot] = useState<Awaited<
+    ReturnType<typeof getReceptionCopilotAction>
+  > | null>(null);
   const [history, setHistory] = useState<AppointmentHistoryItem[]>([]);
   const selectedIdRef = useRef<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -126,7 +167,17 @@ export function ReceptionClient({
   > | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [searching, startSearch] = useTransition();
+  const [giftPending, startGift] = useTransition();
+  const [simulating, startSimulate] = useTransition();
+  const [confirming, startConfirm] = useTransition();
+  const [historyPending, startHistory] = useTransition();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  function reportError(message: string) {
+    setError(message);
+    toast.error(message);
+  }
 
   const wallet = selected?.wallets[0];
   const cartCount = cart.reduce((n, line) => n + line.quantity, 0);
@@ -176,7 +227,7 @@ export function ReceptionClient({
   }
 
   function loadHistory(patientId: string) {
-    startTransition(async () => {
+    startHistory(async () => {
       const data = await getPatientAppointmentHistoryAction(patientId);
       if (selectedIdRef.current === patientId) {
         setHistory(data);
@@ -199,12 +250,33 @@ export function ReceptionClient({
     setReceipt(null);
   }
 
+  function startNewClient() {
+    selectedIdRef.current = null;
+    setSelected(null);
+    setCopilot(null);
+    setQuery("");
+    setResults([]);
+    setHistory([]);
+    setError(null);
+    resetSaleDraft();
+    toast.success("Pronto para o próximo cliente");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
   function selectPatient(patient: PatientResult) {
     selectedIdRef.current = patient.id;
     setSelected(patient);
+    setCopilot(null);
     resetSaleDraft();
     setHistory([]);
     loadHistory(patient.id);
+    const walletId = patient.wallets[0]?.id;
+    if (walletId) {
+      void getReceptionCopilotAction(patient.id, walletId).then((data) => {
+        if (selectedIdRef.current === patient.id) setCopilot(data);
+      });
+    }
   }
 
   function cancelEdit() {
@@ -213,7 +285,7 @@ export function ReceptionClient({
   }
 
   function startEdit(appointmentId: string) {
-    startTransition(async () => {
+    startConfirm(async () => {
       setError(null);
       try {
         const sale = await getSaleForEditAction(appointmentId);
@@ -262,7 +334,7 @@ export function ReceptionClient({
         setProfessionalId(pro?.id ?? "");
         toast.info("Venda carregada no carrinho para edição");
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha ao carregar venda");
+        reportError(e instanceof Error ? e.message : "Falha ao carregar venda");
       }
     });
   }
@@ -316,7 +388,7 @@ export function ReceptionClient({
   }
 
   function search() {
-    startTransition(async () => {
+    startSearch(async () => {
       setError(null);
       const data = await searchPatientsAction(query);
       setResults(data);
@@ -343,7 +415,7 @@ export function ReceptionClient({
   function lookupGift() {
     const code = giftCardCode.trim();
     if (!code) return;
-    startTransition(async () => {
+    startGift(async () => {
       setError(null);
       try {
         const card = await lookupReceptionGiftCardAction(
@@ -364,14 +436,14 @@ export function ReceptionClient({
         toast.success("Vale encontrado", `Saldo ${formatBRL(card.remainingAmount)}`);
       } catch (e) {
         setGiftPreview(null);
-        setError(e instanceof Error ? e.message : "Vale-presente inválido");
+        reportError(e instanceof Error ? e.message : "Vale-presente inválido");
       }
     });
   }
 
   function simulate() {
     if (!wallet || cart.length === 0) return;
-    startTransition(async () => {
+    startSimulate(async () => {
       setError(null);
       try {
         const data = await simulateReceptionAction({
@@ -394,14 +466,14 @@ export function ReceptionClient({
         });
         setSimulation(data);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha na simulação");
+        reportError(e instanceof Error ? e.message : "Falha na simulação");
       }
     });
   }
 
   function confirm() {
     if (!selected || !wallet || cart.length === 0) return;
-    startTransition(async () => {
+    startConfirm(async () => {
       setError(null);
       try {
         const professionalName = saleProfessionalName();
@@ -474,14 +546,60 @@ export function ReceptionClient({
         setPaymentMethod("dinheiro");
         const data = await getPatientAppointmentHistoryAction(selected.id);
         setHistory(data);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha ao salvar venda");
+        reportError(e instanceof Error ? e.message : "Falha ao salvar venda");
       }
     });
   }
 
   return (
     <div className="space-y-4">
+      <CabecalhoPagina
+        titulo="Recepção"
+        descricao="PDV de atendimento: escolha o profissional, os serviços do portfólio, simule benefício e confirme a venda."
+        acoes={
+          <div className="pdv-header-actions">
+            {kpi ? (
+              <div className="pdv-kpi" title="Vendas do dia identificadas com cartão">
+                <strong>{kpi.identifiedPct}%</strong>
+                <span>
+                  identificadas · {kpi.sales} vendas · {kpi.scheduled} na agenda
+                </span>
+              </div>
+            ) : null}
+            {receipt ? (
+              <button
+                type="button"
+                className="pdv-new-client"
+                onClick={startNewClient}
+              >
+                <UserPlus className="h-4 w-4" aria-hidden />
+                Novo cliente
+              </button>
+            ) : null}
+            <Link href="/extrato-dia" className="pdv-extract-link">
+              <ClipboardList className="h-4 w-4" aria-hidden />
+              Extrato
+            </Link>
+          </div>
+        }
+      />
+
+      {receipt ? (
+        <div className="pdv-sale-done" role="status">
+          <p className="pdv-sale-done__msg">{receipt}</p>
+          <button
+            type="button"
+            className="pdv-new-client"
+            onClick={startNewClient}
+          >
+            <UserPlus className="h-4 w-4" aria-hidden />
+            Novo cliente
+          </button>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 xl:grid-cols-12">
         <Card className="xl:col-span-3">
           <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
@@ -490,14 +608,19 @@ export function ReceptionClient({
             </span>
             Localizar paciente
           </h2>
-          <div className="mt-4 flex gap-2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && search()}
-              placeholder="Nome, CPF, telefone ou token QR"
-            />
-            <Button onClick={search} disabled={pending}>
+          <div className="mt-4 flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <Campo label="Nome, CPF, telefone ou token QR">
+                <Input
+                  ref={searchInputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && search()}
+                  placeholder="Ex.: Ana, 123.456.789-00 ou QR"
+                />
+              </Campo>
+            </div>
+            <Button onClick={search} disabled={searching} carregando={searching}>
               Buscar
             </Button>
           </div>
@@ -507,6 +630,15 @@ export function ReceptionClient({
                 icone={UserRound}
                 titulo="Nenhum paciente ainda"
                 descricao="Busque por nome, CPF, telefone ou token do QR para iniciar o atendimento."
+                acao={
+                  <Link
+                    href="/pacientes/novo"
+                    className={classesBotao({ variante: "gold", tamanho: "sm" })}
+                  >
+                    <UserPlus className="h-4 w-4" aria-hidden />
+                    Cadastrar paciente
+                  </Link>
+                }
               />
             ) : (
               results.map((patient) => (
@@ -533,7 +665,7 @@ export function ReceptionClient({
                       {formatBRL(patient.wallets[0]?.availableBalance ?? 0)}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-slate-400">
-                      CPF {patient.cpf} · Tel {patient.phone}
+                      CPF {formatCpf(patient.cpf)} · Tel {formatPhone(patient.phone)}
                     </p>
                   </div>
                 </button>
@@ -546,19 +678,20 @@ export function ReceptionClient({
               action={linkCardFormAction}
               className="mt-6 space-y-2 border-t border-slate-200 pt-4"
             >
-              <p className="text-sm font-semibold">Vincular cartão disponível</p>
               <input type="hidden" name="walletId" value={wallet.id} />
-              <Select
-                name="publicToken"
-                defaultValue={availableCards[0]?.publicToken}
-              >
-                {availableCards.map((card) => (
-                  <option key={card.id} value={card.publicToken}>
-                    {card.cardNumber}
-                  </option>
-                ))}
-              </Select>
-              <Button type="submit" variant="outline">
+              <Campo label="Cartão disponível">
+                <Select
+                  name="publicToken"
+                  defaultValue={availableCards[0]?.publicToken}
+                >
+                  {availableCards.map((card) => (
+                    <option key={card.id} value={card.publicToken}>
+                      {card.cardNumber}
+                    </option>
+                  ))}
+                </Select>
+              </Campo>
+              <Button type="submit" variante="contorno">
                 Vincular
               </Button>
             </form>
@@ -583,9 +716,64 @@ export function ReceptionClient({
                     <Badge tone="success">
                       {formatBRL(wallet.availableBalance)} disponível
                     </Badge>
+                    {"sharedWallet" in selected && selected.sharedWallet && "holderName" in selected && selected.holderName ? (
+                      <Badge tone="gold">Titular: {String(selected.holderName)}</Badge>
+                    ) : null}
                   </div>
                 </div>
               </div>
+
+              {copilot ? (
+                <div className="pdv-copilot">
+                  <p className="pdv-copilot__script">
+                    Você tem {copilot.availableBalance} para usar hoje (máx.{" "}
+                    {copilot.maxRedemptionPercent}% do ticket).
+                  </p>
+                  {copilot.sharedWallet && copilot.holderName ? (
+                    <p className="pdv-copilot__family">
+                      Carteira compartilhada do titular {copilot.holderName}.
+                    </p>
+                  ) : null}
+                  <ul className="pdv-copilot__list">
+                    {copilot.birthdayToday ? (
+                      <li>Aniversariante hoje — ofereça o benefício do clube.</li>
+                    ) : copilot.birthdaySoon ? (
+                      <li>
+                        Aniversário em {copilot.daysToBirthday} dia
+                        {copilot.daysToBirthday === 1 ? "" : "s"}.
+                      </li>
+                    ) : null}
+                    {copilot.almostUpgrade && copilot.nextCategoryName ? (
+                      <li>
+                        Quase {copilot.nextCategoryName} ({copilot.progressPercent}
+                        %). Faltam {formatBRL(copilot.remainingSpend)}.
+                      </li>
+                    ) : null}
+                    {copilot.hasExpiringSoon ? (
+                      <li>
+                        {copilot.expiringSoonAmount} vencem nos próximos 14 dias.
+                      </li>
+                    ) : null}
+                    {copilot.packages.map((pkg) => (
+                      <li key={pkg.id}>
+                        {pkg.procedureName}: {pkg.remainingSessions}/
+                        {pkg.totalSessions} sessões
+                        {pkg.lastSession ? " — última sessão" : ""}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pdv-copilot__qr">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={copilot.portalQrDataUrl}
+                      alt="QR do portal do paciente"
+                      width={72}
+                      height={72}
+                    />
+                    <p>Paciente entra no clube com este QR.</p>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="pdv-professional">
                 <Campo
@@ -679,6 +867,9 @@ export function ReceptionClient({
                               {p.validityDays != null
                                 ? ` · validade ${p.validityDays}d`
                                 : ""}
+                              {p.packageSessions != null && p.packageSessions >= 2
+                                ? ` · pacote ${p.packageSessions} sessões`
+                                : ""}
                             </span>
                             {inCart ? (
                               <Badge tone="success">{inCart.quantity} no carrinho</Badge>
@@ -704,7 +895,7 @@ export function ReceptionClient({
           )}
         </Card>
 
-        <Card className="xl:col-span-4">
+        <Card className="pdv-cart-sticky xl:col-span-4">
           <div className="flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300">
@@ -724,6 +915,12 @@ export function ReceptionClient({
             </div>
           </div>
 
+          {error ? (
+            <p className="pdv-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+
           {editingSaleId ? (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               Venda <span className="font-mono">{editingSaleId.slice(0, 10)}…</span>{" "}
@@ -731,8 +928,8 @@ export function ReceptionClient({
               <div className="mt-2">
                 <Button
                   type="button"
-                  size="sm"
-                  variant="secondary"
+                  tamanho="sm"
+                  variante="secundario"
                   onClick={cancelEdit}
                 >
                   Cancelar edição
@@ -815,18 +1012,16 @@ export function ReceptionClient({
               </div>
 
               <div className="mt-4 grid gap-3">
-                <div>
-                  <Label>Profissional</Label>
-                  <p className="mt-1 text-sm text-slate-700">
+                <Campo label="Profissional do carrinho">
+                  <p className="text-sm text-slate-700 dark:text-slate-300">
                     {cartProfessionals.length > 0
                       ? cartProfessionals.join(", ")
                       : selectedProfessional
                         ? `${selectedProfessional.name} · ${selectedProfessional.specialty}`
                         : "Nenhum selecionado — escolha no catálogo para filtrar os serviços."}
                   </p>
-                </div>
-                <div>
-                  <Label>Campanha</Label>
+                </Campo>
+                <Campo label="Campanha">
                   <Select
                     value={campaignId}
                     onChange={(e) => {
@@ -841,9 +1036,8 @@ export function ReceptionClient({
                       </option>
                     ))}
                   </Select>
-                </div>
-                <div>
-                  <Label>Descontos</Label>
+                </Campo>
+                <Campo label="Descontos (R$)">
                   <Input
                     type="number"
                     step="0.01"
@@ -853,9 +1047,8 @@ export function ReceptionClient({
                       setSimulation(null);
                     }}
                   />
-                </div>
-                <div>
-                  <Label>Benefício a resgatar</Label>
+                </Campo>
+                <Campo label="Benefício a resgatar (R$)">
                   <Input
                     type="number"
                     step="0.01"
@@ -865,7 +1058,7 @@ export function ReceptionClient({
                       setSimulation(null);
                     }}
                   />
-                </div>
+                </Campo>
                 {giftCardEnabled ? (
                   <div className="pdv-gift">
                     <Campo
@@ -886,9 +1079,10 @@ export function ReceptionClient({
                         />
                         <Button
                           type="button"
-                          variant="contorno"
+                          variante="contorno"
                           onClick={lookupGift}
-                          disabled={pending || !giftCardCode.trim()}
+                          disabled={giftPending || !giftCardCode.trim()}
+                          carregando={giftPending}
                         >
                           <Gift className="h-4 w-4" aria-hidden />
                           Consultar
@@ -921,8 +1115,10 @@ export function ReceptionClient({
                     </Campo>
                   </div>
                 ) : null}
-                <div>
-                  <Label>Forma de pagamento</Label>
+                <Campo
+                  label="Forma de pagamento"
+                  dica="Vale-presente e benefício da carteira são registrados à parte. Esta forma vale para o valor a pagar."
+                >
                   <div
                     className="pdv-pay"
                     role="group"
@@ -938,6 +1134,7 @@ export function ReceptionClient({
                             "pdv-pay__opt",
                             paymentMethod === m.id && "pdv-pay__opt--active",
                           )}
+                          aria-pressed={paymentMethod === m.id}
                           onClick={() => setPaymentMethod(m.id)}
                         >
                           <Icone className="h-3.5 w-3.5" aria-hidden />
@@ -946,32 +1143,38 @@ export function ReceptionClient({
                       );
                     })}
                   </div>
-                  <p className="pdv-gift__hint mt-1">
-                    Vale-presente e benefício da carteira são registrados à
-                    parte. Esta forma vale para o valor a pagar.
-                  </p>
-                </div>
+                </Campo>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
-                  variant="secondary"
+                  variante="secundario"
                   onClick={clearCart}
-                  disabled={pending}
+                  disabled={simulating || confirming}
                 >
                   Limpar
                 </Button>
-                <Button onClick={simulate} disabled={pending}>
+                <Button
+                  onClick={simulate}
+                  disabled={simulating || confirming || cart.length === 0}
+                  carregando={simulating}
+                >
                   Simular
                 </Button>
                 <Button
-                  variant="gold"
+                  variante="gold"
                   onClick={confirm}
-                  disabled={pending || !simulation}
+                  disabled={confirming || !simulation}
+                  carregando={confirming}
                 >
                   {editingSaleId ? "Salvar edição" : "Fechar venda"}
                 </Button>
               </div>
+              {!simulation && cart.length > 0 ? (
+                <p className="pdv-gift__hint mt-2">
+                  Simule o cashback antes de fechar a venda.
+                </p>
+              ) : null}
 
               {simulation ? (
                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-900/60">
@@ -1028,22 +1231,17 @@ export function ReceptionClient({
               ) : null}
             </>
           ) : null}
-
-          {receipt ? (
-            <div className="mt-4 rounded-xl border border-success/30 bg-success/5 p-3 text-sm text-green-700">
-              {receipt}
-            </div>
-          ) : null}
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
         </Card>
       </div>
 
       {selected ? (
-        <AppointmentHistoryCard
-          patientName={selected.fullName}
-          items={history}
-          onEdit={startEdit}
-        />
+        <div aria-busy={historyPending || undefined}>
+          <AppointmentHistoryCard
+            patientName={selected.fullName}
+            items={history}
+            onEdit={startEdit}
+          />
+        </div>
       ) : null}
     </div>
   );

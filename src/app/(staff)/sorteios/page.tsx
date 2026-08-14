@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listRaffles } from "@/lib/raffles";
-import { PageHeader, Card, Badge, Button, Input, Label, Textarea } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Input, Textarea, Campo } from "@/components/ui";
 import {
   createRaffleAction,
   setRaffleStatusAction,
@@ -16,51 +16,48 @@ export default async function SorteiosPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Sorteios"
-        description="Bilhetes trocados por pontos, sorteio auditado e prêmio creditado."
+      <CabecalhoPagina
+        titulo="Sorteios"
+        descricao="Bilhetes trocados por pontos, sorteio auditado e prêmio creditado."
       />
 
       <Card className="mb-6 max-w-3xl">
         <h2 className="text-lg font-semibold">Novo sorteio</h2>
         <form action={createRaffleAction} className="mt-3 grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label>Nome</Label>
-            <Input name="name" required />
+            <Campo label="Nome" obrigatorio>
+              <Input name="name" required />
+            </Campo>
           </div>
           <div className="md:col-span-2">
-            <Label>Descrição</Label>
-            <Textarea name="description" />
+            <Campo label="Descrição">
+              <Textarea name="description" />
+            </Campo>
           </div>
-          <div>
-            <Label>Custo em pontos</Label>
+          <Campo label="Custo em pontos">
             <Input name="ticketCostPoints" type="number" defaultValue="50" />
-          </div>
-          <div>
-            <Label>Limite por paciente</Label>
+          </Campo>
+          <Campo label="Limite por paciente">
             <Input name="maxTicketsPerPatient" type="number" />
-          </div>
-          <div>
-            <Label>Início</Label>
+          </Campo>
+          <Campo label="Início" obrigatorio>
             <Input name="startsAt" type="datetime-local" required />
-          </div>
-          <div>
-            <Label>Fim</Label>
+          </Campo>
+          <Campo label="Fim" obrigatorio>
             <Input name="endsAt" type="datetime-local" required />
-          </div>
+          </Campo>
           <div className="md:col-span-2">
-            <Label>Prêmio (descrição)</Label>
-            <Input name="prizeDescription" required />
+            <Campo label="Prêmio (descrição)" obrigatorio>
+              <Input name="prizeDescription" required />
+            </Campo>
           </div>
-          <div>
-            <Label>Cashback prêmio</Label>
+          <Campo label="Cashback prêmio">
             <Input name="prizeCashback" type="number" step="0.01" />
-          </div>
-          <div>
-            <Label>Pontos prêmio</Label>
+          </Campo>
+          <Campo label="Pontos prêmio">
             <Input name="prizePoints" type="number" />
-          </div>
-          <Button type="submit" variant="gold">Criar</Button>
+          </Campo>
+          <Button type="submit" variante="gold">Criar</Button>
         </form>
       </Card>
 
@@ -88,14 +85,14 @@ export default async function SorteiosPage() {
                   name="status"
                   value={r.status === "ACTIVE" ? "CLOSED" : "ACTIVE"}
                 />
-                <Button type="submit" size="sm" variant="secondary">
+                <Button type="submit" tamanho="sm" variante="secundario">
                   {r.status === "ACTIVE" ? "Encerrar" : "Ativar"}
                 </Button>
               </form>
               {r.status !== "DRAWN" ? (
                 <form action={drawRaffleAction}>
                   <input type="hidden" name="raffleId" value={r.id} />
-                  <Button type="submit" size="sm" variant="gold">
+                  <Button type="submit" tamanho="sm" variante="gold">
                     Sortear
                   </Button>
                 </form>

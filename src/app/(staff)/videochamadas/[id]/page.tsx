@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getVideoCallRoom } from "@/lib/videocalls";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { CallRoom } from "@/components/videochamadas/call-room";
 
 export default async function VideochamadaPage({
@@ -17,7 +17,7 @@ export default async function VideochamadaPage({
 
   return (
     <div>
-      <PageHeader title={`Videochamada · ${room.patient.fullName}`} />
+      <CabecalhoPagina titulo={`Videochamada · ${room.patient.fullName}`} />
       <CallRoom roomId={room.id} role="PROFISSIONAL" />
     </div>
   );

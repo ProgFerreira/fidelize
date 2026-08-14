@@ -19,10 +19,12 @@ export function ClinicSwitcher({
   currentClinicId,
   currentUnitId,
   isSupport,
+  variant = "sidebar",
 }: {
   currentClinicId?: string | null;
   currentUnitId?: string | null;
   isSupport?: boolean;
+  variant?: "sidebar" | "header";
 }) {
   const [clinics, setClinics] = useState<ClinicOpt[]>([]);
   const [clinicId, setClinicId] = useState(currentClinicId ?? "");
@@ -64,26 +66,53 @@ export function ClinicSwitcher({
 
   if (clinics.length === 0 && !isSupport) return null;
 
+  const compact = variant === "header";
+
   return (
-    <div className="space-y-2 border-t border-slate-200 p-3 dark:border-slate-700">
+    <div
+      className={
+        compact
+          ? "flex min-w-0 items-center gap-2"
+          : "space-y-2 border-t border-slate-200 p-3 dark:border-slate-700"
+      }
+    >
       {isSupport ? (
         <button
           type="button"
           onClick={endSupport}
           disabled={pending}
-          className="w-full rounded-md bg-amber-100 px-2 py-1.5 text-left text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+          className={
+            compact
+              ? "shrink-0 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+              : "w-full rounded-md bg-amber-100 px-2 py-1.5 text-left text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+          }
         >
           Encerrar suporte
         </button>
       ) : null}
       {clinics.length > 0 ? (
         <>
-          <label className="block text-xs font-medium text-slate-500">
-            Clínica
+          <label
+            className={
+              compact
+                ? "min-w-0 flex-1 text-xs font-medium text-slate-500"
+                : "block text-xs font-medium text-slate-500"
+            }
+          >
+            {compact ? (
+              <span className="sr-only">Clínica</span>
+            ) : (
+              "Clínica"
+            )}
             <select
-              className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+              className={
+                compact
+                  ? "w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  : "mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+              }
               value={clinicId}
               disabled={pending}
+              aria-label="Clínica"
               onChange={(e) => {
                 const next = e.target.value;
                 setClinicId(next);
@@ -100,12 +129,23 @@ export function ClinicSwitcher({
             </select>
           </label>
           {units.length > 0 ? (
-            <label className="block text-xs font-medium text-slate-500">
-              Unidade
+            <label
+              className={
+                compact
+                  ? "min-w-0 flex-1 text-xs font-medium text-slate-500"
+                  : "block text-xs font-medium text-slate-500"
+              }
+            >
+              {compact ? <span className="sr-only">Unidade</span> : "Unidade"}
               <select
-                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+                className={
+                  compact
+                    ? "w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
+                    : "mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+                }
                 value={unitId}
                 disabled={pending || !clinicId}
+                aria-label="Unidade"
                 onChange={(e) => {
                   const next = e.target.value;
                   setUnitId(next);

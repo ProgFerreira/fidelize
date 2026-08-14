@@ -42,6 +42,7 @@ type Draft = {
   notes: string;
   active: boolean;
   color: string;
+  commissionPercent: string;
   procedureIds: string[];
   procedurePrices: Record<string, string>;
 };
@@ -53,6 +54,7 @@ function emptyDraft(): Draft {
     notes: "",
     active: true,
     color: "#3b82f6",
+    commissionPercent: "",
     procedureIds: [],
     procedurePrices: {},
   };
@@ -71,6 +73,8 @@ function fromProfessional(p: ProfessionalDTO): Draft {
     notes: p.notes ?? "",
     active: p.active,
     color: p.color || "#3b82f6",
+    commissionPercent:
+      p.commissionPercent == null ? "" : String(p.commissionPercent),
     procedureIds: [...p.procedureIds],
     procedurePrices,
   };
@@ -246,8 +250,8 @@ export function ProfessionalsClient({
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  size="sm"
-                  variant="contorno"
+                  tamanho="sm"
+                  variante="contorno"
                   onClick={() => setViewing(p)}
                 >
                   <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -255,8 +259,8 @@ export function ProfessionalsClient({
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
-                  variant="secondary"
+                  tamanho="sm"
+                  variante="secundario"
                   onClick={() => setDraft(fromProfessional(p))}
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -264,8 +268,8 @@ export function ProfessionalsClient({
                 </Button>
                 <Button
                   type="button"
-                  size="sm"
-                  variant={p.active ? "danger" : "secondary"}
+                  tamanho="sm"
+                  variante={p.active ? "perigo" : "secundario"}
                   onClick={() => void onToggleActive(p.id, !p.active)}
                 >
                   <Power className="h-3.5 w-3.5" aria-hidden />
@@ -290,8 +294,8 @@ export function ProfessionalsClient({
               <h2>Detalhes do profissional</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setViewing(null)}
               >
                 Fechar
@@ -393,14 +397,14 @@ export function ProfessionalsClient({
               <div className="service-view__actions">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variante="secundario"
                   onClick={() => setViewing(null)}
                 >
                   Fechar
                 </Button>
                 <Button
                   type="button"
-                  variant="gold"
+                  variante="gold"
                   onClick={() => {
                     setDraft(fromProfessional(viewing));
                     setViewing(null);
@@ -430,8 +434,8 @@ export function ProfessionalsClient({
               </h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
               >
                 Fechar
@@ -464,6 +468,28 @@ export function ProfessionalsClient({
                     )
                   }
                   placeholder="Ex.: Dermatologista, Esteticista, Ortodontista"
+                />
+              </Campo>
+
+              <Campo
+                label="Comissão %"
+                dica="Percentual sobre o valor pago nas vendas deste profissional."
+              >
+                <Input
+                  name="commissionPercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={draft.commissionPercent}
+                  onChange={(e) =>
+                    setDraft((prev) =>
+                      prev
+                        ? { ...prev, commissionPercent: e.target.value }
+                        : prev,
+                    )
+                  }
+                  placeholder="Ex.: 10"
                 />
               </Campo>
 
@@ -575,7 +601,7 @@ export function ProfessionalsClient({
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Cancelar

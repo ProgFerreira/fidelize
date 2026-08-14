@@ -4,7 +4,7 @@ import {
   referralQrUrl,
   referralShareUrl,
 } from "@/lib/referrals";
-import { Button, Card, Input, Label, PageHeader } from "@/components/ui";
+import { Button, Card, Input, CabecalhoPagina, Campo } from "@/components/ui";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 
 async function submitLead(formData: FormData) {
@@ -49,7 +49,7 @@ export default async function IndicacaoPublicaPage({
   if (!referral) {
     return (
       <div className="mx-auto max-w-lg p-6">
-        <PageHeader title="Link inválido" description="Esta indicação não existe ou expirou." />
+        <CabecalhoPagina titulo="Link inválido" descricao="Esta indicação não existe ou expirou." />
       </div>
     );
   }
@@ -60,9 +60,9 @@ export default async function IndicacaoPublicaPage({
 
   return (
     <div className="mx-auto max-w-lg p-6">
-      <PageHeader
-        title={referral.clinic.tradeName ?? referral.clinic.name}
-        description={`${referral.referrer.fullName} indicou você ao clube de benefícios.`}
+      <CabecalhoPagina
+        titulo={referral.clinic.tradeName ?? referral.clinic.name}
+        descricao={`${referral.referrer.fullName} indicou você ao clube de benefícios.`}
       />
       <Card>
         <p className="text-sm text-slate-600">
@@ -81,23 +81,20 @@ export default async function IndicacaoPublicaPage({
         ) : (
           <form action={submitLead} className="mt-4 grid gap-3">
             <input type="hidden" name="shortCode" value={code} />
-            <div>
-              <Label>Seu nome</Label>
+            <Campo label="Seu nome" obrigatorio>
               <Input name="leadName" required />
-            </div>
-            <div>
-              <Label>Telefone / WhatsApp</Label>
+            </Campo>
+            <Campo label="Telefone / WhatsApp" obrigatorio>
               <Input name="leadPhone" required />
-            </div>
-            <div>
-              <Label>CPF (opcional)</Label>
+            </Campo>
+            <Campo label="CPF (opcional)">
               <Input name="leadCpf" />
-            </div>
+            </Campo>
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" name="leadConsent" required className="mt-1" />
               Autorizo o contato da clínica sobre o clube de benefícios.
             </label>
-            <Button type="submit" variant="gold">Quero participar</Button>
+            <Button type="submit" variante="gold">Quero participar</Button>
           </form>
         )}
       </Card>

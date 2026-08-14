@@ -1,6 +1,6 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS, permissionsForRole } from "@/lib/auth/permissions";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { UsersClient } from "@/components/users/users-client";
 import {
   listStaffRoles,
@@ -26,9 +26,9 @@ export default async function UsuariosPage() {
 
   return (
     <div className="users-page">
-      <PageHeader
-        title="Usuários e permissões"
-        description="Cadastre a equipe e vincule cada pessoa a um perfil de acesso. A alteração de perfil vale no próximo login."
+      <CabecalhoPagina
+        titulo="Usuários e permissões"
+        descricao="Cadastre a equipe e vincule cada pessoa a um perfil de acesso. A alteração de perfil vale no próximo login."
       />
       <UsersClient
         currentUserId={session.user.id}

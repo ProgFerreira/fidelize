@@ -318,7 +318,7 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
           <div className="services-toolbar__actions">
             <Button
               type="button"
-              variant="contorno"
+              variante="contorno"
               onClick={() => setRedeemOpen(true)}
             >
               <ScanLine className="h-4 w-4" aria-hidden />
@@ -326,7 +326,7 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
             </Button>
             <Button
               type="button"
-              variant="gold"
+              variante="gold"
               onClick={() => setDraft(emptyDraft())}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -360,7 +360,7 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
             {vouchers.length > 0 ? (
               <Button
                 type="button"
-                variant="contorno"
+                variante="contorno"
                 onClick={() => {
                   setQuery("");
                   setStatusFilter("all");
@@ -371,7 +371,7 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
             ) : null}
             <Button
               type="button"
-              variant="gold"
+              variante="gold"
               onClick={() => setDraft(emptyDraft())}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -436,8 +436,8 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
                 <div className="service-card__footer">
                   <Button
                     type="button"
-                    size="sm"
-                    variant="contorno"
+                    tamanho="sm"
+                    variante="contorno"
                     onClick={() => setViewing(voucher)}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -445,8 +445,8 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
-                    variant="secondary"
+                    tamanho="sm"
+                    variante="secundario"
                     onClick={() => setRedeemOpen(true)}
                   >
                     <ScanLine className="h-3.5 w-3.5" aria-hidden />
@@ -472,8 +472,8 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
               <h2>Detalhes do cupom</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setViewing(null)}
               >
                 Fechar
@@ -542,14 +542,14 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
               <div className="service-view__actions">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variante="secundario"
                   onClick={() => setViewing(null)}
                 >
                   Fechar
                 </Button>
                 <Button
                   type="button"
-                  variant="gold"
+                  variante="gold"
                   onClick={() => {
                     setViewing(null);
                     setRedeemOpen(true);
@@ -577,8 +577,8 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
               <h2>Emitir cupom</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
               >
                 Fechar
@@ -696,12 +696,12 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" variant="gold" disabled={saving}>
+                  <Button type="submit" variante="gold" disabled={saving}>
                     {saving ? "Emitindo..." : "Emitir"}
                   </Button>
                 </div>
@@ -724,8 +724,8 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
               <h2>Resgatar cupom</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setRedeemOpen(false)}
               >
                 Fechar
@@ -756,12 +756,12 @@ export function VouchersClient({ initialVouchers, patients }: Props) {
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setRedeemOpen(false)}
                   >
                     Cancelar
                   </Button>
-                  <Button type="submit" variant="gold" disabled={redeeming}>
+                  <Button type="submit" variante="gold" disabled={redeeming}>
                     {redeeming ? "Resgatando..." : "Resgatar"}
                   </Button>
                 </div>

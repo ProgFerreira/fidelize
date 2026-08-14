@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { npsDashboard } from "@/lib/nps";
-import { PageHeader, Card, Badge, StatCard } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, StatCard } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 
 export default async function NpsPage() {
@@ -11,9 +11,9 @@ export default async function NpsPage() {
 
   return (
     <div>
-      <PageHeader
-        title="NPS e satisfação"
-        description="Pesquisas pós-atendimento e recuperação de detratores."
+      <CabecalhoPagina
+        titulo="NPS e satisfação"
+        descricao="Pesquisas pós-atendimento e recuperação de detratores."
       />
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="NPS" value={String(data.nps)} />

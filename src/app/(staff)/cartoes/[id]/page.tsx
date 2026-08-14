@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { generateCardQrDataUrl, getCardHistory } from "@/lib/cards";
 import { loyaltyCardWhatsAppText } from "@/lib/cards/image";
-import { Badge, classesBotao, PageHeader } from "@/components/ui";
+import { Badge, classesBotao, CabecalhoPagina } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 import { CardWhatsAppShare } from "@/components/cards/card-whatsapp-share";
 
@@ -61,10 +61,10 @@ export default async function CartaoDetalhePage({
 
   return (
     <div className="cartoes-page">
-      <PageHeader
-        title={card.cardNumber}
-        description="Detalhe, arte para WhatsApp, QR e histórico auditado."
-        actions={
+      <CabecalhoPagina
+        titulo={card.cardNumber}
+        descricao="Detalhe, arte para WhatsApp, QR e histórico auditado."
+        acoes={
           <div className="flex flex-wrap gap-2">
             <Link href="/cartoes" className={classesBotao({ variante: "contorno" })}>
               Voltar
@@ -72,7 +72,7 @@ export default async function CartaoDetalhePage({
             {card.status === "AVAILABLE" || card.status === "ACTIVE" ? (
               <Link
                 href={`/cartoes/imprimir?ids=${card.id}`}
-                className={classesBotao({ variant: "gold" })}
+                className={classesBotao({ variante: "gold" })}
               >
                 Imprimir QR
               </Link>

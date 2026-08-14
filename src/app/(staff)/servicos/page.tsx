@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { ServicesClient } from "@/components/services/services-client";
 import { listServices } from "@/lib/services";
 import { toPlain } from "@/lib/serialize";
@@ -12,10 +12,10 @@ export default async function ServicosPage() {
 
   return (
     <div className="services-page">
-      <PageHeader
-        title="Serviços"
-        description="Catálogo premium de atendimentos — valor, duração e validade para encantar na agenda e na recepção."
-        actions={
+      <CabecalhoPagina
+        titulo="Serviços"
+        descricao="Catálogo premium de atendimentos — valor, duração e validade para encantar na agenda e na recepção."
+        acoes={
           <span className="services-page__pill">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             Portfólio

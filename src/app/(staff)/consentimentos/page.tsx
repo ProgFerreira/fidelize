@@ -2,7 +2,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listConsentRecords } from "@/lib/consent";
 import { prisma } from "@/lib/db";
-import { PageHeader, Card, Badge, Button, Label, Select, Textarea } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, Select, Textarea, Campo } from "@/components/ui";
 import { recordConsentAction } from "@/app/v2-actions";
 import { labelPt } from "@/lib/i18n/labels";
 
@@ -21,23 +21,23 @@ export default async function ConsentimentosPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Central de consentimento"
-        description="Canal, finalidade, versão do texto e revogação."
+      <CabecalhoPagina
+        titulo="Central de consentimento"
+        descricao="Canal, finalidade, versão do texto e revogação."
       />
       <Card className="mb-6 max-w-3xl">
         <form action={recordConsentAction} className="grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label>Paciente</Label>
-            <Select name="patientId" required>
-              <option value="">Selecione</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>{p.fullName}</option>
-              ))}
-            </Select>
+            <Campo label="Paciente" obrigatorio>
+              <Select name="patientId" required>
+                <option value="">Selecione</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>{p.fullName}</option>
+                ))}
+              </Select>
+            </Campo>
           </div>
-          <div>
-            <Label>Finalidade</Label>
+          <Campo label="Finalidade">
             <Select name="purpose" defaultValue="MARKETING">
               <option value="MARKETING">Marketing</option>
               <option value="SERVICE">Serviço</option>
@@ -45,28 +45,27 @@ export default async function ConsentimentosPage() {
               <option value="SURVEY">Pesquisas</option>
               <option value="REFERRAL">Indicações</option>
             </Select>
-          </div>
-          <div>
-            <Label>Canal</Label>
+          </Campo>
+          <Campo label="Canal">
             <Select name="channel" defaultValue="WHATSAPP">
               <option value="WHATSAPP">WhatsApp</option>
               <option value="EMAIL">E-mail</option>
               <option value="SMS">SMS</option>
               <option value="">Todos</option>
             </Select>
-          </div>
-          <div>
-            <Label>Aceito?</Label>
+          </Campo>
+          <Campo label="Aceito?">
             <Select name="accepted" defaultValue="true">
               <option value="true">Sim</option>
               <option value="false">Não / Revogar</option>
             </Select>
-          </div>
+          </Campo>
           <div className="md:col-span-2">
-            <Label>Texto aceito</Label>
-            <Textarea name="textAccepted" defaultValue="Autorizo comunicações do clube de benefícios." />
+            <Campo label="Texto aceito">
+              <Textarea name="textAccepted" defaultValue="Autorizo comunicações do clube de benefícios." />
+            </Campo>
           </div>
-          <Button type="submit" variant="gold">Registrar</Button>
+          <Button type="submit" variante="gold">Registrar</Button>
         </form>
       </Card>
 

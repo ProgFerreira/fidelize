@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { generateCardQrDataUrl, listCardsForPrint } from "@/lib/cards";
-import { classesBotao, PageHeader } from "@/components/ui";
+import { classesBotao, CabecalhoPagina } from "@/components/ui";
 import { PrintButtons } from "@/components/cards/print-buttons";
 
 export default async function CartoesImprimirPage({
@@ -41,10 +41,10 @@ export default async function CartoesImprimirPage({
   return (
     <div className="cartoes-print-page">
       <div className="cartoes-print-toolbar no-print">
-        <PageHeader
-          title="Impressão de QR"
-          description={`${withQr.length} etiqueta(s) · use papel A4 ou folha de etiquetas.`}
-          actions={
+        <CabecalhoPagina
+          titulo="Impressão de QR"
+          descricao={`${withQr.length} etiqueta(s) · use papel A4 ou folha de etiquetas.`}
+          acoes={
             <div className="flex flex-wrap gap-2">
               <Link href="/cartoes" className={classesBotao({ variante: "contorno" })}>
                 Voltar

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePatientSession } from "@/lib/otp/session";
 import { formatBRL } from "@/lib/money";
-import { Badge, Card, EmptyState } from "@/components/ui";
+import { CabecalhoPagina, Badge, Card, EmptyState } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 
 export default async function ExtratoPage() {
@@ -21,7 +21,7 @@ export default async function ExtratoPage() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-3xl text-slate-900">Extrato</h1>
+      <CabecalhoPagina titulo="Extrato" />
       {entries.length === 0 ? (
         <EmptyState
           titulo="Extrato vazio"

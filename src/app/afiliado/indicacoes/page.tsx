@@ -3,7 +3,8 @@ import { maskOrgName } from "@/lib/affiliates";
 import { prisma } from "@/lib/db";
 import { formatBRL } from "@/lib/money";
 import { semOrganizacao } from "@/lib/tenant";
-import { Card } from "@/components/ui";
+import { Card, EmptyState } from "@/components/ui";
+import { labelPt } from "@/lib/i18n/labels";
 
 export default async function AfiliadoIndicacoesPage() {
   const session = await requireAffiliateSession();
@@ -25,9 +26,10 @@ export default async function AfiliadoIndicacoesPage() {
 
   if (referrals.length === 0) {
     return (
-      <Card>
-        <p className="text-sm text-slate-500">Nenhuma indicação ainda.</p>
-      </Card>
+      <EmptyState
+        titulo="Nenhuma indicação ainda"
+        descricao="Compartilhe seu link exclusivo. Quando alguém se cadastrar por ele, a indicação aparece aqui."
+      />
     );
   }
 
@@ -52,7 +54,7 @@ export default async function AfiliadoIndicacoesPage() {
                 {commission ? (
                   <>
                     <p>{formatBRL(commission.amount)}</p>
-                    <p className="text-xs text-slate-500">{commission.status}</p>
+                    <p className="text-xs text-slate-500">{labelPt(commission.status)}</p>
                   </>
                 ) : (
                   <p className="text-xs text-slate-500">Sem conversão paga</p>

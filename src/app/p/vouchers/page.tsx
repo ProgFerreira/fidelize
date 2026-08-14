@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
 import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
-import { Card, Badge, EmptyState } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, EmptyState } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
+import { labelPt } from "@/lib/i18n/labels";
 
 export default async function PortalVouchersPage() {
   const session = await requirePatientSession();
@@ -10,8 +11,7 @@ export default async function PortalVouchersPage() {
   if (!(await isModuleEnabled(session.clinicId, "VOUCHERS"))) {
     return (
       <div>
-        <h1 className="text-3xl text-slate-900">Vouchers</h1>
-        <p className="mt-2 text-sm text-slate-500">Módulo desativado nesta clínica.</p>
+        <CabecalhoPagina titulo="Vouchers" descricao="Módulo desativado nesta clínica." />
       </div>
     );
   }
@@ -28,7 +28,7 @@ export default async function PortalVouchersPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl text-slate-900">Vouchers</h1>
+      <CabecalhoPagina titulo="Vouchers" />
       {vouchers.length === 0 ? (
         <EmptyState
           titulo="Nenhum voucher disponível"
@@ -47,10 +47,10 @@ export default async function PortalVouchersPage() {
                     ? formatBRL(v.valueAmount)
                     : v.valuePercent
                       ? `${v.valuePercent}%`
-                      : v.type}
+                      : labelPt(v.type)}
                 </p>
               </div>
-              <Badge tone="success">{v.status}</Badge>
+              <Badge tone="success">{labelPt(v.status)}</Badge>
             </div>
           </Card>
         ))

@@ -34,9 +34,9 @@ import { listTags } from "@/lib/tags";
 import {
   assignTagAction,
   removeTagAction,
-  staffAnonymizePatientLgpdAction,
 } from "@/app/v2-actions";
 import { AppointmentHistoryCard } from "@/components/patients/appointment-history";
+import { AnonymizePatientButton } from "@/components/patients/anonymize-patient-button";
 import { onlyDigits } from "@/lib/patients/cpf";
 
 function formatCpf(value: string) {
@@ -151,7 +151,7 @@ export default async function PacienteDetalhePage({
             {canWrite ? (
               <Link
                 href={`/pacientes/${patient.id}/editar`}
-                className={classesBotao({ variant: "gold" })}
+                className={classesBotao({ variante: "gold" })}
               >
                 <Pencil className="h-4 w-4" aria-hidden />
                 Editar
@@ -307,7 +307,7 @@ export default async function PacienteDetalhePage({
                     <>
                       <input type="hidden" name="patientId" value={patient.id} />
                       <input type="hidden" name="tagId" value={a.tagId} />
-                      <Button type="submit" size="sm" variant="ghost">
+                      <Button type="submit" tamanho="sm" variante="fantasma">
                         ×
                       </Button>
                     </>
@@ -330,7 +330,7 @@ export default async function PacienteDetalhePage({
                     </option>
                   ))}
                 </Select>
-                <Button type="submit" size="sm">
+                <Button type="submit" tamanho="sm">
                   Aplicar
                 </Button>
               </form>
@@ -467,7 +467,7 @@ export default async function PacienteDetalhePage({
                       placeholder="Token para vincular/substituir físico"
                       aria-label="Token do QR ou cartão"
                     />
-                    <Button type="submit" variant="contorno" size="sm">
+                    <Button type="submit" variante="contorno" tamanho="sm">
                       Vincular físico
                     </Button>
                   </form>
@@ -487,7 +487,7 @@ export default async function PacienteDetalhePage({
                       required
                       aria-label="Token do QR ou cartão"
                     />
-                    <Button type="submit" variant="contorno">
+                    <Button type="submit" variante="contorno">
                       Vincular cartão
                     </Button>
                   </form>
@@ -513,12 +513,9 @@ export default async function PacienteDetalhePage({
             <p className="text-sm text-slate-600">
               A anonimização remove dados identificáveis e é irreversível.
             </p>
-            <form action={staffAnonymizePatientLgpdAction} className="mt-3">
-              <input type="hidden" name="patientId" value={patient.id} />
-              <Button type="submit" variant="perigo" size="sm">
-                Anonimizar titular
-              </Button>
-            </form>
+            <div className="mt-3">
+              <AnonymizePatientButton patientId={patient.id} />
+            </div>
           </section>
         </aside>
       </div>

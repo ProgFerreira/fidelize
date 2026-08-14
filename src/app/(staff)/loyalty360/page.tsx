@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Card, Badge, classesBotao } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, classesBotao } from "@/components/ui";
 import { getLoyalty360Snapshot } from "@/lib/loyalty360";
 
 export default async function Loyalty360Page() {
@@ -10,9 +10,9 @@ export default async function Loyalty360Page() {
 
   return (
     <div>
-      <PageHeader
-        title="Loyalty 360 clínico"
-        description="Pós-consulta → NPS → indicação → recuperação, em um só pipeline."
+      <CabecalhoPagina
+        titulo="Loyalty 360 clínico"
+        descricao="Pós-consulta → NPS → indicação → recuperação, em um só pipeline."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -24,7 +24,7 @@ export default async function Loyalty360Page() {
             <p className="mt-2 text-3xl font-semibold">{step.value}</p>
             <Link
               href={step.href}
-              className={classesBotao({ size: "sm", variant: "outline", className: "mt-3" })}
+              className={classesBotao({ tamanho: "sm", variante: "contorno", className: "mt-3" })}
             >
               Abrir
             </Link>

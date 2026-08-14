@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Card, Campo, Input } from "@/components/ui";
+import { Button, Campo, Input } from "@/components/ui";
 import { requestOtpAction, verifyOtpAction } from "@/app/patient-actions";
 
 export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
@@ -13,20 +13,10 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [pending, startTransition] = useTransition();
 
   return (
-    <Card className="w-full max-w-md">
-      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-        Portal do paciente
-      </p>
-      <h1 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-        Seu clube de fidelidade
-      </h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Acesse com telefone e código temporário.
-      </p>
-
+    <div className="login-form">
       {step === "phone" ? (
         <form
-          className="mt-6 space-y-4"
+          className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             startTransition(async () => {
@@ -35,7 +25,11 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
                 const fd = new FormData();
                 fd.set("phone", phone);
                 const result = await requestOtpAction(fd);
-                setSimulatedCode(result.simulatedCode);
+                setSimulatedCode(
+                  process.env.NODE_ENV === "production"
+                    ? undefined
+                    : result.simulatedCode,
+                );
                 setStep("code");
               } catch (err) {
                 setError(
@@ -54,7 +48,7 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
             />
           </Campo>
           {error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </p>
           ) : null}
@@ -63,7 +57,7 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
           </Button>
         </form>
       ) : (
-        <form action={verifyOtpAction} className="mt-6 space-y-4">
+        <form action={verifyOtpAction} className="space-y-4">
           <input type="hidden" name="phone" value={phone} />
           {callbackUrl ? (
             <input type="hidden" name="callbackUrl" value={callbackUrl} />
@@ -77,9 +71,9 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
               className="tabular text-center text-lg tracking-[0.3em]"
             />
           </Campo>
-          {simulatedCode ? (
+          {simulatedCode && process.env.NODE_ENV !== "production" ? (
             <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600">
-              Código simulado (v1): <strong>{simulatedCode}</strong>
+              Código de desenvolvimento: <strong>{simulatedCode}</strong>
             </p>
           ) : null}
           <Button type="submit" className="w-full">
@@ -87,6 +81,6 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
           </Button>
         </form>
       )}
-    </Card>
+    </div>
   );
 }

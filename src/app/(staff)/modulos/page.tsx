@@ -1,7 +1,7 @@
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listModules } from "@/lib/modules";
-import { PageHeader, Card, Badge, Button } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button } from "@/components/ui";
 import { toggleModuleAction } from "@/app/v2-actions";
 
 export default async function ModulosPage() {
@@ -11,9 +11,9 @@ export default async function ModulosPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Módulos do programa"
-        description="Ative ou desative funcionalidades sem apagar o histórico."
+      <CabecalhoPagina
+        titulo="Módulos do programa"
+        descricao="Ative ou desative funcionalidades sem apagar o histórico."
       />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {modules.map((mod) => (
@@ -30,7 +30,7 @@ export default async function ModulosPage() {
             <form action={toggleModuleAction} className="mt-4">
               <input type="hidden" name="code" value={mod.code} />
               <input type="hidden" name="enabled" value={mod.enabled ? "false" : "true"} />
-              <Button type="submit" variant={mod.enabled ? "secondary" : "gold"} size="sm">
+              <Button type="submit" variante={mod.enabled ? "secundario" : "gold"} tamanho="sm">
                 {mod.enabled ? "Desativar" : "Ativar"}
               </Button>
             </form>

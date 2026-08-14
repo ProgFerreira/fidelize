@@ -2,7 +2,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listPushDevices } from "@/lib/push";
 import { getProvidersConfig, providersStatusSummary } from "@/lib/providers";
-import { PageHeader, Card, Badge, StatCard } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, StatCard } from "@/components/ui";
 
 export default async function PushPage() {
   const session = await requirePermission(PERMISSIONS.PUSH_MANAGE);
@@ -15,9 +15,9 @@ export default async function PushPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Push nativo"
-        description="Devices registrados (iOS/Android/Web) e status do provedor FCM."
+      <CabecalhoPagina
+        titulo="Push nativo"
+        descricao="Devices registrados (iOS/Android/Web) e status do provedor FCM."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

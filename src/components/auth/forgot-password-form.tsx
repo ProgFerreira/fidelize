@@ -14,9 +14,7 @@ export function ForgotPasswordForm({
   hostTipo?: "organizacao" | "plataforma" | "indefinido";
 }) {
   const [email, setEmail] = useState("");
-  const [slug, setSlug] = useState(
-    organizationSlug ?? (hostTipo === "indefinido" ? "dermaphios" : ""),
-  );
+  const [slug, setSlug] = useState(organizationSlug ?? "");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,7 +64,7 @@ export function ForgotPasswordForm({
             <Input
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase())}
-              placeholder="Ex.: dermaphios"
+              placeholder="Ex.: minha-clinica"
               required
               className="login-form__control-input"
             />

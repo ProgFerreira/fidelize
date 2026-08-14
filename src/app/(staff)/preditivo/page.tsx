@@ -4,7 +4,7 @@ import {
   listHighRiskPatients,
   listForecasts,
 } from "@/lib/predictive";
-import { PageHeader, Card, Badge, Button, StatCard } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, StatCard } from "@/components/ui";
 import { runPredictionsAction, runForecastAction } from "@/app/v2-actions";
 import { formatBRL } from "@/lib/money";
 
@@ -18,17 +18,17 @@ export default async function PreditivoPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Inteligência preditiva"
-        description="Risco de churn, abandono de saldo e previsão de faturamento (heurística comercial)."
+      <CabecalhoPagina
+        titulo="Inteligência preditiva"
+        descricao="Risco de churn, abandono de saldo e previsão de faturamento (heurística comercial)."
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
         <form action={runPredictionsAction}>
-          <Button type="submit" variant="gold">Recalcular scores</Button>
+          <Button type="submit" variante="gold">Recalcular scores</Button>
         </form>
         <form action={runForecastAction}>
-          <Button type="submit" variant="secondary">Gerar previsão 3 meses</Button>
+          <Button type="submit" variante="secundario">Gerar previsão 3 meses</Button>
         </form>
       </div>
 

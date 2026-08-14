@@ -5,10 +5,10 @@ import {
   Badge,
   Button,
   Input,
-  Label,
   Select,
   Textarea,
   toast,
+  Campo,
 } from "@/components/ui";
 import { saveCategoryAction } from "@/app/actions";
 import { Gem, Shield } from "lucide-react";
@@ -115,60 +115,52 @@ export function CategoryPlanCard({ category }: { category: CategoryPlan }) {
       </div>
 
       <div className="plan-card__fields">
-        <div>
-          <Label>Nome</Label>
+        <Campo label="Nome" obrigatorio>
           <Input name="name" defaultValue={category.name} required />
-        </div>
+        </Campo>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Slug</Label>
+          <Campo label="Slug" obrigatorio>
             <Input name="slug" defaultValue={category.slug} required />
-          </div>
-          <div>
-            <Label>Cor</Label>
+          </Campo>
+          <Campo label="Cor">
             <Input name="color" type="color" defaultValue={category.color} />
-          </div>
+          </Campo>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Cashback %</Label>
+          <Campo label="Cashback %">
             <Input
               name="cashbackPercent"
               type="number"
               step="0.01"
               defaultValue={String(category.cashbackPercent)}
             />
-          </div>
-          <div>
-            <Label>Ordem</Label>
+          </Campo>
+          <Campo label="Ordem">
             <Input
               name="sortOrder"
               type="number"
               defaultValue={category.sortOrder}
             />
-          </div>
+          </Campo>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Gasto mínimo</Label>
+          <Campo label="Gasto mínimo">
             <Input
               name="minAnnualSpend"
               type="number"
               step="0.01"
               defaultValue={String(category.minAnnualSpend)}
             />
-          </div>
-          <div>
-            <Label>Pontos mínimos</Label>
+          </Campo>
+          <Campo label="Pontos mínimos">
             <Input
               name="minPoints"
               type="number"
               defaultValue={category.minPoints}
             />
-          </div>
+          </Campo>
         </div>
-        <div>
-          <Label>Progressão</Label>
+        <Campo label="Progressão">
           <Select
             name="progressionMode"
             defaultValue={category.progressionMode}
@@ -178,15 +170,14 @@ export function CategoryPlanCard({ category }: { category: CategoryPlan }) {
             <option value="APPOINTMENTS">Atendimentos</option>
             <option value="COMBINED">Combinada</option>
           </Select>
-        </div>
-        <div>
-          <Label>Benefícios</Label>
+        </Campo>
+        <Campo label="Benefícios">
           <Textarea
             name="benefits"
             defaultValue={category.benefits ?? ""}
             rows={3}
           />
-        </div>
+        </Campo>
       </div>
 
       <div className="plan-card__footer">
@@ -199,7 +190,7 @@ export function CategoryPlanCard({ category }: { category: CategoryPlan }) {
           />
           Plano ativo
         </label>
-        <Button type="submit" variant="gold" disabled={pending}>
+        <Button type="submit" variante="gold" disabled={pending}>
           {pending ? "Salvando..." : "Salvar plano"}
         </Button>
       </div>

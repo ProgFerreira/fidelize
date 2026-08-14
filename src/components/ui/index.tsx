@@ -14,3 +14,4 @@ export {
 } from "@/components/ui/feedback";
 export { Paginacao, BarraBusca } from "@/components/ui/listagem";
 export { ToastProvider, toast } from "@/components/ui/toast-provider";
+export { QueryToast } from "@/components/ui/query-toast";

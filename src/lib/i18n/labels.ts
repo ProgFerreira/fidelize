@@ -18,6 +18,9 @@ const LABELS: Record<string, string> = {
   USED: "Utilizado",
   AVAILABLE: "Disponível",
   PENDING: "Pendente",
+  EXHAUSTED: "Esgotado",
+  PAID: "Pago",
+  ADJUSTMENT: "Ajuste",
   COMPLETED: "Concluído",
   REVERSED: "Estornado",
   REPLACED: "Substituído",
@@ -40,7 +43,6 @@ const LABELS: Record<string, string> = {
   VOUCHER_ISSUE: "Emissão de cupom",
   REVERSAL_CREDIT: "Estorno de crédito",
   REVERSAL_REDEMPTION: "Estorno de resgate",
-  ADJUSTMENT: "Ajuste",
 
   // Cartão / lote
   PENDING_PAYMENT: "Pagamento pendente",
@@ -171,6 +173,7 @@ const LABELS: Record<string, string> = {
   OTHER: "Outro",
 
   // Papéis
+  AFFILIATE: "Afiliado",
   ADMIN: "Administrador",
   FINANCE: "Financeiro",
   RECEPTION: "Recepção",

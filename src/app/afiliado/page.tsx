@@ -4,7 +4,9 @@ import { prisma } from "@/lib/db";
 import { formatBRL } from "@/lib/money";
 import { semOrganizacao } from "@/lib/tenant";
 import { CopyAffiliateLink } from "@/components/affiliates/copy-link";
-import { Card } from "@/components/ui";
+import { Badge, Card } from "@/components/ui";
+import { labelPt } from "@/lib/i18n/labels";
+import { appBaseUrl } from "@/lib/app-url";
 
 export default async function AfiliadoHomePage() {
   const session = await requireAffiliateSession();
@@ -14,10 +16,8 @@ export default async function AfiliadoHomePage() {
     }),
   );
   const metrics = await getAffiliateDashboardMetrics(session.affiliateId);
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    "https://dominio-do-fidelize.com.br";
-  const link = `${baseUrl}/?ref=${affiliate.code}`;
+  const baseUrl = await appBaseUrl();
+  const link = `${baseUrl || ""}/?ref=${affiliate.code}`;
 
   return (
     <div className="space-y-6">
@@ -30,7 +30,8 @@ export default async function AfiliadoHomePage() {
           <CopyAffiliateLink value={link} />
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Código: <strong>{affiliate.code}</strong> · Status: {affiliate.status}
+          Código: <strong>{affiliate.code}</strong> · Status:{" "}
+          <Badge tone="gold">{labelPt(affiliate.status)}</Badge>
         </p>
       </Card>
 

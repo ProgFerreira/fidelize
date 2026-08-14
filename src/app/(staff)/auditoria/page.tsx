@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Card, Badge } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 
 export default async function AuditoriaPage() {
@@ -16,9 +16,9 @@ export default async function AuditoriaPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Auditoria"
-        description="Trilha imutável de acessos e operações sensíveis."
+      <CabecalhoPagina
+        titulo="Auditoria"
+        descricao="Trilha imutável de acessos e operações sensíveis."
       />
       <div className="space-y-3">
         {logs.map((log) => (

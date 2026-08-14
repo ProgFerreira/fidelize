@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { Stethoscope } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { destinoAposLogin } from "@/lib/auth/post-login";
 import {
   HEADER_ORG_SLUG,
   resolverHost,
@@ -20,13 +21,7 @@ export default async function LoginPage({
   const { senha } = await searchParams;
   const session = await auth();
   if (session?.user) {
-    redirect(
-      session.user.roleCode === "AFFILIATE"
-        ? "/afiliado"
-        : session.user.ehAdminPlataforma && !session.user.suporteAcessoId
-          ? "/organizacoes"
-          : "/dashboard",
-    );
+    redirect(destinoAposLogin(session.user));
   }
 
   const h = await headers();

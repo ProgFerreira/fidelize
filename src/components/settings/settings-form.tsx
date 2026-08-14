@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label, toast } from "@/components/ui";
+import { Button, Input, toast, Campo } from "@/components/ui";
 import { saveSettingsAction } from "@/app/actions";
 import type { BenefitSettings } from "@/lib/cashback";
 
@@ -49,8 +49,7 @@ export function SettingsForm({ initial }: { initial: BenefitSettings }) {
       }}
     >
       <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label>Cashback padrão %</Label>
+        <Campo label="Cashback padrão %">
           <Input
             type="number"
             step="0.01"
@@ -59,44 +58,42 @@ export function SettingsForm({ initial }: { initial: BenefitSettings }) {
               update("defaultCashbackPercent", Number(e.target.value))
             }
           />
-        </div>
-        <div>
-          <Label>Pontos por real</Label>
+        </Campo>
+        <Campo label="Pontos por real">
           <Input
             type="number"
             step="0.01"
             value={settings.pointsPerReal}
             onChange={(e) => update("pointsPerReal", Number(e.target.value))}
           />
-        </div>
-        <div>
-          <Label>Dias para liberação</Label>
+        </Campo>
+        <Campo label="Dias para liberação">
           <Input
             type="number"
             value={settings.releaseDays}
             onChange={(e) => update("releaseDays", Number(e.target.value))}
           />
-        </div>
-        <div>
-          <Label>Validade (dias)</Label>
+        </Campo>
+        <Campo label="Validade (dias)">
           <Input
             type="number"
             value={settings.validityDays}
             onChange={(e) => update("validityDays", Number(e.target.value))}
           />
-        </div>
+        </Campo>
         <div className="sm:col-span-2">
-          <Label>Limite de resgate no atendimento %</Label>
-          <Input
-            type="number"
-            value={settings.maxRedemptionPercent ?? ""}
-            onChange={(e) =>
-              update(
-                "maxRedemptionPercent",
-                e.target.value === "" ? null : Number(e.target.value),
-              )
-            }
-          />
+          <Campo label="Limite de resgate no atendimento %">
+            <Input
+              type="number"
+              value={settings.maxRedemptionPercent ?? ""}
+              onChange={(e) =>
+                update(
+                  "maxRedemptionPercent",
+                  e.target.value === "" ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Campo>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3">

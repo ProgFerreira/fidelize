@@ -14,7 +14,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
-  PageHeader,
+  CabecalhoPagina,
   Button,
   classesBotao,
   Input,
@@ -182,10 +182,10 @@ export default async function CartoesPage({
 
   return (
     <div className="cartoes-page">
-      <PageHeader
-        title="Cartões"
-        description="Estoque físico, cartão virtual, vínculo, 2ª via, bloqueio e impressão de QR."
-        actions={
+      <CabecalhoPagina
+        titulo="Cartões"
+        descricao="Estoque físico, cartão virtual, vínculo, 2ª via, bloqueio e impressão de QR."
+        acoes={
           <Link
             href="/cartoes/imprimir?status=AVAILABLE"
             className={classesBotao({ variante: "contorno" })}

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { Building2, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button, Campo, Input } from "@/components/ui";
+import { destinoAposLogin } from "@/lib/auth/post-login";
 
 export function LoginForm({
   organizationSlug,
@@ -22,9 +23,7 @@ export function LoginForm({
   const [needsMfa, setNeedsMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [slug, setSlug] = useState(
-    organizationSlug ?? (hostTipo === "indefinido" ? "dermaphios" : ""),
-  );
+  const [slug, setSlug] = useState(organizationSlug ?? "");
 
   useEffect(() => {
     if (organizationSlug) setSlug(organizationSlug);
@@ -60,9 +59,8 @@ export function LoginForm({
         return;
       }
 
-      window.location.assign(
-        hostTipo === "plataforma" ? "/organizacoes" : "/dashboard",
-      );
+      const session = await getSession();
+      window.location.assign(destinoAposLogin(session?.user));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Falha no login";
       if (message.includes("MFA_REQUIRED")) {
@@ -104,7 +102,7 @@ export function LoginForm({
             <Input
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase())}
-              placeholder="Ex.: dermaphios"
+              placeholder="Ex.: minha-clinica"
               required
               className="login-form__control-input"
             />

@@ -5,7 +5,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { listVideoCallRooms } from "@/lib/videocalls";
 import { createVideoCallRoomAction, cancelVideoCallRoomAction } from "@/app/v2-actions";
-import { PageHeader, Card, Badge, Button, classesBotao, Label, Select } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, Button, classesBotao, Select, Campo } from "@/components/ui";
 import { CopyLinkButton } from "@/components/videochamadas/copy-link-button";
 import { ensureSystemRolePermissions } from "@/lib/auth/sync-roles";
 
@@ -47,24 +47,25 @@ export default async function VideochamadasPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Videochamadas"
-        description="Consulta por vídeo entre profissional e paciente, com gravação opcional."
+      <CabecalhoPagina
+        titulo="Videochamadas"
+        descricao="Consulta por vídeo entre profissional e paciente, com gravação opcional."
       />
 
       <Card className="mb-6 max-w-xl">
         <h2 className="text-lg font-semibold">Nova chamada</h2>
         <form action={createVideoCallRoomAction} className="mt-3 flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
-            <Label>Paciente</Label>
-            <Select name="patientId" required>
-              <option value="">Selecione...</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName}
-                </option>
-              ))}
-            </Select>
+            <Campo label="Paciente" obrigatorio>
+              <Select name="patientId" required>
+                <option value="">Selecione...</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fullName}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
           </div>
           <Button type="submit">Criar sala</Button>
         </form>
@@ -94,7 +95,7 @@ export default async function VideochamadasPage() {
               {room.status !== "ENCERRADA" && room.status !== "CANCELADA" && (
                 <Link
                   href={`/videochamadas/${room.id}`}
-                  className={classesBotao({ size: "sm" })}
+                  className={classesBotao({ tamanho: "sm" })}
                 >
                   Entrar na sala
                 </Link>
@@ -104,7 +105,7 @@ export default async function VideochamadasPage() {
                   <CopyLinkButton url={`${baseUrl}/p/videochamadas/${room.id}`} />
                   <form action={cancelVideoCallRoomAction}>
                     <input type="hidden" name="roomId" value={room.id} />
-                    <Button type="submit" size="sm" variant="secondary">
+                    <Button type="submit" tamanho="sm" variante="secundario">
                       Cancelar
                     </Button>
                   </form>

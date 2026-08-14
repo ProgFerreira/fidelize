@@ -15,8 +15,11 @@ import {
 } from "@/components/ui";
 import {
   cancelAgendaEventAction,
+  completeAgendaEventAction,
+  confirmAgendaPixDepositAction,
   createAgendaEventAction,
   listAgendaWeekAction,
+  markNoShowAgendaEventAction,
   searchAgendaPatientsAction,
   updateAgendaEventAction,
 } from "@/app/agenda-actions";
@@ -344,6 +347,56 @@ export function AgendaClient({
     }
   }
 
+  async function onCompleteEvent() {
+    if (!draft?.id) return;
+    setSaving(true);
+    try {
+      await completeAgendaEventAction(draft.id);
+      toast.success("Atendimento concluído");
+      setDraft(null);
+      await reload(weekStart, query);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao concluir",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onNoShowEvent() {
+    if (!draft?.id) return;
+    setSaving(true);
+    try {
+      await markNoShowAgendaEventAction(draft.id);
+      toast.success("Falta registrada. Agendamento bloqueado por 7 dias.");
+      setDraft(null);
+      await reload(weekStart, query);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao registrar falta",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onConfirmPix() {
+    if (!draft?.id) return;
+    setSaving(true);
+    try {
+      await confirmAgendaPixDepositAction(draft.id);
+      toast.success("PIX do sinal confirmado");
+      await reload(weekStart, query);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao confirmar PIX",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function eventStyle(event: AgendaEventDTO, day: Date) {
     const start = new Date(event.startsAt);
     const end = new Date(event.endsAt);
@@ -393,7 +446,7 @@ export function AgendaClient({
             </Button>
             <Button
               type="button"
-              variant="secondary"
+              variante="secundario"
               onClick={() => {
                 setDraft(emptyDraft());
                 setPatientHits([]);
@@ -411,8 +464,8 @@ export function AgendaClient({
           <div className="agenda__semana-nav">
             <Button
               type="button"
-              variant="secondary"
-              size="sm"
+              variante="secundario"
+              tamanho="sm"
               onClick={() => shiftWeek(-1)}
               aria-label="Semana anterior"
             >
@@ -423,8 +476,8 @@ export function AgendaClient({
             </p>
             <Button
               type="button"
-              variant="secondary"
-              size="sm"
+              variante="secundario"
+              tamanho="sm"
               onClick={() => shiftWeek(1)}
               aria-label="Próxima semana"
             >
@@ -589,8 +642,8 @@ export function AgendaClient({
               <h2>{draft.id ? "Editar compromisso" : "Novo compromisso"}</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
                 aria-label="Fechar"
               >
@@ -811,11 +864,72 @@ export function AgendaClient({
                 />
               </Campo>
 
+              {draft.id ? (
+                <div className="agenda__ops">
+                  {(() => {
+                    const ev = events.find((e) => e.id === draft.id);
+                    if (!ev?.depositAmount) return null;
+                    return (
+                      <p className="agenda__deposit">
+                        Sinal {formatBRL(ev.depositAmount)} via{" "}
+                        {ev.depositMethod === "CASHBACK" ? "cashback" : "PIX"} ·{" "}
+                        {ev.depositStatus === "PENDING"
+                          ? "aguardando PIX"
+                          : ev.depositStatus === "CONFIRMED"
+                            ? "confirmado"
+                            : ev.depositStatus === "REFUNDED"
+                              ? "estornado"
+                              : ev.depositStatus === "FORFEITED"
+                                ? "perdido (falta)"
+                                : ev.depositStatus}
+                      </p>
+                    );
+                  })()}
+                  <div className="agenda__ops-btns">
+                    {draft.status !== "COMPLETED" &&
+                    draft.status !== "CANCELLED" &&
+                    draft.status !== "NO_SHOW" ? (
+                      <Button
+                        type="button"
+                        variante="gold"
+                        disabled={saving}
+                        onClick={() => void onCompleteEvent()}
+                      >
+                        Concluir atendimento
+                      </Button>
+                    ) : null}
+                    {draft.status !== "NO_SHOW" &&
+                    draft.status !== "CANCELLED" &&
+                    draft.status !== "COMPLETED" ? (
+                      <Button
+                        type="button"
+                        variante="contorno"
+                        disabled={saving}
+                        onClick={() => void onNoShowEvent()}
+                      >
+                        Não compareceu
+                      </Button>
+                    ) : null}
+                    {events.find((e) => e.id === draft.id)?.depositStatus ===
+                    "PENDING" ? (
+                      <Button
+                        type="button"
+                        variante="secundario"
+                        disabled={saving}
+                        onClick={() => void onConfirmPix()}
+                      >
+                        Confirmar PIX do sinal
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="agenda__form-acoes">
                 {draft.id ? (
                   <Button
                     type="button"
-                    variant="danger"
+                    variante="perigo"
                     disabled={saving}
                     onClick={() => void onCancelEvent()}
                   >
@@ -827,7 +941,7 @@ export function AgendaClient({
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Fechar

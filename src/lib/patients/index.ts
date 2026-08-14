@@ -35,6 +35,7 @@ export const patientSchema = z.object({
   address: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
   externalCode: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
   unitId: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
+  holderPatientId: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
   commercialNotes: z.preprocess(vazioParaNulo, z.string().nullable().optional()),
   regulationConsent: z.boolean(),
   marketingConsent: z.boolean().default(false),
@@ -149,6 +150,7 @@ async function createPatientComContexto(params: {
         commercialNotes: data.commercialNotes || null,
         regulationConsent: data.regulationConsent,
         marketingConsent: data.marketingConsent,
+        holderPatientId: data.holderPatientId || null,
         status: data.status,
         consents: {
           create: [
@@ -221,6 +223,30 @@ async function createPatientComContexto(params: {
       patientId: patient.id,
       phone,
     });
+
+    if (wallet) {
+      const { issueVirtualCard } = await import("@/lib/cards");
+      const { tryEnqueueWhatsApp, clinicPortalUrl } = await import(
+        "@/lib/whatsapp/enqueue"
+      );
+      const card = await issueVirtualCard({
+        clinicId: params.clinicId,
+        walletId: wallet.id,
+        actorId: params.actorId,
+        unitId: patient.unitId,
+      }).catch(() => null);
+      const portal = clinicPortalUrl("/p/carteira");
+      const firstName = patient.fullName.split(" ")[0];
+      await tryEnqueueWhatsApp({
+        clinicId: params.clinicId,
+        patientId: patient.id,
+        idempotencyKey: `digital-card:${patient.id}`,
+        body: card
+          ? `Olá, ${firstName}! Seu clube de benefícios está ativo. Acesse seu cartão digital: ${portal}`
+          : `Olá, ${firstName}! Bem-vindo(a) ao clube de benefícios. Acesse: ${portal}`,
+        metadata: { kind: "DIGITAL_CARD", patientId: patient.id },
+      });
+    }
   } catch {
     // best-effort
   }
@@ -250,6 +276,10 @@ export async function updatePatient(params: {
     externalCode: params.data.externalCode ?? existing.externalCode,
     unitId: params.data.unitId ?? existing.unitId,
     commercialNotes: params.data.commercialNotes ?? existing.commercialNotes,
+    holderPatientId:
+      params.data.holderPatientId !== undefined
+        ? params.data.holderPatientId
+        : existing.holderPatientId,
     regulationConsent:
       params.data.regulationConsent ?? existing.regulationConsent,
     marketingConsent: params.data.marketingConsent ?? existing.marketingConsent,
@@ -283,6 +313,7 @@ export async function updatePatient(params: {
       externalCode: data.externalCode || null,
       unitId: data.unitId || null,
       commercialNotes: data.commercialNotes || null,
+      holderPatientId: data.holderPatientId || null,
       regulationConsent: data.regulationConsent,
       marketingConsent: data.marketingConsent,
       status: data.status,

@@ -26,6 +26,7 @@ const MODELOS_TENANT: ReadonlySet<string> = new Set([
   "Professional",
   "Appointment",
   "AppointmentItem",
+  "TreatmentPackage",
   "ScheduleEvent",
   "Payment",
   "LedgerEntry",

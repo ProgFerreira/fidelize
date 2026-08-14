@@ -57,17 +57,32 @@ export default async function NovoPacientePage({
   // quando enterWith do auth() se perde entre boundaries do RSC.
   // try/catch: pool MySQL esgotado na Hostinger não pode derrubar o formulário inteiro.
   let units: { id: string; name: string }[] = [];
+  let holders: { id: string; fullName: string }[] = [];
   let unitsError = false;
   try {
-    units = await comOrganizacao(
+    const loaded = await comOrganizacao(
       { organizationId: session.organizationId },
       () =>
-        prisma.unit.findMany({
-          where: { clinicId, active: true },
-          orderBy: { name: "asc" },
-          select: { id: true, name: true },
-        }),
+        Promise.all([
+          prisma.unit.findMany({
+            where: { clinicId, active: true },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true },
+          }),
+          prisma.patient.findMany({
+            where: {
+              clinicId,
+              status: { not: "BLOCKED" },
+              holderPatientId: null,
+            },
+            select: { id: true, fullName: true },
+            orderBy: { fullName: "asc" },
+            take: 200,
+          }),
+        ]),
     );
+    units = loaded[0];
+    holders = loaded[1];
   } catch (err) {
     unitsError = true;
     console.error("[pacientes/novo] falha ao carregar unidades", err);
@@ -115,22 +130,22 @@ export default async function NovoPacientePage({
             </p>
           </div>
         </div>
-        <div className="patient-new__steps" aria-hidden>
+        <nav className="patient-new__steps" aria-label="Seções do cadastro">
           <span className="patient-new__step patient-new__step--active">
             <span className="patient-new__step-num">1</span>
-            Dados
+            Identificação
           </span>
           <span className="patient-new__step-line" />
           <span className="patient-new__step">
             <span className="patient-new__step-num">2</span>
-            Carteira
+            Contato
           </span>
           <span className="patient-new__step-line" />
           <span className="patient-new__step">
             <span className="patient-new__step-num">3</span>
-            Pronto
+            Consentimentos
           </span>
-        </div>
+        </nav>
       </section>
 
       <form action={createPatientFormAction} className="patient-new__layout">
@@ -233,6 +248,17 @@ export default async function NovoPacientePage({
                   autoComplete="street-address"
                   placeholder="Rua, número, bairro, cidade"
                 />
+              </div>
+              <div className="patient-new__field patient-new__field--full">
+                <Label htmlFor="holderPatientId">Titular da carteira (dependente)</Label>
+                <Select id="holderPatientId" name="holderPatientId" defaultValue="">
+                  <option value="">Paciente é o titular</option>
+                  {holders.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.fullName}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
           </section>
@@ -360,7 +386,7 @@ export default async function NovoPacientePage({
             >
               Cancelar
             </Link>
-            <Button type="submit" variant="gold" className="patient-new__submit">
+            <Button type="submit" variante="gold" className="patient-new__submit">
               <UserPlus className="h-4 w-4" aria-hidden />
               Cadastrar paciente
             </Button>

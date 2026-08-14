@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { submitNpsResponse } from "@/lib/nps";
 import { semOrganizacao } from "@/lib/tenant";
-import { Button, Card, Input, Label, PageHeader, Textarea } from "@/components/ui";
+import { Card, CabecalhoPagina, classesBotao } from "@/components/ui";
+import { NpsForm } from "@/components/nps/nps-form";
+import Link from "next/link";
 
 async function submitNps(formData: FormData) {
   "use server";
@@ -22,32 +24,39 @@ export default async function NpsPublicPage({
     prisma.surveyResponse.findFirst({
       where: { token },
       include: {
-        survey: true,
+        survey: { include: { clinic: { select: { name: true, tradeName: true } } } },
         patient: { select: { fullName: true } },
       },
     }),
   );
 
+  const clinicName =
+    row?.survey.clinic.tradeName || row?.survey.clinic.name || "Clínica";
+
   if (!row) {
     return (
-      <div className="mx-auto max-w-lg p-6">
-        <PageHeader title="Pesquisa inválida" description="Link não encontrado." />
+      <div className="nps-page">
+        <CabecalhoPagina titulo="Pesquisa inválida" descricao="Link não encontrado." />
       </div>
     );
   }
 
   if (row.respondedAt) {
     return (
-      <div className="mx-auto max-w-lg p-6">
-        <PageHeader
-          title="Obrigado!"
-          description="Sua resposta já foi registrada."
+      <div className="nps-page">
+        <p className="nps-page__eyebrow">{clinicName}</p>
+        <CabecalhoPagina
+          titulo="Obrigado!"
+          descricao="Sua resposta já foi registrada."
         />
         {row.classification === "PROMOTER" ? (
-          <Card className="mt-4">
+          <Card className="mt-4 space-y-3">
             <p className="text-sm text-slate-600">
-              Que bom saber! Se quiser, indique a clínica a um amigo pelo portal do paciente.
+              Que bom saber! Indique a clínica a um amigo pelo portal do paciente.
             </p>
+            <Link href="/paciente" className={classesBotao({ variante: "gold" })}>
+              Abrir portal e indicar
+            </Link>
           </Card>
         ) : null}
       </div>
@@ -56,32 +65,23 @@ export default async function NpsPublicPage({
 
   if (row.expiresAt < new Date()) {
     return (
-      <div className="mx-auto max-w-lg p-6">
-        <PageHeader title="Pesquisa expirada" description="O prazo de resposta encerrou." />
+      <div className="nps-page">
+        <p className="nps-page__eyebrow">{clinicName}</p>
+        <CabecalhoPagina
+          titulo="Pesquisa expirada"
+          descricao="O prazo de resposta encerrou."
+        />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-lg p-6">
-      <PageHeader
-        title={row.survey.name}
-        description={`Olá ${row.patient.fullName}, de 0 a 10, qual a probabilidade de você recomendar a clínica?`}
-      />
-      <Card>
-        <form action={submitNps} className="grid gap-3">
-          <input type="hidden" name="token" value={token} />
-          <div>
-            <Label>Nota (0–10)</Label>
-            <Input name="score" type="number" min={0} max={10} required />
-          </div>
-          <div>
-            <Label>Comentário (opcional)</Label>
-            <Textarea name="comment" />
-          </div>
-          <Button type="submit" variant="gold">Enviar</Button>
-        </form>
-      </Card>
-    </div>
+    <NpsForm
+      token={token}
+      clinicName={clinicName}
+      patientName={row.patient.fullName}
+      surveyName={row.survey.name}
+      action={submitNps}
+    />
   );
 }

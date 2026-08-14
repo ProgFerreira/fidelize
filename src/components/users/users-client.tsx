@@ -240,16 +240,16 @@ export function UsersClient({
           <div className="users-cred__acoes">
             <Button
               type="button"
-              size="sm"
-              variant="secondary"
+              tamanho="sm"
+              variante="secundario"
               onClick={() => void copiarSenha(credencial.senhaProvisoria)}
             >
               Copiar senha
             </Button>
             <Button
               type="button"
-              size="sm"
-              variant="contorno"
+              tamanho="sm"
+              variante="contorno"
               onClick={() => setCredencial(null)}
             >
               Ok, anotei
@@ -320,8 +320,8 @@ export function UsersClient({
                   <div className="patient-row__actions">
                     <Button
                       type="button"
-                      size="sm"
-                      variant="contorno"
+                      tamanho="sm"
+                      variante="contorno"
                       onClick={() => setViewing(user)}
                     >
                       <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -329,8 +329,8 @@ export function UsersClient({
                     </Button>
                     <Button
                       type="button"
-                      size="sm"
-                      variant="secondary"
+                      tamanho="sm"
+                      variante="secundario"
                       onClick={() => setDraft(fromUser(user))}
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -338,8 +338,8 @@ export function UsersClient({
                     </Button>
                     <Button
                       type="button"
-                      size="sm"
-                      variant="contorno"
+                      tamanho="sm"
+                      variante="contorno"
                       onClick={() => void onResetPassword(user.id)}
                     >
                       <KeyRound className="h-3.5 w-3.5" aria-hidden />
@@ -348,8 +348,8 @@ export function UsersClient({
                     {user.status === "ACTIVE" ? (
                       <Button
                         type="button"
-                        size="sm"
-                        variant="danger"
+                        tamanho="sm"
+                        variante="perigo"
                         disabled={isSelf}
                         onClick={() => void onStatus(user.id, "INACTIVE")}
                       >
@@ -359,8 +359,8 @@ export function UsersClient({
                     ) : (
                       <Button
                         type="button"
-                        size="sm"
-                        variant="secondary"
+                        tamanho="sm"
+                        variante="secundario"
                         onClick={() => void onStatus(user.id, "ACTIVE")}
                       >
                         <Power className="h-3.5 w-3.5" aria-hidden />
@@ -388,8 +388,8 @@ export function UsersClient({
               <h2>Detalhes do usuário</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setViewing(null)}
               >
                 Fechar
@@ -439,14 +439,14 @@ export function UsersClient({
               <div className="service-view__actions">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variante="secundario"
                   onClick={() => setViewing(null)}
                 >
                   Fechar
                 </Button>
                 <Button
                   type="button"
-                  variant="gold"
+                  variante="gold"
                   onClick={() => {
                     setDraft(fromUser(viewing));
                     setViewing(null);
@@ -474,8 +474,8 @@ export function UsersClient({
               <h2>{draft.id ? "Editar usuário" : "Novo usuário"}</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
               >
                 Fechar
@@ -609,7 +609,7 @@ export function UsersClient({
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Cancelar

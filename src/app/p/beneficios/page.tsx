@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requirePatientSession } from "@/lib/otp/session";
-import { Card, Badge, EmptyState } from "@/components/ui";
+import { CabecalhoPagina, Card, Badge, EmptyState } from "@/components/ui";
 
 export default async function BeneficiosPage() {
   const session = await requirePatientSession();
@@ -18,7 +18,7 @@ export default async function BeneficiosPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl text-slate-900">Benefícios</h1>
+      <CabecalhoPagina titulo="Benefícios" />
       <Card>
         <h2 className="text-xl">
           Categoria {wallet?.category?.name ?? "—"}

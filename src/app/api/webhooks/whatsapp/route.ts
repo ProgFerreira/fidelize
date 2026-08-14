@@ -5,9 +5,13 @@ import { dispatchProvider } from "@/lib/providers";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 import { onlyDigits } from "@/lib/patients";
 import { hmacSha256Hex, secretsMatch } from "@/lib/security/secrets";
+import {
+  classifyWhatsAppReply,
+  handleAppointmentReply,
+} from "@/lib/whatsapp/reminders";
 
 /**
- * Webhook Meta WhatsApp Cloud API — consulta de saldo por mensagem "saldo".
+ * Webhook Meta WhatsApp Cloud API — saldo, extrato e confirmação SIM/NÃO.
  * Configure o callback em /api/webhooks/whatsapp
  */
 export async function GET(request: Request) {
@@ -77,7 +81,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  if (!/\bsaldo\b/.test(text) && text !== "extrato" && text !== "pontos") {
+  const intent = classifyWhatsAppReply(text);
+  if (!intent) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -107,20 +112,30 @@ export async function POST(request: Request) {
   await comOrganizacao(
     { organizationId: patient.clinic.organizationId },
     async () => {
-      const wallet = patient.wallets[0];
-      const reply = wallet
-        ? `Olá, ${patient.fullName.split(" ")[0]}! Seu saldo em ${patient.clinic.name}: ${formatBRL(wallet.availableBalance)} e ${wallet.pointsBalance} pontos${wallet.category ? ` (${wallet.category.name})` : ""}.`
-        : `Não encontramos carteira ativa para este telefone.`;
+      let reply: string;
+      if (intent === "SIM" || intent === "NAO") {
+        const handled = await handleAppointmentReply({
+          clinicId: patient.clinicId,
+          patientId: patient.id,
+          kind: intent,
+        });
+        reply = handled.body;
+      } else {
+        const wallet = patient.wallets[0];
+        reply = wallet
+          ? `Olá, ${patient.fullName.split(" ")[0]}! Seu saldo em ${patient.clinic.name}: ${formatBRL(wallet.availableBalance)} e ${wallet.pointsBalance} pontos${wallet.category ? ` (${wallet.category.name})` : ""}.`
+          : `Não encontramos carteira ativa para este telefone.`;
+      }
 
       await dispatchProvider({
         clinicId: patient.clinicId,
         channel: "WHATSAPP",
         to: phoneDigits,
         body: reply,
-        subject: "Saldo fidelidade",
+        subject: intent === "SALDO" ? "Saldo fidelidade" : "Agenda",
       });
     },
   );
 
-  return NextResponse.json({ ok: true, matched: true });
+  return NextResponse.json({ ok: true, matched: true, intent });
 }

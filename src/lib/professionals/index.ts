@@ -20,6 +20,11 @@ export const professionalSchema = z.object({
   notes: z.string().trim().max(2000).optional().nullable(),
   active: z.coerce.boolean().default(true),
   color: z.string().trim().max(32).optional().nullable(),
+  commissionPercent: z.preprocess((v) => {
+    if (v === "" || v == null) return null;
+    const n = Number(String(v).replace(",", "."));
+    return Number.isNaN(n) ? v : n;
+  }, z.number().min(0).max(100).nullable().optional()),
   procedureIds: z.array(z.string().min(1)).default([]),
   procedurePrices: z.record(z.string(), optionalPrice).default({}),
 });
@@ -33,6 +38,7 @@ export type ProfessionalDTO = {
   notes: string | null;
   active: boolean;
   color: string | null;
+  commissionPercent: number | null;
   procedureIds: string[];
   procedureNames: string[];
   /** Preço próprio por serviço; null = usa o preço do catálogo. */
@@ -52,6 +58,7 @@ function toDTO(row: {
   notes: string | null;
   active: boolean;
   color: string | null;
+  commissionPercent: unknown;
   procedures: {
     price: unknown;
     procedure: { id: string; name: string };
@@ -69,6 +76,8 @@ function toDTO(row: {
     notes: row.notes,
     active: row.active,
     color: row.color,
+    commissionPercent:
+      row.commissionPercent == null ? null : Number(row.commissionPercent),
     procedureIds: row.procedures.map((p) => p.procedure.id),
     procedureNames: row.procedures.map((p) => p.procedure.name),
     procedurePrices,
@@ -143,6 +152,10 @@ export async function createProfessional(params: {
       notes: data.notes || null,
       active: data.active,
       color: data.color || null,
+      commissionPercent:
+        data.commissionPercent == null || Number.isNaN(data.commissionPercent)
+          ? null
+          : moneyToString(data.commissionPercent),
       procedures: {
         create: linksToCreate(data.procedureIds, data.procedurePrices),
       },
@@ -190,6 +203,10 @@ export async function updateProfessional(params: {
       notes: data.notes || null,
       active: data.active,
       color: data.color || null,
+      commissionPercent:
+        data.commissionPercent == null || Number.isNaN(data.commissionPercent)
+          ? null
+          : moneyToString(data.commissionPercent),
       procedures: {
         create: linksToCreate(data.procedureIds, data.procedurePrices),
       },

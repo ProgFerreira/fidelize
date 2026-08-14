@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { getAppointmentSale } from "@/lib/reception";
 import { listProfessionals } from "@/lib/professionals";
 import { prisma } from "@/lib/db";
@@ -79,10 +79,10 @@ export default async function CorrigirVendaPage({
 
   return (
     <div className="services-page pdv-extract">
-      <PageHeader
-        title="Corrigir venda"
-        description={`Ajuste itens, valores e forma de pagamento de ${sale.patientName}.`}
-        actions={
+      <CabecalhoPagina
+        titulo="Corrigir venda"
+        descricao={`Ajuste itens, valores e forma de pagamento de ${sale.patientName}.`}
+        acoes={
           <Link href={href} className="pdv-extract-link">
             Voltar ao extrato
           </Link>

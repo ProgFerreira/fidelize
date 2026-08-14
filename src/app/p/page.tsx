@@ -6,15 +6,23 @@ import { getCategoryProgress } from "@/lib/categories";
 import { generateCardQrDataUrl } from "@/lib/cards";
 import { Badge, Card, classesBotao } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
+import { resolveBenefitWallet } from "@/lib/family";
 
 export default async function PatientHomePage() {
   const session = await requirePatientSession();
+
+  const family = await resolveBenefitWallet({
+    clinicId: session.clinicId,
+    patientId: session.patientId,
+  }).catch(() => null);
 
   const patient = await prisma.patient.findFirst({
     where: { id: session.patientId, clinicId: session.clinicId },
     include: {
       wallets: {
-        where: { status: "ACTIVE" },
+        where: family
+          ? { id: family.wallet.id }
+          : { status: "ACTIVE" },
         include: {
           category: true,
           cards: { where: { status: "ACTIVE" } },
@@ -32,7 +40,25 @@ export default async function PatientHomePage() {
     },
   });
 
-  const wallet = patient?.wallets[0];
+  let wallet = patient?.wallets[0];
+  if (!wallet && family) {
+    wallet = await prisma.wallet.findFirst({
+      where: { id: family.wallet.id },
+      include: {
+        category: true,
+        cards: { where: { status: "ACTIVE" } },
+        ledgerEntries: { orderBy: { createdAt: "desc" }, take: 5 },
+        creditLots: {
+          where: {
+            status: { in: ["AVAILABLE", "PARTIALLY_USED"] },
+            remainingAmount: { gt: 0 },
+          },
+          orderBy: { expiresAt: "asc" },
+          take: 3,
+        },
+      },
+    }) ?? undefined;
+  }
   if (!wallet) {
     return <p>Carteira não encontrada.</p>;
   }
@@ -94,17 +120,20 @@ export default async function PatientHomePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/p/recompensas" className={classesBotao({ variant: "gold", className: "w-full" })}>
+        <Link href="/p/agendar" className={classesBotao({ variante: "gold", className: "w-full" })}>
+          Agendar
+        </Link>
+        <Link href="/p/recompensas" className={classesBotao({ variante: "secundario", className: "w-full" })}>
           Resgatar
         </Link>
-        <Link href="/p/indicacoes" className={classesBotao({ variante: "secundario", className: "w-full" })}>
+        <Link href="/p/indicacoes" className={classesBotao({ variante: "contorno", className: "w-full" })}>
           Indicar
         </Link>
-        <Link href="/p/vouchers" className={classesBotao({ variante: "contorno", className: "w-full" })}>
-          Vouchers
+        <Link href="/p/clube" className={classesBotao({ variante: "contorno", className: "w-full" })}>
+          Clube VIP
         </Link>
-        <Link href="/p/sorteios" className={classesBotao({ variante: "contorno", className: "w-full" })}>
-          Sorteios
+        <Link href="/p/regulamento" className={classesBotao({ variante: "contorno", className: "w-full" })}>
+          Regulamento
         </Link>
       </div>
 

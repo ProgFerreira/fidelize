@@ -354,7 +354,7 @@ export function RewardsClient({
           <div className="services-toolbar__actions">
             <Button
               type="button"
-              variant="gold"
+              variante="gold"
               onClick={() => setDraft(emptyDraft())}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -388,7 +388,7 @@ export function RewardsClient({
             {items.length > 0 ? (
               <Button
                 type="button"
-                variant="contorno"
+                variante="contorno"
                 onClick={() => {
                   setQuery("");
                   setStatusFilter("all");
@@ -399,7 +399,7 @@ export function RewardsClient({
             ) : null}
             <Button
               type="button"
-              variant="gold"
+              variante="gold"
               onClick={() => setDraft(emptyDraft())}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -495,8 +495,8 @@ export function RewardsClient({
                     </div>
                     <Button
                       type="submit"
-                      size="sm"
-                      variant="gold"
+                      tamanho="sm"
+                      variante="gold"
                       disabled={busyId === r.id}
                     >
                       <Ticket className="h-3.5 w-3.5" aria-hidden />
@@ -512,8 +512,8 @@ export function RewardsClient({
                 <div className="service-card__footer">
                   <Button
                     type="button"
-                    size="sm"
-                    variant="secondary"
+                    tamanho="sm"
+                    variante="secundario"
                     onClick={() => setDraft(fromReward(r))}
                   >
                     <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -521,8 +521,8 @@ export function RewardsClient({
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
-                    variant={r.status === "ACTIVE" ? "danger" : "secondary"}
+                    tamanho="sm"
+                    variante={r.status === "ACTIVE" ? "perigo" : "secundario"}
                     disabled={busyId === r.id}
                     onClick={() => void onToggleStatus(r)}
                   >
@@ -580,7 +580,7 @@ export function RewardsClient({
                   {canFulfill && row.status === "PENDING_FULFILLMENT" ? (
                     <Button
                       type="button"
-                      size="sm"
+                      tamanho="sm"
                       disabled={busyId === row.id}
                       onClick={() => void onFulfill(row.id)}
                     >
@@ -607,8 +607,8 @@ export function RewardsClient({
               <h2>{draft.id ? "Editar recompensa" : "Nova recompensa"}</h2>
               <Button
                 type="button"
-                variant="secondary"
-                size="sm"
+                variante="secundario"
+                tamanho="sm"
                 onClick={() => setDraft(null)}
               >
                 Fechar
@@ -724,7 +724,7 @@ export function RewardsClient({
                 <div className="agenda__form-acoes-right">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variante="secundario"
                     onClick={() => setDraft(null)}
                   >
                     Cancelar

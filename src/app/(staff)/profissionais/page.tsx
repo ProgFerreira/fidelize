@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import { ProfessionalsClient } from "@/components/professionals/professionals-client";
 import { listProfessionals } from "@/lib/professionals";
 import { toPlain } from "@/lib/serialize";
@@ -26,9 +26,9 @@ export default async function ProfissionaisPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Profissionais"
-        description="Monte o portfólio de cada profissional. O mesmo serviço pode ter preço diferente por profissional."
+      <CabecalhoPagina
+        titulo="Profissionais"
+        descricao="Monte o portfólio de cada profissional. O mesmo serviço pode ter preço diferente por profissional."
       />
       <ProfessionalsClient
         initialProfessionals={toPlain(professionals)}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Card, Input, Label } from "@/components/ui";
+import { Button, Card, Input, Campo } from "@/components/ui";
 
 const UPLIFT = 0.27; // benchmark de mercado (frequência)
 
@@ -40,26 +40,23 @@ export default function CalculadoraImpactoPage() {
 
         <Card className="mt-8 border-slate-700 bg-white/5 text-slate-50">
           <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <Label>Pacientes ativos / mês</Label>
+            <Campo label="Pacientes ativos / mês">
               <Input
                 type="number"
                 min={1}
                 value={clients}
                 onChange={(e) => setClients(Number(e.target.value) || 0)}
               />
-            </div>
-            <div>
-              <Label>Ticket médio (R$)</Label>
+            </Campo>
+            <Campo label="Ticket médio (R$)">
               <Input
                 type="number"
                 min={1}
                 value={ticket}
                 onChange={(e) => setTicket(Number(e.target.value) || 0)}
               />
-            </div>
-            <div>
-              <Label>Visitas por mês</Label>
+            </Campo>
+            <Campo label="Visitas por mês">
               <Input
                 type="number"
                 min={0.1}
@@ -67,7 +64,7 @@ export default function CalculadoraImpactoPage() {
                 value={visits}
                 onChange={(e) => setVisits(Number(e.target.value) || 0)}
               />
-            </div>
+            </Campo>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -91,7 +88,7 @@ export default function CalculadoraImpactoPage() {
 
           <div className="mt-8">
             <a href="/login">
-              <Button variant="gold">Quero esse resultado</Button>
+              <Button variante="gold">Quero esse resultado</Button>
             </a>
           </div>
         </Card>

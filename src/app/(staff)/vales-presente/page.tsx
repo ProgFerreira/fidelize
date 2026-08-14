@@ -2,7 +2,7 @@ import { Gift } from "lucide-react";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listGiftCards } from "@/lib/giftcards";
-import { PageHeader } from "@/components/ui";
+import { CabecalhoPagina } from "@/components/ui";
 import {
   GiftCardsClient,
   type GiftCardDTO,
@@ -16,10 +16,10 @@ export default async function ValesPresentePage() {
 
   return (
     <div className="services-page">
-      <PageHeader
-        title="Vales-presente"
-        description="Pré-pago digital separado do saldo promocional — emissão, ativação e débito."
-        actions={
+      <CabecalhoPagina
+        titulo="Vales-presente"
+        descricao="Pré-pago digital separado do saldo promocional — emissão, ativação e débito."
+        acoes={
           <span className="services-page__pill">
             <Gift className="h-3.5 w-3.5" aria-hidden />
             Gift cards

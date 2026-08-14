@@ -1,9 +1,24 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { Gift, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import {
+  Banknote,
+  CreditCard,
+  Gift,
+  Link2,
+  Minus,
+  Plus,
+  Receipt,
+  Search,
+  ShoppingCart,
+  Smartphone,
+  Stethoscope,
+  Trash2,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import { Button, Campo, Card, Input, Label, Select, Badge } from "@/components/ui";
+import { Button, Campo, Card, EmptyState, Input, Label, Select, Badge } from "@/components/ui";
 import {
   searchPatientsAction,
   simulateReceptionAction,
@@ -58,6 +73,19 @@ type CartLine = {
 
 function cartLineKey(procedureId: string, professionalId: string) {
   return `${procedureId}::${professionalId}`;
+}
+
+const PAYMENT_METHOD_ICON: Record<string, typeof Banknote> = {
+  dinheiro: Banknote,
+  pix: Smartphone,
+  credito: CreditCard,
+  debito: WalletCards,
+  link: Link2,
+};
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
 export function ReceptionClient({
@@ -456,11 +484,17 @@ export function ReceptionClient({
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-12">
         <Card className="xl:col-span-3">
-          <h2 className="text-2xl">Localizar paciente</h2>
+          <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+              <Search className="h-4 w-4" aria-hidden />
+            </span>
+            Localizar paciente
+          </h2>
           <div className="mt-4 flex gap-2">
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && search()}
               placeholder="Nome, CPF, telefone ou token QR"
             />
             <Button onClick={search} disabled={pending}>
@@ -468,28 +502,43 @@ export function ReceptionClient({
             </Button>
           </div>
           <div className="mt-4 max-h-[28rem] space-y-2 overflow-y-auto">
-            {results.map((patient) => (
-              <button
-                key={patient.id}
-                type="button"
-                onClick={() => selectPatient(patient)}
-                className={
-                  "w-full rounded-xl border px-3 py-3 text-left hover:border-blue-400 " +
-                  (selected?.id === patient.id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200")
-                }
-              >
-                <p className="font-semibold">{patient.fullName}</p>
-                <p className="text-sm text-slate-500">
-                  {patient.wallets[0]?.category?.name ?? "—"} ·{" "}
-                  {formatBRL(patient.wallets[0]?.availableBalance ?? 0)}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  CPF {patient.cpf} · Tel {patient.phone}
-                </p>
-              </button>
-            ))}
+            {results.length === 0 ? (
+              <EmptyState
+                icone={UserRound}
+                titulo="Nenhum paciente ainda"
+                descricao="Busque por nome, CPF, telefone ou token do QR para iniciar o atendimento."
+              />
+            ) : (
+              results.map((patient) => (
+                <button
+                  key={patient.id}
+                  type="button"
+                  onClick={() => selectPatient(patient)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors hover:border-blue-400 hover:bg-blue-50/50",
+                    selected?.id === patient.id
+                      ? "border-blue-500 bg-blue-50 shadow-sm dark:bg-blue-950/40"
+                      : "border-slate-200 dark:border-slate-800",
+                  )}
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {initials(patient.fullName)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                      {patient.fullName}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {patient.wallets[0]?.category?.name ?? "—"} ·{" "}
+                      {formatBRL(patient.wallets[0]?.availableBalance ?? 0)}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-slate-400">
+                      CPF {patient.cpf} · Tel {patient.phone}
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
           </div>
 
           {selected && wallet && !wallet.cards.length ? (
@@ -519,12 +568,23 @@ export function ReceptionClient({
         <Card className="xl:col-span-5">
           {selected && wallet ? (
             <>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl">{selected.fullName}</h2>
-                <Badge tone="gold">
-                  {wallet.category?.name ?? "Sem categoria"}
-                </Badge>
-                <Badge>{formatBRL(wallet.availableBalance)} disponível</Badge>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white shadow-sm">
+                  {initials(selected.fullName)}
+                </span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-semibold text-slate-900 dark:text-slate-100">
+                    {selected.fullName}
+                  </h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <Badge tone="gold">
+                      {wallet.category?.name ?? "Sem categoria"}
+                    </Badge>
+                    <Badge tone="success">
+                      {formatBRL(wallet.availableBalance)} disponível
+                    </Badge>
+                  </div>
+                </div>
               </div>
 
               <div className="pdv-professional">
@@ -561,20 +621,24 @@ export function ReceptionClient({
               </div>
 
               <div className="mt-5">
-                <Label>
+                <Label className="flex items-center gap-1.5">
+                  <Stethoscope className="h-3.5 w-3.5 text-slate-400" aria-hidden />
                   {selectedProfessional
                     ? `Serviços de ${selectedProfessional.name} — clique para adicionar`
                     : "Catálogo — clique para adicionar ao carrinho"}
                 </Label>
                 {procedures.length === 0 ? (
-                  <p className="mt-2 text-sm text-slate-500">
-                    Cadastre serviços em Cadastros → Serviços.
-                  </p>
+                  <EmptyState
+                    icone={Stethoscope}
+                    titulo="Nenhum serviço cadastrado"
+                    descricao="Cadastre serviços em Cadastros → Serviços."
+                  />
                 ) : catalogProcedures.length === 0 ? (
-                  <p className="mt-2 text-sm text-slate-500">
-                    Este profissional não tem serviços no portfólio. Vincule em
-                    Cadastros → Profissionais.
-                  </p>
+                  <EmptyState
+                    icone={Stethoscope}
+                    titulo="Portfólio vazio"
+                    descricao="Este profissional não tem serviços no portfólio. Vincule em Cadastros → Profissionais."
+                  />
                 ) : (
                   <div className="mt-2 grid max-h-[28rem] gap-2 overflow-y-auto sm:grid-cols-2">
                     {catalogProcedures.map((p) => {
@@ -632,17 +696,20 @@ export function ReceptionClient({
               </div>
             </>
           ) : (
-            <p className="text-slate-500">
-              Selecione um paciente para escolher o profissional e montar o
-              carrinho.
-            </p>
+            <EmptyState
+              icone={Stethoscope}
+              titulo="Aguardando paciente"
+              descricao="Selecione um paciente à esquerda para escolher o profissional e montar o carrinho."
+            />
           )}
         </Card>
 
         <Card className="xl:col-span-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-xl font-semibold">
-              <ShoppingCart className="h-5 w-5" aria-hidden />
+            <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300">
+                <ShoppingCart className="h-4 w-4" aria-hidden />
+              </span>
               {editingSaleId ? "Editando venda" : "Carrinho"}
             </h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -675,15 +742,21 @@ export function ReceptionClient({
           ) : null}
 
           {!selected ? (
-            <p className="mt-4 text-sm text-slate-500">
-              Localize o paciente para iniciar a venda.
-            </p>
+            <EmptyState
+              icone={ShoppingCart}
+              titulo="Carrinho vazio"
+              descricao="Localize o paciente para iniciar a venda."
+            />
           ) : cart.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">
-              {selectedProfessional
-                ? `O carrinho está vazio. Adicione serviços de ${selectedProfessional.name}.`
-                : "O carrinho está vazio. Escolha o profissional e adicione serviços do catálogo."}
-            </p>
+            <EmptyState
+              icone={ShoppingCart}
+              titulo="Carrinho vazio"
+              descricao={
+                selectedProfessional
+                  ? `Adicione serviços de ${selectedProfessional.name}.`
+                  : "Escolha o profissional e adicione serviços do catálogo."
+              }
+            />
           ) : (
             <ul className="pdv-cart__list mt-4">
               {cart.map((line) => (
@@ -855,19 +928,23 @@ export function ReceptionClient({
                     role="group"
                     aria-label="Forma de pagamento"
                   >
-                    {PDV_PAYMENT_METHODS.map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        className={cn(
-                          "pdv-pay__opt",
-                          paymentMethod === m.id && "pdv-pay__opt--active",
-                        )}
-                        onClick={() => setPaymentMethod(m.id)}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
+                    {PDV_PAYMENT_METHODS.map((m) => {
+                      const Icone = PAYMENT_METHOD_ICON[m.id] ?? Banknote;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={cn(
+                            "pdv-pay__opt",
+                            paymentMethod === m.id && "pdv-pay__opt--active",
+                          )}
+                          onClick={() => setPaymentMethod(m.id)}
+                        >
+                          <Icone className="h-3.5 w-3.5" aria-hidden />
+                          {m.label}
+                        </button>
+                      );
+                    })}
                   </div>
                   <p className="pdv-gift__hint mt-1">
                     Vale-presente e benefício da carteira são registrados à
@@ -897,33 +974,55 @@ export function ReceptionClient({
               </div>
 
               {simulation ? (
-                <div className="mt-4 rounded-xl bg-slate-100/80 p-3 text-sm">
-                  <p className="font-semibold">Resumo</p>
-                  <div className="mt-2 grid gap-1">
-                    <p>Bruto: {formatBRL(simulation.grossAmount)}</p>
-                    <p>Desconto: {formatBRL(simulation.discountAmount)}</p>
-                    <p>Benefício: {formatBRL(simulation.benefitUsed)}</p>
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-900/60">
+                  <p className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
+                    <Receipt className="h-4 w-4" aria-hidden />
+                    Resumo da venda
+                  </p>
+                  <div className="mt-2.5 grid gap-1 text-slate-600 dark:text-slate-400">
+                    <p className="flex justify-between">
+                      <span>Bruto</span>
+                      <span className="tabular">{formatBRL(simulation.grossAmount)}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>Desconto</span>
+                      <span className="tabular">{formatBRL(simulation.discountAmount)}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>Benefício</span>
+                      <span className="tabular">{formatBRL(simulation.benefitUsed)}</span>
+                    </p>
                     {simulation.giftCardAmount &&
                     Number(simulation.giftCardAmount) > 0 ? (
-                      <p>
-                        Vale-presente
-                        {simulation.giftCardCode
-                          ? ` ${simulation.giftCardCode}`
-                          : ""}
-                        : {formatBRL(simulation.giftCardAmount)}
+                      <p className="flex justify-between">
+                        <span>
+                          Vale-presente
+                          {simulation.giftCardCode
+                            ? ` ${simulation.giftCardCode}`
+                            : ""}
+                        </span>
+                        <span className="tabular">{formatBRL(simulation.giftCardAmount)}</span>
                       </p>
                     ) : null}
-                    <p className="font-semibold">
-                      A pagar: {formatBRL(simulation.paidAmount)}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-slate-950">
+                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      A pagar
                       {Number(simulation.paidAmount) > 0
                         ? ` · ${paymentMethodLabel(paymentMethod)}`
                         : ""}
-                    </p>
-                    <p>
-                      Cashback ({simulation.cashbackPercent}%):{" "}
-                      {formatBRL(simulation.cashbackAmount)}
-                    </p>
-                    <p>Pontos: {simulation.points}</p>
+                    </span>
+                    <span className="text-xl font-bold tabular text-slate-900 dark:text-slate-100">
+                      {formatBRL(simulation.paidAmount)}
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5 flex items-center justify-between text-xs text-emerald-700 dark:text-emerald-400">
+                    <span>Cashback gerado ({simulation.cashbackPercent}%)</span>
+                    <span className="tabular font-semibold">
+                      {formatBRL(simulation.cashbackAmount)} · {simulation.points} pts
+                    </span>
                   </div>
                 </div>
               ) : null}

@@ -9,14 +9,14 @@ import { Button, Campo, Input } from "@/components/ui";
 export function LoginForm({
   organizationSlug,
   hostTipo,
+  senhaRedefinida = false,
 }: {
   organizationSlug?: string | null;
   hostTipo?: "organizacao" | "plataforma" | "indefinido";
+  senhaRedefinida?: boolean;
 }) {
-  const [email, setEmail] = useState(
-    hostTipo === "plataforma" ? "admin@plataforma.local" : "admin@dermaphios.com",
-  );
-  const [password, setPassword] = useState("Admin@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [needsMfa, setNeedsMfa] = useState(false);
@@ -90,6 +90,11 @@ export function LoginForm({
       {hostTipo === "plataforma" ? (
         <p className="login-form__hint login-form__hint--platform">
           Acesso da plataforma
+        </p>
+      ) : null}
+      {senhaRedefinida ? (
+        <p role="status" className="login-form__hint login-form__hint--ok">
+          Senha redefinida. Entre com a nova senha.
         </p>
       ) : null}
       {hostTipo === "indefinido" ? (

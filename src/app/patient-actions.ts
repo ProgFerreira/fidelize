@@ -10,7 +10,11 @@ import {
   getPatientSession,
   safePatientCallbackUrl,
 } from "@/lib/otp/session";
-import { buscarClinicaPorHost } from "@/lib/organization";
+import {
+  buscarClinicaPorHost,
+  buscarOrganizacaoPorSlug,
+  resolverHost,
+} from "@/lib/organization";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 
 async function resolvePatientClinic() {
@@ -19,10 +23,14 @@ async function resolvePatientClinic() {
   const clinic = await buscarClinicaPorHost(host);
   if (clinic) return clinic;
 
-  // Fallback: first active clinic of org from slug header subdomain resolution
+  const resolved = resolverHost(host);
+  if (resolved.tipo !== "organizacao") return null;
+  const org = await buscarOrganizacaoPorSlug(resolved.slug);
+  if (!org) return null;
+
   return semOrganizacao(() =>
     prisma.clinic.findFirst({
-      where: { active: true, slug: { not: null } },
+      where: { organizationId: org.id, active: true },
       select: {
         id: true,
         organizationId: true,
@@ -35,13 +43,22 @@ async function resolvePatientClinic() {
   );
 }
 
+function clientIp(h: Headers) {
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
+}
+
 export async function requestOtpAction(formData: FormData) {
   const phone = String(formData.get("phone") || "");
+  const h = await headers();
   const clinic = await resolvePatientClinic();
   if (!clinic?.organizationId) throw new Error("Clínica indisponível");
 
   return comOrganizacao({ organizationId: clinic.organizationId }, () =>
-    requestPatientOtp({ clinicId: clinic.id, phone }),
+    requestPatientOtp({
+      clinicId: clinic.id,
+      phone,
+      ip: clientIp(h),
+    }),
   );
 }
 
@@ -86,7 +103,7 @@ export async function updatePatientPreferencesAction(formData: FormData) {
   const sms = formData.get("sms") === "on";
 
   const clinic = await semOrganizacao(() =>
-    prisma.clinic.findUnique({
+    prisma.clinic.findFirst({
       where: { id: session.clinicId },
       select: { organizationId: true },
     }),
@@ -133,7 +150,7 @@ export async function exportMyDataAction() {
   if (!session) redirect("/paciente");
 
   const clinic = await semOrganizacao(() =>
-    prisma.clinic.findUnique({
+    prisma.clinic.findFirst({
       where: { id: session.clinicId },
       select: { organizationId: true },
     }),
@@ -156,7 +173,7 @@ export async function anonymizeMyDataAction() {
   if (!session) redirect("/paciente");
 
   const clinic = await semOrganizacao(() =>
-    prisma.clinic.findUnique({
+    prisma.clinic.findFirst({
       where: { id: session.clinicId },
       select: { organizationId: true },
     }),

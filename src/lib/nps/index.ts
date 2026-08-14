@@ -5,6 +5,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireModule } from "@/lib/modules";
 import { assignTag } from "@/lib/tags";
 import { runAutomationsForTrigger } from "@/lib/automations";
+import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 import type { SurveyResponseClass } from "@/generated/prisma/client";
 
 export function classifyNps(score: number): SurveyResponseClass {
@@ -69,7 +70,23 @@ export const npsResponseSchema = z.object({
 
 export async function submitNpsResponse(data: z.infer<typeof npsResponseSchema>) {
   const parsed = npsResponseSchema.parse(data);
-  const row = await prisma.surveyResponse.findUnique({
+  const found = await semOrganizacao(() =>
+    prisma.surveyResponse.findFirst({
+      where: { token: parsed.token },
+      select: { organizationId: true },
+    }),
+  );
+  if (!found?.organizationId) throw new Error("Pesquisa inválida");
+
+  return comOrganizacao({ organizationId: found.organizationId }, () =>
+    submitNpsResponseInTenant(parsed),
+  );
+}
+
+async function submitNpsResponseInTenant(
+  parsed: z.infer<typeof npsResponseSchema>,
+) {
+  const row = await prisma.surveyResponse.findFirst({
     where: { token: parsed.token },
     include: { survey: true },
   });

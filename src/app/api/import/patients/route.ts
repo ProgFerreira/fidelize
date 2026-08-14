@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { createPatient } from "@/lib/patients";
+import { parseConsentimentoCsv } from "@/lib/patients/csv-consent";
 import { onlyDigits } from "@/lib/patients/cpf";
 
 /**
- * Importação simples por CSV:
- * fullName,cpf,phone,email,externalCode
+ * Importação CSV. Primeira linha é cabeçalho.
+ * Colunas: fullName,cpf,phone,email,externalCode[,regulationConsent,marketingConsent]
+ * Sem coluna de consentimento (ou valor diferente de sim/true/1/yes) → false.
  */
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.permissions.includes(PERMISSIONS.PATIENTS_WRITE)) {
@@ -24,7 +27,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "CSV vazio" }, { status: 400 });
   }
 
-  const [, ...rows] = lines;
+  const header = lines[0].split(",").map((c) => c.trim().toLowerCase());
+  const colRegulamento = header.indexOf("regulationconsent");
+  const colMarketing = header.indexOf("marketingconsent");
+  const rows = lines.slice(1);
   const created: string[] = [];
   const errors: Array<{ line: number; error: string }> = [];
 
@@ -36,9 +42,8 @@ export async function POST(request: Request) {
   }
 
   for (let i = 0; i < rows.length; i++) {
-    const [fullName, cpf, phone, email, externalCode] = rows[i]
-      .split(",")
-      .map((c) => c.trim());
+    const cols = rows[i].split(",").map((c) => c.trim());
+    const [fullName, cpf, phone, email, externalCode] = cols;
     try {
       const patient = await createPatient({
         clinicId: session.user.clinicId,
@@ -50,8 +55,12 @@ export async function POST(request: Request) {
           phone: onlyDigits(phone),
           email: email || null,
           externalCode: externalCode || null,
-          regulationConsent: true,
-          marketingConsent: false,
+          regulationConsent: parseConsentimentoCsv(
+            colRegulamento >= 0 ? cols[colRegulamento] : cols[5],
+          ),
+          marketingConsent: parseConsentimentoCsv(
+            colMarketing >= 0 ? cols[colMarketing] : cols[6],
+          ),
           status: "ACTIVE",
         },
       });

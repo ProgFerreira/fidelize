@@ -1,7 +1,7 @@
 import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
 import { listRaffles, buyRaffleTicket } from "@/lib/raffles";
-import { PageHeader, Card, Button, Badge } from "@/components/ui";
+import { PageHeader, Card, Button, Badge, EmptyState } from "@/components/ui";
 import { revalidatePath } from "next/cache";
 
 async function buyTicketAction(formData: FormData) {
@@ -34,9 +34,10 @@ export default async function PortalSorteiosPage() {
     <div className="space-y-4">
       <h1 className="text-3xl text-slate-900">Sorteios</h1>
       {raffles.length === 0 ? (
-        <Card>
-          <p className="text-sm text-slate-500">Nenhum sorteio ativo.</p>
-        </Card>
+        <EmptyState
+          titulo="Nenhum sorteio ativo"
+          descricao="Quando houver um sorteio aberto, você poderá trocar pontos por bilhetes aqui."
+        />
       ) : (
         raffles.map((r) => (
           <Card key={r.id}>

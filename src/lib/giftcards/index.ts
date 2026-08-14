@@ -78,11 +78,14 @@ export async function activateGiftCard(input: {
   giftCardId: string;
   actorId?: string;
 }) {
+  const existing = await prisma.giftCard.findFirst({
+    where: { id: input.giftCardId, clinicId: input.clinicId },
+  });
+  if (!existing) throw new Error("Vale inválido");
   const card = await prisma.giftCard.update({
-    where: { id: input.giftCardId },
+    where: { id: existing.id },
     data: { status: "ACTIVE" },
   });
-  if (card.clinicId !== input.clinicId) throw new Error("Vale inválido");
   await prisma.giftCardTransaction.create({
     data: {
       giftCardId: card.id,
@@ -129,11 +132,13 @@ export async function lookupGiftCard(input: {
   clinicId: string;
   code: string;
   creditBackAppointmentId?: string | null;
+  db?: TransacaoPrisma;
 }): Promise<GiftCardLookup> {
   await requireModule(input.clinicId, "GIFT_CARD");
+  const db = input.db ?? prisma;
   const code = normalizeGiftCardCode(input.code);
   if (!code) throw new Error("Informe o código do vale");
-  const card = await prisma.giftCard.findFirst({
+  const card = await db.giftCard.findFirst({
     where: { clinicId: input.clinicId, code },
   });
   if (!card) throw new Error("Vale-presente inválido");
@@ -141,7 +146,7 @@ export async function lookupGiftCard(input: {
   let remaining = money(card.remainingAmount);
   let status = card.status;
   if (input.creditBackAppointmentId) {
-    const pay = await prisma.payment.findFirst({
+    const pay = await db.payment.findFirst({
       where: {
         appointmentId: input.creditBackAppointmentId,
         clinicId: input.clinicId,
@@ -187,11 +192,13 @@ export async function quoteGiftCardForSale(input: {
   amountDue: number;
   requestedAmount?: number | null;
   creditBackAppointmentId?: string | null;
+  db?: TransacaoPrisma;
 }) {
   const card = await lookupGiftCard({
     clinicId: input.clinicId,
     code: input.code,
     creditBackAppointmentId: input.creditBackAppointmentId,
+    db: input.db,
   });
   const quote = quoteGiftCardUse({
     remainingAmount: card.remainingAmount,
@@ -317,8 +324,10 @@ export async function restoreGiftCardForAppointment(input: {
   clinicId: string;
   appointmentId: string;
   actorId?: string;
+  db?: TransacaoPrisma;
 }) {
-  const txs = await prisma.giftCardTransaction.findMany({
+  const db = input.db ?? prisma;
+  const txs = await db.giftCardTransaction.findMany({
     where: {
       type: "REDEEM",
       notes: `appointment:${input.appointmentId}`,
@@ -338,14 +347,14 @@ export async function restoreGiftCardForAppointment(input: {
       : nextRemaining.eq(initial)
         ? "ACTIVE"
         : "PARTIALLY_USED";
-    await prisma.giftCard.update({
+    await db.giftCard.update({
       where: { id: card.id },
       data: {
         remainingAmount: nextRemaining.toFixed(4),
         status,
       },
     });
-    await prisma.giftCardTransaction.create({
+    await db.giftCardTransaction.create({
       data: {
         giftCardId: card.id,
         type: "RESTORE",
@@ -356,7 +365,7 @@ export async function restoreGiftCardForAppointment(input: {
     });
   }
 
-  await prisma.ledgerEntry.updateMany({
+  await db.ledgerEntry.updateMany({
     where: {
       clinicId: input.clinicId,
       appointmentId: input.appointmentId,
@@ -366,7 +375,7 @@ export async function restoreGiftCardForAppointment(input: {
     data: { status: "REVERSED" },
   });
 
-  const reversed = await prisma.ledgerEntry.findMany({
+  const reversed = await db.ledgerEntry.findMany({
     where: {
       clinicId: input.clinicId,
       appointmentId: input.appointmentId,
@@ -376,7 +385,7 @@ export async function restoreGiftCardForAppointment(input: {
     select: { id: true },
   });
   for (const entry of reversed) {
-    await prisma.ledgerEntry.update({
+    await db.ledgerEntry.update({
       where: { id: entry.id },
       data: {
         idempotencyKey: `gift-redeem-revoked:${input.appointmentId}:${entry.id}`,

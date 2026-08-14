@@ -10,13 +10,10 @@ import { processWebhookDeliveries } from "@/lib/integrations";
 import { syncAutomaticTags } from "@/lib/tags";
 import { computePatientPredictions } from "@/lib/predictive";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
+import { assertCronAuthorized } from "@/lib/security/secrets";
 
 export async function POST(request: Request) {
-  const secret = request.headers.get("x-cron-secret");
-  if (
-    secret !== process.env.CRON_SECRET &&
-    process.env.NODE_ENV === "production"
-  ) {
+  if (!assertCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

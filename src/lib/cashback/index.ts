@@ -1,6 +1,8 @@
-import { prisma } from "@/lib/db";
+import { prisma, type TransacaoPrisma } from "@/lib/db";
 import { money, percentOf, moneyToString } from "@/lib/money";
 import type { Prisma } from "@/generated/prisma/client";
+
+type DbCampanha = Pick<TransacaoPrisma, "campaignUse">;
 
 export type BenefitSettings = {
   defaultCashbackPercent: number;
@@ -45,6 +47,8 @@ export async function saveBenefitSettings(
 
 export type SimulationInput = {
   clinicId: string;
+  patientId?: string;
+  excludeAppointmentId?: string;
   categoryCashbackPercent?: number | null;
   procedureCashbackPercent?: number | null;
   campaignExtraPercent?: number | null;
@@ -52,6 +56,7 @@ export type SimulationInput = {
   discountAmount?: number;
   benefitToUse?: number;
   availableBalance: number;
+  db?: TransacaoPrisma;
 };
 
 export type SimulationResult = {
@@ -63,9 +68,113 @@ export type SimulationResult = {
   cashbackAmount: string;
   points: number;
   settings: BenefitSettings;
+  periodCashbackUsed: string;
   giftCardAmount?: string;
   giftCardCode?: string | null;
 };
+
+const CASHBACK_PERIOD_TYPES = [
+  "CREDIT_APPOINTMENT",
+  "CREDIT_CAMPAIGN",
+  "CREDIT_ACCELERATOR",
+] as const;
+
+export async function sumPatientCashbackInPeriod(params: {
+  clinicId: string;
+  patientId: string;
+  days: number;
+  excludeAppointmentId?: string;
+  db?: TransacaoPrisma;
+}) {
+  const db = params.db ?? prisma;
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - Math.max(1, params.days));
+  const agg = await db.ledgerEntry.aggregate({
+    where: {
+      clinicId: params.clinicId,
+      patientId: params.patientId,
+      type: { in: [...CASHBACK_PERIOD_TYPES] },
+      status: { in: ["COMPLETED", "PENDING"] },
+      createdAt: { gte: since },
+      ...(params.excludeAppointmentId
+        ? { appointmentId: { not: params.excludeAppointmentId } }
+        : {}),
+    },
+    _sum: { amount: true },
+  });
+  return money(agg._sum.amount ?? 0);
+}
+
+function capCashbackByPeriod(
+  cashback: ReturnType<typeof money>,
+  settings: BenefitSettings,
+  periodUsed: ReturnType<typeof money>,
+) {
+  if (settings.maxCashbackPerPatientPeriod == null) return cashback;
+  const remaining = money(settings.maxCashbackPerPatientPeriod).minus(periodUsed);
+  if (remaining.lte(0)) return money(0);
+  return cashback.gt(remaining) ? remaining : cashback;
+}
+
+export async function assertCampaignAvailable(
+  db: DbCampanha,
+  campaign: {
+    id: string;
+    status: string;
+    startsAt: Date | null;
+    endsAt: Date | null;
+    totalLimit: number | null;
+    perPatientLimit: number | null;
+  },
+  patientId: string,
+) {
+  const now = new Date();
+  if (campaign.status !== "ACTIVE") {
+    throw new Error("Campanha inativa");
+  }
+  if (campaign.startsAt && campaign.startsAt > now) {
+    throw new Error("Campanha ainda não começou");
+  }
+  if (campaign.endsAt && campaign.endsAt < now) {
+    throw new Error("Campanha encerrada");
+  }
+  if (campaign.totalLimit != null) {
+    const total = await db.campaignUse.count({
+      where: { campaignId: campaign.id },
+    });
+    if (total >= campaign.totalLimit) {
+      throw new Error("Limite da campanha atingido");
+    }
+  }
+  if (campaign.perPatientLimit != null) {
+    const used = await db.campaignUse.count({
+      where: { campaignId: campaign.id, patientId },
+    });
+    if (used >= campaign.perPatientLimit) {
+      throw new Error("Limite da campanha para este paciente");
+    }
+  }
+}
+
+export async function campaignIsAvailableForPatient(
+  db: DbCampanha,
+  campaign: {
+    id: string;
+    status: string;
+    startsAt: Date | null;
+    endsAt: Date | null;
+    totalLimit: number | null;
+    perPatientLimit: number | null;
+  },
+  patientId: string,
+) {
+  try {
+    await assertCampaignAvailable(db, campaign, patientId);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function simulateBenefit(
   input: SimulationInput,
@@ -108,6 +217,18 @@ export async function simulateBenefit(
     cashback = money(settings.maxCashbackPerTransaction);
   }
 
+  const periodUsed =
+    input.patientId && settings.maxCashbackPerPatientPeriod != null
+      ? await sumPatientCashbackInPeriod({
+          clinicId: input.clinicId,
+          patientId: input.patientId,
+          days: settings.cashbackPeriodDays,
+          excludeAppointmentId: input.excludeAppointmentId,
+          db: input.db,
+        })
+      : money(0);
+  cashback = capCashbackByPeriod(cashback, settings, periodUsed);
+
   const points = Math.floor(
     paid.mul(settings.pointsPerReal).toDecimalPlaces(0).toNumber(),
   );
@@ -121,6 +242,7 @@ export async function simulateBenefit(
     cashbackAmount: moneyToString(cashback),
     points,
     settings,
+    periodCashbackUsed: moneyToString(periodUsed),
   };
 }
 
@@ -142,6 +264,11 @@ export function applyGiftCardToSimulation(
   ) {
     cashback = money(sim.settings.maxCashbackPerTransaction);
   }
+  cashback = capCashbackByPeriod(
+    cashback,
+    sim.settings,
+    money(sim.periodCashbackUsed ?? 0),
+  );
   const points = Math.floor(
     paid.mul(sim.settings.pointsPerReal).toDecimalPlaces(0).toNumber(),
   );

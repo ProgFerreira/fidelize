@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateLoyaltyCardSvg } from "@/lib/cards/image";
+import { semOrganizacao } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 
@@ -18,18 +19,20 @@ export async function GET(
     return NextResponse.json({ error: "Token inválido" }, { status: 400 });
   }
 
-  const card = await prisma.card.findFirst({
-    where: { publicToken },
-    include: {
-      clinic: { select: { name: true, tradeName: true } },
-      wallet: {
-        include: {
-          patient: { select: { fullName: true } },
-          category: { select: { name: true } },
+  const card = await semOrganizacao(() =>
+    prisma.card.findFirst({
+      where: { publicToken },
+      include: {
+        clinic: { select: { name: true, tradeName: true } },
+        wallet: {
+          include: {
+            patient: { select: { fullName: true } },
+            category: { select: { name: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  );
 
   if (!card) {
     return NextResponse.json({ error: "Cartão não encontrado" }, { status: 404 });

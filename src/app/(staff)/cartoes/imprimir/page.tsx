@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { generateCardQrDataUrl, listCardsForPrint } from "@/lib/cards";
-import { Button, PageHeader } from "@/components/ui";
+import { classesBotao, PageHeader } from "@/components/ui";
 import { PrintButtons } from "@/components/cards/print-buttons";
 
 export default async function CartoesImprimirPage({
@@ -46,8 +46,8 @@ export default async function CartoesImprimirPage({
           description={`${withQr.length} etiqueta(s) · use papel A4 ou folha de etiquetas.`}
           actions={
             <div className="flex flex-wrap gap-2">
-              <Link href="/cartoes">
-                <Button variant="contorno">Voltar</Button>
+              <Link href="/cartoes" className={classesBotao({ variante: "contorno" })}>
+                Voltar
               </Link>
               <PrintButtons />
             </div>

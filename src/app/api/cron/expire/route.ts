@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { releasePendingLots, expireLots } from "@/lib/ledger";
 import { prisma } from "@/lib/db";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
+import { assertCronAuthorized } from "@/lib/security/secrets";
 
 export async function POST(request: Request) {
-  const secret = request.headers.get("x-cron-secret");
-  if (secret !== process.env.CRON_SECRET) {
+  if (!assertCronAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

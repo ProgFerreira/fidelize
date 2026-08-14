@@ -1,13 +1,17 @@
 import { randomUUID } from "crypto";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
+import {
+  detectarTipoArquivo,
+  extensaoDeTipo,
+  type TipoArquivoDetectado,
+} from "@/lib/uploads/sniff";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
-const EXT: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
+const PERMITIDOS = new Set<TipoArquivoDetectado>([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 const MAX_BYTES = 2 * 1024 * 1024;
 
 function uploadsRoot() {
@@ -22,12 +26,13 @@ export async function saveServiceImage(params: {
   clinicId: string;
   file: File;
 }) {
-  const type = params.file.type;
-  if (!ALLOWED.has(type)) {
-    throw new Error("Use imagem JPG, PNG ou WebP");
-  }
-  if (params.file.size <= 0 || params.file.size > MAX_BYTES) {
+  const buffer = Buffer.from(await params.file.arrayBuffer());
+  if (buffer.length <= 0 || buffer.length > MAX_BYTES) {
     throw new Error("A imagem deve ter no máximo 2 MB");
+  }
+  const tipo = detectarTipoArquivo(buffer, PERMITIDOS);
+  if (!tipo) {
+    throw new Error("Use imagem JPG, PNG ou WebP");
   }
 
   const clinicSafe = params.clinicId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
@@ -36,9 +41,8 @@ export async function saveServiceImage(params: {
   const dir = path.join(uploadsRoot(), clinicSafe);
   await mkdir(dir, { recursive: true });
 
-  const filename = `${randomUUID()}.${EXT[type]}`;
+  const filename = `${randomUUID()}.${extensaoDeTipo(tipo)}`;
   const absolute = path.join(dir, filename);
-  const buffer = Buffer.from(await params.file.arrayBuffer());
   await writeFile(absolute, buffer);
 
   return `/uploads/services/${clinicSafe}/${filename}`;

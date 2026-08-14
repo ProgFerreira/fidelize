@@ -66,10 +66,18 @@ export async function PATCH(
       return NextResponse.json({ data: room });
     }
 
+    if (caller.role === "PACIENTE") {
+      return NextResponse.json(
+        { error: "Somente o profissional pode alterar o status da sala" },
+        { status: 403 },
+      );
+    }
+
     const room = await transitionVideoCallStatus({
       clinicId: caller.clinicId,
       roomId,
       status: body.data.status,
+      role: caller.role,
     });
     return NextResponse.json({ data: room });
   } catch (error) {

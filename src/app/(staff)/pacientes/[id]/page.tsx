@@ -21,6 +21,7 @@ import {
   CabecalhoPagina,
   Badge,
   Button,
+  classesBotao,
   Select,
   Input,
 } from "@/components/ui";
@@ -148,18 +149,17 @@ export default async function PacienteDetalhePage({
         acoes={
           <div className="flex flex-wrap items-center gap-2">
             {canWrite ? (
-              <Link href={`/pacientes/${patient.id}/editar`}>
-                <Button variant="gold">
-                  <Pencil className="h-4 w-4" aria-hidden />
-                  Editar
-                </Button>
+              <Link
+                href={`/pacientes/${patient.id}/editar`}
+                className={classesBotao({ variant: "gold" })}
+              >
+                <Pencil className="h-4 w-4" aria-hidden />
+                Editar
               </Link>
             ) : null}
-            <Link href="/pacientes">
-              <Button variant="contorno">
-                <ArrowLeft className="h-4 w-4" aria-hidden />
-                Voltar
-              </Button>
+            <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Voltar
             </Link>
           </div>
         }

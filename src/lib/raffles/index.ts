@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { requireModule } from "@/lib/modules";
-import { creditWallet } from "@/lib/ledger";
+import { creditWalletInTx, debitPointsInTx } from "@/lib/ledger";
 import type { RaffleStatus } from "@/generated/prisma/client";
 
 export const raffleSchema = z.object({
@@ -64,20 +64,23 @@ export async function setRaffleStatus(input: {
   status: RaffleStatus;
   actorId?: string;
 }) {
-  const raffle = await prisma.raffle.update({
-    where: { id: input.raffleId },
+  const raffle = await prisma.raffle.findFirst({
+    where: { id: input.raffleId, clinicId: input.clinicId },
+  });
+  if (!raffle) throw new Error("Sorteio inválido");
+  const updated = await prisma.raffle.update({
+    where: { id: raffle.id },
     data: { status: input.status },
   });
-  if (raffle.clinicId !== input.clinicId) throw new Error("Sorteio inválido");
   await writeAuditLog({
     clinicId: input.clinicId,
     userId: input.actorId,
     action: "RAFFLE_CHANGE",
     entityType: "Raffle",
-    entityId: raffle.id,
-    afterData: { status: raffle.status },
+    entityId: updated.id,
+    afterData: { status: updated.status },
   });
-  return raffle;
+  return updated;
 }
 
 export async function buyRaffleTicket(input: {
@@ -90,9 +93,13 @@ export async function buyRaffleTicket(input: {
   const qty = Math.max(1, Math.min(input.quantity ?? 1, 20));
 
   return prisma.$transaction(async (tx) => {
-    const raffle = await tx.raffle.findFirst({
-      where: { id: input.raffleId, clinicId: input.clinicId },
-    });
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM Raffle
+      WHERE id = ${input.raffleId} AND clinicId = ${input.clinicId}
+      FOR UPDATE`;
+    const raffle = locked[0]
+      ? await tx.raffle.findFirst({ where: { id: locked[0].id } })
+      : null;
     if (!raffle || raffle.status !== "ACTIVE") {
       throw new Error("Sorteio indisponível");
     }
@@ -127,13 +134,15 @@ export async function buyRaffleTicket(input: {
     if (!wallet) throw new Error("Carteira não encontrada");
 
     const cost = raffle.ticketCostPoints * qty;
-    if (wallet.pointsBalance < cost) {
-      throw new Error("Pontos insuficientes");
-    }
-
-    await tx.wallet.update({
-      where: { id: wallet.id },
-      data: { pointsBalance: { decrement: cost }, version: { increment: 1 } },
+    await debitPointsInTx(tx, {
+      clinicId: input.clinicId,
+      walletId: wallet.id,
+      patientId: input.patientId,
+      points: cost,
+      origin: "raffle",
+      type: "DEBIT_REWARD",
+      reason: `Bilhete sorteio ${raffle.name}`,
+      idempotencyKey: `raffle-ticket:${raffle.id}:${input.patientId}:${raffle.ticketCount}:${qty}`,
     });
 
     const tickets = [];
@@ -175,31 +184,41 @@ export async function drawRaffle(input: {
   actorId?: string;
 }) {
   await requireModule(input.clinicId, "RAFFLES");
-  const raffle = await prisma.raffle.findFirst({
-    where: { id: input.raffleId, clinicId: input.clinicId },
-    include: { tickets: true },
-  });
-  if (!raffle) throw new Error("Sorteio não encontrado");
-  if (raffle.status === "DRAWN") throw new Error("Já sorteado");
-  if (!raffle.tickets.length) throw new Error("Sem bilhetes");
 
-  const winner = raffle.tickets[randomInt(raffle.tickets.length)];
+  return prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM Raffle
+      WHERE id = ${input.raffleId} AND clinicId = ${input.clinicId}
+      FOR UPDATE`;
+    const raffle = locked[0]
+      ? await tx.raffle.findFirst({
+          where: { id: locked[0].id },
+          include: { tickets: true },
+        })
+      : null;
+    if (!raffle) throw new Error("Sorteio não encontrado");
+    if (raffle.status === "DRAWN") throw new Error("Já sorteado");
+    if (!raffle.tickets.length) throw new Error("Sem bilhetes");
 
-  if (raffle.prizeCashback || raffle.prizePoints) {
-    const wallet = await prisma.wallet.findFirst({
-      where: {
-        clinicId: input.clinicId,
-        patientId: winner.patientId,
-        status: "ACTIVE",
-      },
-    });
-    if (wallet) {
-      await creditWallet({
+    const winner = raffle.tickets[randomInt(raffle.tickets.length)];
+    const prizeCash = Number(raffle.prizeCashback ?? 0);
+    const prizePoints = raffle.prizePoints ?? 0;
+
+    if (prizeCash > 0 || prizePoints > 0) {
+      const wallet = await tx.wallet.findFirst({
+        where: {
+          clinicId: input.clinicId,
+          patientId: winner.patientId,
+          status: "ACTIVE",
+        },
+      });
+      if (!wallet) throw new Error("Carteira do ganhador não encontrada");
+      await creditWalletInTx(tx, {
         clinicId: input.clinicId,
         walletId: wallet.id,
         patientId: winner.patientId,
-        amount: Number(raffle.prizeCashback ?? 0) || 0.0001,
-        points: raffle.prizePoints ?? 0,
+        amount: Math.max(0, prizeCash),
+        points: prizePoints,
         type: "CREDIT_ADJUSTMENT",
         origin: "raffle",
         reason: `Prêmio sorteio ${raffle.name}`,
@@ -207,31 +226,31 @@ export async function drawRaffle(input: {
         idempotencyKey: `raffle-prize:${raffle.id}`,
       });
     }
-  }
 
-  const updated = await prisma.raffle.update({
-    where: { id: raffle.id },
-    data: {
-      status: "DRAWN",
-      drawnAt: new Date(),
-      winnerTicketId: winner.id,
-    },
+    const updated = await tx.raffle.update({
+      where: { id: raffle.id },
+      data: {
+        status: "DRAWN",
+        drawnAt: new Date(),
+        winnerTicketId: winner.id,
+      },
+    });
+
+    await writeAuditLog({
+      clinicId: input.clinicId,
+      userId: input.actorId,
+      action: "RAFFLE_CHANGE",
+      entityType: "Raffle",
+      entityId: raffle.id,
+      afterData: {
+        status: "DRAWN",
+        winnerTicketId: winner.id,
+        winnerPatientId: winner.patientId,
+      },
+    });
+
+    return { raffle: updated, winner };
   });
-
-  await writeAuditLog({
-    clinicId: input.clinicId,
-    userId: input.actorId,
-    action: "RAFFLE_CHANGE",
-    entityType: "Raffle",
-    entityId: raffle.id,
-    afterData: {
-      status: "DRAWN",
-      winnerTicketId: winner.id,
-      winnerPatientId: winner.patientId,
-    },
-  });
-
-  return { raffle: updated, winner };
 }
 
 export async function listRaffles(clinicId: string) {

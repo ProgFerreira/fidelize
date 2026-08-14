@@ -88,6 +88,43 @@ export async function isOriginAllowed(clinicId: string, origin: string | null) {
   return Boolean(row);
 }
 
+/**
+ * OPTIONS/GET do widget: nunca ecoa Origin arbitrário.
+ * Origem cadastrada → ecoa exatamente essa origem.
+ * Só wildcard (`*`) cadastrado → devolve `*`, sem refletir o Origin do request.
+ */
+export async function origemCorsDoWidget(origin: string | null) {
+  if (!origin || origin === "null") return null;
+  const normalized = normalizeOrigin(origin);
+  const exact = await semOrganizacao(() =>
+    prisma.widgetOrigin.findFirst({
+      where: { active: true, origin: normalized },
+      select: { id: true },
+    }),
+  );
+  if (exact) return normalized;
+  const wildcard = await semOrganizacao(() =>
+    prisma.widgetOrigin.findFirst({
+      where: { active: true, origin: "*" },
+      select: { id: true },
+    }),
+  );
+  return wildcard ? "*" : null;
+}
+
+export function cabecalhosCorsWidget(originPermitida: string | null) {
+  return {
+    ...(originPermitida
+      ? {
+          "Access-Control-Allow-Origin": originPermitida,
+          Vary: "Origin",
+        }
+      : {}),
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "x-api-key, content-type",
+  };
+}
+
 async function resolveClinicForWidget(clinicSlugOrId: string) {
   return semOrganizacao(() =>
     prisma.clinic.findFirst({

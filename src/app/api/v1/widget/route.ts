@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import {
+  cabecalhosCorsWidget,
   extractRequestOrigin,
   getWidgetPatientSnapshot,
+  origemCorsDoWidget,
 } from "@/lib/widget";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  // Prefer header — query `key` é legado e não deve ser usado em novos embeds
   const key =
     request.headers.get("x-api-key") || url.searchParams.get("key") || "";
   const patientId = url.searchParams.get("patientId") || undefined;
@@ -31,33 +32,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Origin not allowed" }, { status: 403 });
   }
 
-  const allowOrigin = origin && origin !== "null" ? origin : "";
-
+  const allowOrigin = await origemCorsDoWidget(origin);
   return NextResponse.json(
     { data },
-    {
-      headers: {
-        ...(allowOrigin
-          ? {
-              "Access-Control-Allow-Origin": allowOrigin,
-              Vary: "Origin",
-            }
-          : {}),
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "x-api-key, content-type",
-      },
-    },
+    { headers: cabecalhosCorsWidget(allowOrigin) },
   );
 }
 
 export async function OPTIONS(request: Request) {
-  const origin = extractRequestOrigin(request) || "";
+  const origin = extractRequestOrigin(request);
+  const allowOrigin = await origemCorsDoWidget(origin);
+  if (!allowOrigin) {
+    return new NextResponse(null, { status: 403 });
+  }
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      ...(origin ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" } : {}),
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "x-api-key, content-type",
-    },
+    headers: cabecalhosCorsWidget(allowOrigin),
   });
 }

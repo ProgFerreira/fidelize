@@ -1,28 +1,98 @@
-import { createHash, randomInt } from "crypto";
+import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { onlyDigits } from "@/lib/patients";
 import { writeAuditLog } from "@/lib/audit";
+
+const OTP_WINDOW_MS = 15 * 60 * 1000;
+const OTP_MAX_PER_PHONE = 5;
+const OTP_MAX_PER_IP = 10;
+const GENERIC_SENT =
+  "Se o telefone estiver cadastrado, enviaremos um código.";
 
 function hashCode(code: string) {
   return createHash("sha256").update(code).digest("hex");
 }
 
+function hashesMatch(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+export function phoneCandidates(phone: string): string[] {
+  const digits = onlyDigits(phone);
+  if (!digits) return [];
+  const out = new Set<string>([digits]);
+  if (digits.startsWith("55") && digits.length >= 12) {
+    out.add(digits.slice(2));
+  } else if (digits.length >= 10 && digits.length <= 11) {
+    out.add(`55${digits}`);
+  }
+  return [...out];
+}
+
 export async function requestPatientOtp(params: {
   clinicId: string;
   phone: string;
+  ip?: string | null;
 }) {
-  const phone = onlyDigits(params.phone);
-  const patient = await prisma.patient.findFirst({
-    where: {
-      clinicId: params.clinicId,
-      phone: { endsWith: phone.slice(-9) },
-      status: "ACTIVE",
-    },
-    orderBy: { createdAt: "desc" },
+  const candidates = phoneCandidates(params.phone);
+  const since = new Date(Date.now() - OTP_WINDOW_MS);
+
+  if (params.ip) {
+    const byIp = await prisma.auditLog.count({
+      where: {
+        action: "OTP_REQUEST",
+        ipAddress: params.ip,
+        createdAt: { gte: since },
+      },
+    });
+    if (byIp >= OTP_MAX_PER_IP) {
+      throw new Error("Muitas tentativas. Aguarde alguns minutos.");
+    }
+  }
+
+  if (candidates.length) {
+    const byPhone = await prisma.patientOtp.count({
+      where: {
+        clinicId: params.clinicId,
+        phone: { in: candidates },
+        createdAt: { gte: since },
+      },
+    });
+    if (byPhone >= OTP_MAX_PER_PHONE) {
+      throw new Error("Muitas tentativas. Aguarde alguns minutos.");
+    }
+  }
+
+  const patient =
+    candidates.length === 0
+      ? null
+      : await prisma.patient.findFirst({
+          where: {
+            clinicId: params.clinicId,
+            status: "ACTIVE",
+            phone: { in: candidates },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+  await writeAuditLog({
+    clinicId: params.clinicId,
+    action: "OTP_REQUEST",
+    entityType: "Patient",
+    entityId: patient?.id,
+    ipAddress: params.ip,
+    metadata: { phone: candidates[0] ?? null, found: Boolean(patient) },
   });
 
   if (!patient) {
-    throw new Error("Paciente não encontrado com este telefone");
+    return {
+      sent: true as const,
+      simulatedCode: undefined as string | undefined,
+      message: GENERIC_SENT,
+    };
   }
 
   const code = String(randomInt(100000, 999999));
@@ -36,14 +106,6 @@ export async function requestPatientOtp(params: {
       codeHash: hashCode(code),
       expiresAt,
     },
-  });
-
-  await writeAuditLog({
-    clinicId: params.clinicId,
-    action: "OTP_REQUEST",
-    entityType: "Patient",
-    entityId: patient.id,
-    metadata: { phone: patient.phone },
   });
 
   const body = `Seu código do clube de benefícios: ${code}. Válido por 10 minutos.`;
@@ -75,18 +137,13 @@ export async function requestPatientOtp(params: {
     // fallback simulado
   }
 
+  const simulatedCode =
+    process.env.NODE_ENV === "production" ? undefined : delivery.simulated ? code : undefined;
+
   return {
-    patientId: patient.id,
-    phone: patient.phone,
-    expiresAt,
-    simulatedCode:
-      process.env.NODE_ENV === "production" && !delivery.simulated
-        ? undefined
-        : code,
-    message: delivery.simulated
-      ? "Código gerado (provedor simulado — configure WHATSAPP_TOKEN ou Twilio)."
-      : `Código enviado via ${delivery.channel}.`,
-    delivery,
+    sent: true as const,
+    simulatedCode,
+    message: GENERIC_SENT,
   };
 }
 
@@ -95,11 +152,11 @@ export async function verifyPatientOtp(params: {
   phone: string;
   code: string;
 }) {
-  const phone = onlyDigits(params.phone);
+  const candidates = phoneCandidates(params.phone);
   const otp = await prisma.patientOtp.findFirst({
     where: {
       clinicId: params.clinicId,
-      phone: { endsWith: phone.slice(-9) },
+      phone: { in: candidates.length ? candidates : ["__none__"] },
       usedAt: null,
       expiresAt: { gt: new Date() },
     },
@@ -119,7 +176,7 @@ export async function verifyPatientOtp(params: {
   if (!otp) throw new Error("Código expirado ou inválido");
   if (otp.attempts >= 5) throw new Error("Muitas tentativas. Solicite um novo código.");
 
-  if (otp.codeHash !== hashCode(params.code)) {
+  if (!hashesMatch(otp.codeHash, hashCode(params.code))) {
     await prisma.patientOtp.update({
       where: { id: otp.id },
       data: { attempts: { increment: 1 } },

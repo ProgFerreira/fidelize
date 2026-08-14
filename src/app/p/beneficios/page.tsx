@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requirePatientSession } from "@/lib/otp/session";
-import { Card, Badge } from "@/components/ui";
+import { Card, Badge, EmptyState } from "@/components/ui";
 
 export default async function BeneficiosPage() {
   const session = await requirePatientSession();
@@ -34,21 +34,28 @@ export default async function BeneficiosPage() {
 
       <div className="space-y-3">
         <h2 className="text-xl">Campanhas ativas</h2>
-        {campaigns.map((campaign) => (
-          <Card key={campaign.id}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold">{campaign.name}</p>
-                <p className="text-sm text-slate-500">{campaign.description}</p>
-                <p className="mt-2 text-sm">
-                  +{String(campaign.extraCashbackPct)}% cashback · +
-                  {campaign.extraPoints} pontos
-                </p>
+        {campaigns.length === 0 ? (
+          <EmptyState
+            titulo="Nenhuma campanha no momento"
+            descricao="Quando a clínica publicar uma campanha, o extra de cashback e pontos aparece aqui."
+          />
+        ) : (
+          campaigns.map((campaign) => (
+            <Card key={campaign.id}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{campaign.name}</p>
+                  <p className="text-sm text-slate-500">{campaign.description}</p>
+                  <p className="mt-2 text-sm">
+                    +{String(campaign.extraCashbackPct)}% cashback · +
+                    {campaign.extraPoints} pontos
+                  </p>
+                </div>
+                <Badge tone="gold">Ativa</Badge>
               </div>
-              <Badge tone="gold">Ativa</Badge>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );

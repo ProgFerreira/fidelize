@@ -18,7 +18,7 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
         Portal do paciente
       </p>
       <h1 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-        Seu clube Dermaphios
+        Seu clube de fidelidade
       </h1>
       <p className="mt-1 text-sm text-slate-500">
         Acesse com telefone e código temporário.

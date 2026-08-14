@@ -12,7 +12,7 @@ import {
   Settings2,
   Smartphone,
 } from "lucide-react";
-import { Button, Input, Label, Select } from "@/components/ui";
+import { Button, classesBotao, Input, Label, Select } from "@/components/ui";
 import { toast } from "@/components/ui/toast-provider";
 import {
   createCardStockAction,
@@ -235,11 +235,12 @@ export function CardsOpsPanel({
           </div>
         </form>
         <div className="cartoes-panel__actions">
-          <Link href="/cartoes/imprimir?status=AVAILABLE">
-            <Button type="button" variant="contorno">
-              <Printer className="h-4 w-4" aria-hidden />
-              Imprimir QR disponíveis
-            </Button>
+          <Link
+            href="/cartoes/imprimir?status=AVAILABLE"
+            className={classesBotao({ variante: "contorno" })}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Imprimir QR disponíveis
           </Link>
         </div>
       </div>

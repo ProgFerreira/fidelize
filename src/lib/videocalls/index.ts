@@ -195,7 +195,11 @@ export async function transitionVideoCallStatus(input: {
   clinicId: string;
   roomId: string;
   status: VideoCallStatus;
+  role: VideoCallParticipantRole;
 }) {
+  if (input.role === "PACIENTE") {
+    throw new Error("Somente o profissional pode alterar o status da sala");
+  }
   return withClinicOrg(input.clinicId, async () => {
     const room = await prisma.videoCallRoom.findFirst({
       where: { id: input.roomId, clinicId: input.clinicId },

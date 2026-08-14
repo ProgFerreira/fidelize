@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { submitNpsResponse } from "@/lib/nps";
+import { semOrganizacao } from "@/lib/tenant";
 import { Button, Card, Input, Label, PageHeader, Textarea } from "@/components/ui";
 
 async function submitNps(formData: FormData) {
@@ -17,13 +18,15 @@ export default async function NpsPublicPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const row = await prisma.surveyResponse.findUnique({
-    where: { token },
-    include: {
-      survey: true,
-      patient: { select: { fullName: true } },
-    },
-  });
+  const row = await semOrganizacao(() =>
+    prisma.surveyResponse.findFirst({
+      where: { token },
+      include: {
+        survey: true,
+        patient: { select: { fullName: true } },
+      },
+    }),
+  );
 
   if (!row) {
     return (

@@ -5,7 +5,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
 import { listVideoCallRooms } from "@/lib/videocalls";
 import { createVideoCallRoomAction, cancelVideoCallRoomAction } from "@/app/v2-actions";
-import { PageHeader, Card, Badge, Button, Label, Select } from "@/components/ui";
+import { PageHeader, Card, Badge, Button, classesBotao, Label, Select } from "@/components/ui";
 import { CopyLinkButton } from "@/components/videochamadas/copy-link-button";
 import { ensureSystemRolePermissions } from "@/lib/auth/sync-roles";
 
@@ -92,8 +92,11 @@ export default async function VideochamadasPage() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {room.status !== "ENCERRADA" && room.status !== "CANCELADA" && (
-                <Link href={`/videochamadas/${room.id}`}>
-                  <Button size="sm">Entrar na sala</Button>
+                <Link
+                  href={`/videochamadas/${room.id}`}
+                  className={classesBotao({ size: "sm" })}
+                >
+                  Entrar na sala
                 </Link>
               )}
               {room.status !== "ENCERRADA" && room.status !== "CANCELADA" && (

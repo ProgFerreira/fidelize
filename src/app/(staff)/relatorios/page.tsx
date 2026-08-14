@@ -21,6 +21,7 @@ import {
   Card,
   Badge,
   Button,
+  classesBotao,
   Input,
   Select,
   Paginacao,
@@ -330,8 +331,9 @@ export default async function RelatoriosPage({
                 de: deParam,
                 ate: ateParam,
               })}
+              className={classesBotao({ variant: "gold" })}
             >
-              <Button variant="gold">Exportar CSV</Button>
+              Exportar CSV
             </Link>
           </div>
         }
@@ -485,10 +487,11 @@ export default async function RelatoriosPage({
                 </div>
                 <Button type="submit">Filtrar</Button>
                 {hasLedgerFilters ? (
-                  <Link href="/relatorios?type=ledger">
-                    <Button type="button" variant="contorno">
-                      Limpar
-                    </Button>
+                  <Link
+                    href="/relatorios?type=ledger"
+                    className={classesBotao({ variante: "contorno" })}
+                  >
+                    Limpar
                   </Link>
                 ) : null}
               </div>
@@ -589,8 +592,11 @@ export default async function RelatoriosPage({
               </p>
               {hasLedgerFilters ? (
                 <div className="relatorios-empty__actions">
-                  <Link href="/relatorios?type=ledger">
-                    <Button variant="contorno">Ver todos</Button>
+                  <Link
+                    href="/relatorios?type=ledger"
+                    className={classesBotao({ variante: "contorno" })}
+                  >
+                    Ver todos
                   </Link>
                 </div>
               ) : null}

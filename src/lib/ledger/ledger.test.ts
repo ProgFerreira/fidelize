@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma } from "@/lib/db";
-import { creditWallet, redeemFromWallet, LedgerError } from "@/lib/ledger";
+import { creditWallet, redeemFromWallet, reverseLedgerEntry, debitPointsInTx, LedgerError } from "@/lib/ledger";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 
 const runDb = process.env.RUN_DB_TESTS === "1";
@@ -193,5 +193,169 @@ describe.runIf(runDb)("ledger concurrency", () => {
     });
     expect(second.reused).toBe(true);
     expect(second.entry.id).toBe(first.entry.id);
+  });
+});
+
+describe.runIf(runDb)("ledger pontos", () => {
+  let clinicId = "";
+  let organizationId = "";
+  let walletId = "";
+  let patientId = "";
+  let operatorId = "";
+
+  const teste = (nome: string, fn: () => Promise<void>) =>
+    it(nome, () => comOrganizacao({ organizationId }, fn));
+
+  beforeAll(async () => {
+    const clinic = await semOrganizacao(() =>
+      prisma.clinic.findFirst({ where: { active: true } }),
+    );
+    if (!clinic?.organizationId) {
+      throw new Error("Seed necessário antes dos testes de DB");
+    }
+    clinicId = clinic.id;
+    organizationId = clinic.organizationId;
+
+    const admin = await semOrganizacao(() =>
+      prisma.user.findFirst({
+        where: { organizationId, status: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+      }),
+    );
+    if (!admin) throw new Error("Nenhum usuário ativo para operatorId");
+    operatorId = admin.id;
+
+    await comOrganizacao({ organizationId }, async () => {
+      const patient = await prisma.patient.create({
+        data: {
+          clinicId,
+          fullName: "Paciente Pontos Teste",
+          cpf: makeCpf((Date.now() % 100000) + 1),
+          phone: `1197${String(Date.now()).slice(-7)}`,
+          regulationConsent: true,
+          status: "ACTIVE",
+        },
+      });
+      const wallet = await prisma.wallet.create({
+        data: {
+          clinicId,
+          patientId: patient.id,
+          status: "ACTIVE",
+          availableBalance: 0,
+          pendingBalance: 0,
+          pointsBalance: 0,
+        },
+      });
+      walletId = wallet.id;
+      patientId = patient.id;
+    });
+  });
+
+  afterAll(async () => {
+    if (!patientId || !organizationId) return;
+    await comOrganizacao({ organizationId }, async () => {
+      await prisma.ledgerEntry.deleteMany({ where: { patientId } });
+      await prisma.creditLot.deleteMany({ where: { walletId } });
+      await prisma.wallet.deleteMany({ where: { patientId } });
+      await prisma.patient.deleteMany({ where: { id: patientId } });
+    });
+  });
+
+  teste("credita só pontos sem lote de cashback e sem pó 0.0001", async () => {
+    const result = await creditWallet({
+      clinicId,
+      walletId,
+      patientId,
+      amount: 0,
+      points: 40,
+      type: "CREDIT_ADJUSTMENT",
+      origin: "test-points",
+      availableAt: new Date(),
+      idempotencyKey: `pts-only-${walletId}`,
+    });
+
+    expect(result.lot).toBeNull();
+    expect(Number(result.entry.amount)).toBe(0);
+    expect(result.entry.points).toBe(40);
+
+    const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+    expect(wallet?.pointsBalance).toBe(40);
+    expect(Number(wallet?.availableBalance)).toBe(0);
+  });
+
+  teste("recusa crédito sem valor e sem pontos", async () => {
+    await expect(
+      creditWallet({
+        clinicId,
+        walletId,
+        patientId,
+        amount: 0,
+        points: 0,
+        availableAt: new Date(),
+        idempotencyKey: `pts-vazio-${walletId}`,
+      }),
+    ).rejects.toThrow(LedgerError);
+  });
+
+  teste("estorna pontos do crédito e do débito de recompensa", async () => {
+    await prisma.wallet.update({
+      where: { id: walletId },
+      data: { pointsBalance: 0 },
+    });
+
+    const credit = await creditWallet({
+      clinicId,
+      walletId,
+      patientId,
+      amount: 0,
+      points: 25,
+      type: "CREDIT_ADJUSTMENT",
+      origin: "test-points-rev",
+      availableAt: new Date(),
+      idempotencyKey: `pts-rev-credit-${walletId}`,
+    });
+
+    await prisma.$transaction((tx) =>
+      debitPointsInTx(tx, {
+        clinicId,
+        walletId,
+        patientId,
+        points: 10,
+        origin: "raffle",
+        type: "DEBIT_REWARD",
+        reason: "teste bilhete",
+        idempotencyKey: `pts-rev-debit-${walletId}`,
+      }),
+    );
+
+    let wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+    expect(wallet?.pointsBalance).toBe(15);
+
+    const debit = await prisma.ledgerEntry.findFirst({
+      where: { clinicId, idempotencyKey: `pts-rev-debit-${walletId}` },
+    });
+    expect(debit).toBeTruthy();
+
+    await reverseLedgerEntry({
+      clinicId,
+      entryId: debit!.id,
+      operatorId,
+      reason: "estorno débito pontos",
+      idempotencyKey: `rev-debit-${walletId}`,
+    });
+
+    wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+    expect(wallet?.pointsBalance).toBe(25);
+
+    await reverseLedgerEntry({
+      clinicId,
+      entryId: credit.entry.id,
+      operatorId,
+      reason: "estorno crédito pontos",
+      idempotencyKey: `rev-credit-${walletId}`,
+    });
+
+    wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+    expect(wallet?.pointsBalance).toBe(0);
   });
 });

@@ -503,7 +503,7 @@ async function executeStep(input: {
       if (!input.walletId) throw new Error("Carteira ausente para crédito");
       const points = Number(input.config.points ?? 0);
       const amountRaw = Number(input.config.amount ?? 0);
-      const amount = amountRaw > 0 ? amountRaw : points > 0 ? 0.0001 : 0;
+      const amount = Math.max(0, amountRaw);
       if (amount <= 0 && points <= 0) break;
       await creditWallet({
         clinicId: input.clinicId,

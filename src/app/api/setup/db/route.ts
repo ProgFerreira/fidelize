@@ -9,6 +9,7 @@ import {
   findTsxCli,
   seedStaffUsers,
 } from "@/lib/setup/hostinger-bootstrap";
+import { secretsMatch } from "@/lib/security/secrets";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -36,8 +37,7 @@ function assertSecret(request: Request) {
   }
 
   const header = request.headers.get("x-setup-secret")?.trim();
-  const query = new URL(request.url).searchParams.get("secret")?.trim();
-  if (header !== expected && query !== expected) {
+  if (!secretsMatch(header, expected)) {
     return { ok: false as const, response: unauthorized() };
   }
 
@@ -64,7 +64,7 @@ function writeEnabled() {
 
 /**
  * Setup one-shot do banco na Hostinger.
- * POST /api/setup/db?secret=SEU_SETUP_SECRET
+ * POST /api/setup/db com header x-setup-secret
  * Body JSON opcional: { "migrate": true, "seed": true }
  *
  * Exige TAMBÉM ALLOW_SETUP_DB_WRITE=true no ambiente — segunda trava
@@ -163,11 +163,8 @@ export async function POST(request: Request) {
       ok: true,
       steps,
       next: [
-        "Abra /login",
-        "Organização: dermaphios",
-        "E-mail: admin@dermaphios.com",
-        "Senha: Admin@123",
-        "Depois remova SETUP_SECRET do hostinger.env e reinicie o app.",
+        "Abra /login com o usuário seed do ambiente local.",
+        "Remova SETUP_SECRET e ALLOW_SETUP_DB_WRITE do hostinger.env e reinicie o app.",
       ],
     });
   } catch (error) {
@@ -191,14 +188,14 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       usage:
-        'POST /api/setup/db?secret=SETUP_SECRET com body opcional {"migrate":true,"seed":true}',
+        'POST /api/setup/db com header x-setup-secret e body opcional {"migrate":true,"seed":true}',
       diagnosis,
     });
   } catch (error) {
     return NextResponse.json({
       ok: true,
       usage:
-        'POST /api/setup/db?secret=SETUP_SECRET com body opcional {"migrate":true,"seed":true}',
+        'POST /api/setup/db com header x-setup-secret e body opcional {"migrate":true,"seed":true}',
       diagnosisError: error instanceof Error ? error.message : String(error),
       prismaCli: findPrismaCli(),
       tsxCli: findTsxCli(),

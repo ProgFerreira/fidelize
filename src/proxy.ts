@@ -15,21 +15,46 @@ import {
 
 const { auth } = NextAuth(authConfig);
 
+/**
+ * Deny-by-default: tudo exige sessão, salvo esta allowlist.
+ * APIs da lista autenticam sozinhas (API key, cron secret, HMAC).
+ */
 const ROTAS_PUBLICAS = [
+  "/",
   "/login",
-  "/api/auth",
-  "/api/health",
-  "/api/setup",
+  "/recuperar-senha",
+  "/redefinir-senha",
   "/paciente",
   "/p",
   "/embed",
   "/calculadora",
+  "/i",
+  "/api/auth",
+  "/api/health",
+  "/api/setup",
   "/api/cron",
   "/api/integration",
   "/api/webhooks",
   "/api/v1",
   "/api/affiliates",
+  "/api/videochamadas",
 ];
+
+function rotaPublica(pathname: string) {
+  if (pathname === "/nps") return false;
+  if (pathname.startsWith("/nps/")) return true;
+  return ROTAS_PUBLICAS.some(
+    (r) => pathname === r || pathname.startsWith(`${r}/`),
+  );
+}
+
+function caminhoPermitidoAfiliado(pathname: string) {
+  return (
+    pathname.startsWith("/afiliado") ||
+    pathname.startsWith("/api/afiliado") ||
+    pathname.startsWith("/api/auth")
+  );
+}
 
 function respostaJsonApi(status: number, mensagem: string) {
   return NextResponse.json({ error: mensagem }, { status });
@@ -77,60 +102,18 @@ export default auth((req) => {
     HEADER_ORG_SLUG,
     host.tipo === "organizacao" ? host.slug : "",
   );
-  cabecalhos.set(
-    HEADER_REQUEST_ID,
-    req.headers.get(HEADER_REQUEST_ID) ?? novoRequestId(),
-  );
+  cabecalhos.set(HEADER_REQUEST_ID, novoRequestId());
   cabecalhos.set(HEADER_PATHNAME, pathname);
   const seguir = () =>
     comCookieRef(req, NextResponse.next({ request: { headers: cabecalhos } }));
 
-  if (ROTAS_PUBLICAS.some((r) => pathname === r || pathname.startsWith(`${r}/`))) {
+  if (rotaPublica(pathname)) {
     const res = seguir();
     if (pathname.startsWith("/embed/widget")) {
       res.headers.set("X-Content-Type-Options", "nosniff");
       res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     }
     return res;
-  }
-
-  const precisaAuth =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/recepcao") ||
-    pathname.startsWith("/agenda") ||
-    pathname.startsWith("/videochamadas") ||
-    pathname.startsWith("/profissionais") ||
-    pathname.startsWith("/servicos") ||
-    pathname.startsWith("/pacientes") ||
-    pathname.startsWith("/cartoes") ||
-    pathname.startsWith("/campanhas") ||
-    pathname.startsWith("/relatorios") ||
-    pathname.startsWith("/configuracoes") ||
-    pathname.startsWith("/auditoria") ||
-    pathname.startsWith("/modulos") ||
-    pathname.startsWith("/implantacao") ||
-    pathname.startsWith("/segmentos") ||
-    pathname.startsWith("/templates") ||
-    pathname.startsWith("/comunicacoes") ||
-    pathname.startsWith("/consentimentos") ||
-    pathname.startsWith("/automacoes") ||
-    pathname.startsWith("/indicacoes") ||
-    pathname.startsWith("/nps") ||
-    pathname.startsWith("/recompensas") ||
-    pathname.startsWith("/vouchers") ||
-    pathname.startsWith("/vales-presente") ||
-    pathname.startsWith("/aceleradores") ||
-    pathname.startsWith("/recuperacao") ||
-    pathname.startsWith("/integracoes") ||
-    pathname.startsWith("/planos") ||
-    pathname.startsWith("/loyalty360") ||
-    pathname.startsWith("/organizacoes") ||
-    pathname.startsWith("/afiliado") ||
-    pathname.startsWith("/api/plataforma") ||
-    pathname.startsWith("/api/import");
-
-  if (!precisaAuth) {
-    return seguir();
   }
 
   if (!sessao?.user) {
@@ -156,20 +139,13 @@ export default auth((req) => {
       if (ehApi) return respostaJsonApi(403, "Acesso restrito à plataforma");
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    if (
-      ehAfiliado &&
-      !pathname.startsWith("/afiliado") &&
-      !pathname.startsWith("/api/auth")
-    ) {
+    if (ehAfiliado && !caminhoPermitidoAfiliado(pathname)) {
       return NextResponse.redirect(new URL("/afiliado", req.url));
     }
   }
 
   if (ehAfiliado) {
-    if (
-      !pathname.startsWith("/afiliado") &&
-      !pathname.startsWith("/api/auth")
-    ) {
+    if (!caminhoPermitidoAfiliado(pathname)) {
       return NextResponse.redirect(new URL("/afiliado", req.url));
     }
     return seguir();
@@ -179,6 +155,7 @@ export default auth((req) => {
     const permitidoPlataforma =
       pathname.startsWith("/organizacoes") ||
       pathname.startsWith("/api/plataforma") ||
+      pathname.startsWith("/api/afiliado") ||
       pathname.startsWith("/api/auth");
 
     if (!permitidoPlataforma) {

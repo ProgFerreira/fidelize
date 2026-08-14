@@ -1,4 +1,4 @@
-export { Button } from "@/components/ui/button";
+export { Button, classesBotao } from "@/components/ui/button";
 export { Input, Select, Textarea, Campo, Label } from "@/components/ui/input";
 export {
   Card,

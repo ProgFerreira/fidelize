@@ -1,15 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
-import { Button } from "@/components/ui";
+import Link from "next/link";
+import { Button, classesBotao } from "@/components/ui";
 
 export default function PacientesError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error("[pacientes]", error.digest ?? error.message);
@@ -28,13 +28,11 @@ export default function PacientesError({
         <p className="mt-2 text-xs text-slate-400">Ref: {error.digest}</p>
       ) : null}
       <div className="mt-6 flex flex-wrap gap-3">
-        <Button type="button" variant="gold" onClick={reset}>
+        <Button type="button" variant="gold" onClick={retry}>
           Tentar novamente
         </Button>
-        <Link href="/pacientes">
-          <Button type="button" variant="contorno">
-            Voltar à lista
-          </Button>
+        <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>
+          Voltar à lista
         </Link>
       </div>
     </div>

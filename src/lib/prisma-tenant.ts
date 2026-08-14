@@ -93,8 +93,6 @@ const LEITURAS = new Set([
   "findFirst",
   "findFirstOrThrow",
   "findMany",
-  "findUnique",
-  "findUniqueOrThrow",
   "count",
   "aggregate",
   "groupBy",
@@ -121,11 +119,45 @@ function mesclarWhere(where: unknown, organizationId: string): Args {
   return { ...atual, organizationId };
 }
 
+/**
+ * findUnique só aceita campos unique. Compound keys (`clinicId_code: {…}`)
+ * viram campos soltos para um findFirst equivalente.
+ */
+export function achatarWhereUnique(where: unknown): Args {
+  const atual = (where ?? {}) as Args;
+  const out: Args = {};
+  for (const [chave, valor] of Object.entries(atual)) {
+    if (
+      valor &&
+      typeof valor === "object" &&
+      !Array.isArray(valor) &&
+      chave.includes("_") &&
+      !("equals" in (valor as object))
+    ) {
+      Object.assign(out, valor as Args);
+    } else {
+      out[chave] = valor;
+    }
+  }
+  return out;
+}
+
 function preencherData(data: unknown, organizationId: string): unknown {
   if (Array.isArray(data)) {
     return data.map((item) => ({ ...(item as Args), organizationId }));
   }
   return { ...(data as Args), organizationId };
+}
+
+function pertenceAoTenant(
+  result: unknown,
+  model: string,
+  organizationId: string,
+): boolean {
+  if (!result || typeof result !== "object") return false;
+  const org = (result as { organizationId?: string | null }).organizationId;
+  if (org === organizationId) return true;
+  return org == null && MODELOS_SEM_DONO_PERMITIDO.has(model);
 }
 
 export const extensaoTenant = Prisma.defineExtension({
@@ -147,6 +179,20 @@ export const extensaoTenant = Prisma.defineExtension({
 
         const a = (args ?? {}) as Args;
         const executar = query as (args: unknown) => Promise<unknown>;
+
+        // findUnique não aceita organizationId extra no where. Executa o
+        // unique original (permanece na mesma transação) e descarta o
+        // registro se for de outra org. Leituras em lista usam WHERE.
+        if (operation === "findUnique" || operation === "findUniqueOrThrow") {
+          const result = await executar(a);
+          if (pertenceAoTenant(result, model, organizationId)) return result;
+          if (operation === "findUniqueOrThrow") {
+            throw new Error(
+              `Nenhum registro de ${model} encontrado nesta organização.`,
+            );
+          }
+          return null;
+        }
 
         if (LEITURAS.has(operation) || ESCRITAS_COM_WHERE.has(operation)) {
           return executar({

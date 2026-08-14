@@ -5,23 +5,28 @@ import {
   referralShareUrl,
 } from "@/lib/referrals";
 import { Button, Card, Input, Label, PageHeader } from "@/components/ui";
+import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 
 async function submitLead(formData: FormData) {
   "use server";
   const shortCode = String(formData.get("shortCode") || "");
-  const referral = await prisma.referral.findFirst({
-    where: { shortCode },
-    select: { clinicId: true },
-  });
-  if (!referral) throw new Error("Link de indicação inválido");
-  await registerReferralLead({
-    clinicId: referral.clinicId,
-    shortCode,
-    leadName: String(formData.get("leadName") || ""),
-    leadPhone: String(formData.get("leadPhone") || ""),
-    leadCpf: String(formData.get("leadCpf") || "") || null,
-    leadConsent: formData.get("leadConsent") === "on",
-  });
+  const referral = await semOrganizacao(() =>
+    prisma.referral.findFirst({
+      where: { shortCode },
+      select: { clinicId: true, organizationId: true },
+    }),
+  );
+  if (!referral?.organizationId) throw new Error("Link de indicação inválido");
+  await comOrganizacao({ organizationId: referral.organizationId }, () =>
+    registerReferralLead({
+      clinicId: referral.clinicId,
+      shortCode,
+      leadName: String(formData.get("leadName") || ""),
+      leadPhone: String(formData.get("leadPhone") || ""),
+      leadCpf: String(formData.get("leadCpf") || "") || null,
+      leadConsent: formData.get("leadConsent") === "on",
+    }),
+  );
 }
 
 export default async function IndicacaoPublicaPage({
@@ -30,14 +35,16 @@ export default async function IndicacaoPublicaPage({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  const referral = await prisma.referral.findFirst({
-    where: { shortCode: code },
-    include: {
-      referrer: { select: { fullName: true } },
-      program: true,
-      clinic: { select: { name: true, tradeName: true } },
-    },
-  });
+  const referral = await semOrganizacao(() =>
+    prisma.referral.findFirst({
+      where: { shortCode: code },
+      include: {
+        referrer: { select: { fullName: true } },
+        program: true,
+        clinic: { select: { name: true, tradeName: true } },
+      },
+    }),
+  );
 
   if (!referral) {
     return (

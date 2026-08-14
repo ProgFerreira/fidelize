@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createHash } from "crypto";
+import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { estabelecerOrganizacao, semOrganizacao } from "@/lib/tenant";
+import { hmacSha256Base64Url } from "@/lib/security/secrets";
 
 const COOKIE = "patient_session";
 
@@ -12,14 +13,28 @@ export type PatientSession = {
   fullName: string;
 };
 
-function sign(payload: string) {
-  const secret = process.env.AUTH_SECRET ?? "dev";
-  return createHash("sha256").update(`${payload}.${secret}`).digest("hex").slice(0, 24);
+function authSecret(): string | null {
+  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? null;
+}
+
+function sign(payload: string, secret: string) {
+  return hmacSha256Base64Url(secret, payload);
+}
+
+function signaturesMatch(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
 }
 
 export async function setPatientSession(session: PatientSession) {
+  const secret = authSecret();
+  if (!secret) {
+    throw new Error("AUTH_SECRET ausente — sessão do paciente não pode ser assinada");
+  }
   const payload = Buffer.from(JSON.stringify(session)).toString("base64url");
-  const token = `${payload}.${sign(payload)}`;
+  const token = `${payload}.${sign(payload, secret)}`;
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
@@ -36,13 +51,22 @@ export async function clearPatientSession() {
 }
 
 export async function getPatientSession(): Promise<PatientSession | null> {
+  const secret = authSecret();
+  if (!secret) return null;
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
-  const [payload, signature] = token.split(".");
-  if (!payload || !signature || sign(payload) !== signature) return null;
+  const dot = token.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const payload = token.slice(0, dot);
+  const signature = token.slice(dot + 1);
+  if (!payload || !signature || !signaturesMatch(sign(payload, secret), signature)) {
+    return null;
+  }
   try {
-    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as PatientSession;
+    return JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    ) as PatientSession;
   } catch {
     return null;
   }
@@ -56,7 +80,7 @@ export async function getPatientSession(): Promise<PatientSession | null> {
  */
 export async function establishPatientTenantContext(clinicId: string) {
   const clinic = await semOrganizacao(() =>
-    prisma.clinic.findUnique({
+    prisma.clinic.findFirst({
       where: { id: clinicId },
       select: { organizationId: true },
     }),

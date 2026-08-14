@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
-import { Card, Badge } from "@/components/ui";
+import { Card, Badge, EmptyState } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
 
 export default async function PortalVouchersPage() {
@@ -30,9 +30,10 @@ export default async function PortalVouchersPage() {
     <div className="space-y-4">
       <h1 className="text-3xl text-slate-900">Vouchers</h1>
       {vouchers.length === 0 ? (
-        <Card>
-          <p className="text-sm text-slate-500">Nenhum voucher disponível no momento.</p>
-        </Card>
+        <EmptyState
+          titulo="Nenhum voucher disponível"
+          descricao="Quando a clínica emitir um voucher para você, ele aparece nesta lista."
+        />
       ) : (
         vouchers.map((v) => (
           <Card key={v.id}>

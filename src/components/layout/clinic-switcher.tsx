@@ -43,11 +43,7 @@ export function ClinicSwitcher({
 
   function apply(nextClinic: string, nextUnit: string) {
     startTransition(async () => {
-      const result = await switchClinicAction(nextClinic, nextUnit || null);
-      await update({
-        clinicId: result.clinicId,
-        unitId: result.unitId,
-      });
+      await switchClinicAction(nextClinic, nextUnit || null);
       window.location.reload();
     });
   }

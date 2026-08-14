@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       const phone = String(body.phone || "");
-      const result = await withClinicOrg(cred.clinicId, () =>
+      await withClinicOrg(cred.clinicId, () =>
         requestPatientOtp({ clinicId: cred.clinicId, phone }),
       );
       await withClinicOrg(cred.clinicId, () =>
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
         }),
       );
       return NextResponse.json({
-        data: { sent: true, patientId: result.patientId },
+        data: { sent: true },
       });
     }
 

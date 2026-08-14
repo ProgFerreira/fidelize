@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import type { PermissionCode } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
-import { comOrganizacao, estabelecerOrganizacao } from "@/lib/tenant";
+import { comOrganizacao, estabelecerOrganizacao, semOrganizacao } from "@/lib/tenant";
 import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 
@@ -31,8 +31,19 @@ export async function requireClinicContext(): Promise<StaffContext> {
     redirect("/login");
   }
 
-  let clinicId = session.user.clinicId ?? null;
-  let unitId = session.user.unitId ?? null;
+  let clinicId: string | null = null;
+  let unitId: string | null = null;
+
+  if (session.user.id) {
+    const persisted = await semOrganizacao(() =>
+      prisma.user.findFirst({
+        where: { id: session.user.id },
+        select: { clinicId: true, unitId: true },
+      }),
+    );
+    clinicId = persisted?.clinicId ?? null;
+    unitId = persisted?.unitId ?? null;
+  }
 
   // JWT pode ficar com clinicId/unitId de outro banco (ex.: trocou DATABASE_URL).
   if (clinicId && session.user.organizationId) {

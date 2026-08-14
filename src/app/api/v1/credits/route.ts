@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyApiKey, logIntegration } from "@/lib/integrations";
+import { logIntegration } from "@/lib/integrations";
 import { creditWallet } from "@/lib/ledger";
+import { comClinicaDaApi, credencialApiV1 } from "@/lib/api/v1-auth";
 
 export async function POST(request: Request) {
   const started = Date.now();
-  const key = request.headers.get("x-api-key") || "";
-  const cred = await verifyApiKey(key);
-  if (!cred) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (cred.rateLimited) {
-    return NextResponse.json({ error: "Rate limit" }, { status: 429 });
-  }
+  const auth = await credencialApiV1(request);
+  if ("erro" in auth) return auth.erro;
+  const { cred } = auth;
 
   const body = await request.json().catch(() => ({}));
   const patientId = String(body.patientId || "");
@@ -27,35 +25,47 @@ export async function POST(request: Request) {
     );
   }
 
-  const wallet = await prisma.wallet.findFirst({
-    where: { clinicId: cred.clinicId, patientId, status: "ACTIVE" },
-  });
-  if (!wallet) {
-    return NextResponse.json({ error: "Carteira não encontrada" }, { status: 404 });
+  try {
+    return await comClinicaDaApi(cred.clinicId, async () => {
+      const wallet = await prisma.wallet.findFirst({
+        where: { clinicId: cred.clinicId, patientId, status: "ACTIVE" },
+      });
+      if (!wallet) {
+        return NextResponse.json(
+          { error: "Carteira não encontrada" },
+          { status: 404 },
+        );
+      }
+
+      const result = await creditWallet({
+        clinicId: cred.clinicId,
+        walletId: wallet.id,
+        patientId,
+        amount: Math.max(0, amount),
+        points,
+        type: "CREDIT_ADJUSTMENT",
+        origin: "api",
+        reason: String(body.reason || "Crédito via API"),
+        availableAt: new Date(),
+        idempotencyKey,
+      });
+
+      await logIntegration({
+        clinicId: cred.clinicId,
+        direction: "IN",
+        method: "POST",
+        path: "/api/v1/credits",
+        statusCode: 200,
+        durationMs: Date.now() - started,
+        requestMeta: { patientId, amount, points },
+      });
+
+      return NextResponse.json({ data: result });
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro" },
+      { status: 400 },
+    );
   }
-
-  const result = await creditWallet({
-    clinicId: cred.clinicId,
-    walletId: wallet.id,
-    patientId,
-    amount: amount || 0.0001,
-    points,
-    type: "CREDIT_ADJUSTMENT",
-    origin: "api",
-    reason: String(body.reason || "Crédito via API"),
-    availableAt: new Date(),
-    idempotencyKey,
-  });
-
-  await logIntegration({
-    clinicId: cred.clinicId,
-    direction: "IN",
-    method: "POST",
-    path: "/api/v1/credits",
-    statusCode: 200,
-    durationMs: Date.now() - started,
-    requestMeta: { patientId, amount, points },
-  });
-
-  return NextResponse.json({ data: result });
 }

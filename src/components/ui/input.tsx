@@ -83,17 +83,57 @@ export function Campo({
   dica?: string;
   children: React.ReactNode;
 }) {
+  const gerado = React.useId();
+  const erroId = `${gerado}-erro`;
+  const dicaId = `${gerado}-dica`;
+  let campoId = gerado;
+
+  const associados = React.Children.map(children, (child, index) => {
+    if (!React.isValidElement(child) || index > 0) return child;
+    const atuais = child.props as {
+      id?: string;
+      "aria-describedby"?: string;
+      "aria-invalid"?: boolean;
+    };
+    campoId = atuais.id || gerado;
+    const describedBy =
+      [erro ? erroId : null, !erro && dica ? dicaId : null, atuais["aria-describedby"]]
+        .filter(Boolean)
+        .join(" ") || undefined;
+    return React.cloneElement(
+      child as React.ReactElement<{
+        id?: string;
+        "aria-describedby"?: string;
+        "aria-invalid"?: boolean;
+      }>,
+      {
+        id: campoId,
+        "aria-invalid": erro ? true : atuais["aria-invalid"],
+        "aria-describedby": describedBy,
+      },
+    );
+  });
+
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+      <label
+        htmlFor={campoId}
+        className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+      >
         {label}
         {obrigatorio && <span className="ml-0.5 text-red-500">*</span>}
       </label>
-      {children}
+      {associados}
       {dica && !erro && (
-        <p className="text-xs text-slate-500 dark:text-slate-400">{dica}</p>
+        <p id={dicaId} className="text-xs text-slate-500 dark:text-slate-400">
+          {dica}
+        </p>
       )}
-      {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
+      {erro && (
+        <p id={erroId} className="text-xs text-red-600 dark:text-red-400">
+          {erro}
+        </p>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { requirePatientSession } from "@/lib/otp/session";
 import { formatBRL } from "@/lib/money";
 import { getCategoryProgress } from "@/lib/categories";
 import { generateCardQrDataUrl } from "@/lib/cards";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Card, classesBotao } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 
 export default async function PatientHomePage() {
@@ -94,15 +94,17 @@ export default async function PatientHomePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/p/recompensas">
-          <Button className="w-full" variant="gold">
-            Resgatar
-          </Button>
+        <Link href="/p/recompensas" className={classesBotao({ variant: "gold", className: "w-full" })}>
+          Resgatar
         </Link>
-        <Link href="/p/indicacoes">
-          <Button className="w-full" variant="secondary">
-            Indicar
-          </Button>
+        <Link href="/p/indicacoes" className={classesBotao({ variante: "secundario", className: "w-full" })}>
+          Indicar
+        </Link>
+        <Link href="/p/vouchers" className={classesBotao({ variante: "contorno", className: "w-full" })}>
+          Vouchers
+        </Link>
+        <Link href="/p/sorteios" className={classesBotao({ variante: "contorno", className: "w-full" })}>
+          Sorteios
         </Link>
       </div>
 
@@ -120,29 +122,41 @@ export default async function PatientHomePage() {
       <Card>
         <h2 className="text-xl">Últimas movimentações</h2>
         <div className="mt-3 space-y-2">
-          {wallet.ledgerEntries.map((entry) => (
-            <div key={entry.id} className="flex justify-between text-sm">
-              <span>{labelPt(entry.type)}</span>
-              <span className="font-semibold">{formatBRL(entry.amount)}</span>
-            </div>
-          ))}
+          {wallet.ledgerEntries.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Compras, cashback e resgates aparecem aqui.
+            </p>
+          ) : (
+            wallet.ledgerEntries.map((entry) => (
+              <div key={entry.id} className="flex justify-between text-sm">
+                <span>{labelPt(entry.type)}</span>
+                <span className="font-semibold">{formatBRL(entry.amount)}</span>
+              </div>
+            ))
+          )}
         </div>
       </Card>
 
       <Card>
         <h2 className="text-xl">Próximos a expirar</h2>
         <div className="mt-3 space-y-2">
-          {wallet.creditLots.map((lot) => (
-            <div
-              key={lot.id}
-              className="flex items-center justify-between text-sm"
-            >
-              <span>{formatBRL(lot.remainingAmount)}</span>
-              <Badge tone="gold">
-                {lot.expiresAt?.toLocaleDateString("pt-BR") ?? "—"}
-              </Badge>
-            </div>
-          ))}
+          {wallet.creditLots.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Quando houver cashback com validade, ele aparece nesta lista.
+            </p>
+          ) : (
+            wallet.creditLots.map((lot) => (
+              <div
+                key={lot.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <span>{formatBRL(lot.remainingAmount)}</span>
+                <Badge tone="gold">
+                  {lot.expiresAt?.toLocaleDateString("pt-BR") ?? "—"}
+                </Badge>
+              </div>
+            ))
+          )}
         </div>
       </Card>
     </div>

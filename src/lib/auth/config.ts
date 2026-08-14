@@ -41,8 +41,6 @@ export const authConfig = {
 
       if (trigger === "update" && session) {
         const patch = session as {
-          clinicId?: string | null;
-          unitId?: string | null;
           suporteAcessoId?: string | null;
           organizationId?: string | null;
           organizationSlug?: string | null;
@@ -50,13 +48,7 @@ export const authConfig = {
           suporteOrganizacaoNome?: string | null;
         };
 
-        if ("clinicId" in patch) {
-          token.clinicId = patch.clinicId ?? null;
-        }
-        if ("unitId" in patch) {
-          token.unitId = patch.unitId ?? null;
-        }
-
+        // clinicId/unitId do client são ignorados — a clínica vem da tabela User.
         if (token.ehAdminPlataforma && "suporteAcessoId" in patch) {
           if (patch.suporteAcessoId) {
             token.suporteAcessoId = patch.suporteAcessoId;

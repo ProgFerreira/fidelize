@@ -11,7 +11,7 @@ import {
   ShieldOff,
   Unlock,
 } from "lucide-react";
-import { Badge, Button, Input } from "@/components/ui";
+import { Badge, Button, classesBotao, Input } from "@/components/ui";
 import { toast } from "@/components/ui/toast-provider";
 import {
   blockCardAction,
@@ -188,18 +188,20 @@ export function CardsList({
               </div>
 
               <div className="cartao-row__actions">
-                <Link href={`/cartoes/${card.id}`}>
-                  <Button type="button" variant="contorno" size="sm">
-                    <History className="h-3.5 w-3.5" aria-hidden />
-                    Detalhe / WhatsApp
-                  </Button>
+                <Link
+                  href={`/cartoes/${card.id}`}
+                  className={classesBotao({ variante: "contorno", size: "sm" })}
+                >
+                  <History className="h-3.5 w-3.5" aria-hidden />
+                  Detalhe / WhatsApp
                 </Link>
                 {card.status === "AVAILABLE" ? (
-                  <Link href={`/cartoes/imprimir?ids=${card.id}`}>
-                    <Button type="button" variant="contorno" size="sm">
-                      <Printer className="h-3.5 w-3.5" aria-hidden />
-                      QR
-                    </Button>
+                  <Link
+                    href={`/cartoes/imprimir?ids=${card.id}`}
+                    className={classesBotao({ variante: "contorno", size: "sm" })}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden />
+                    QR
                   </Link>
                 ) : null}
                 {canUnblock ? (

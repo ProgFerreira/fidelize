@@ -16,6 +16,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   CabecalhoPagina,
   Button,
+  classesBotao,
   Input,
   Label,
   Select,
@@ -102,11 +103,12 @@ export default async function EditarPacientePage({
           { label: "Editar" },
         ]}
         acoes={
-          <Link href={`/pacientes/${patient.id}`}>
-            <Button variant="contorno">
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              Voltar
-            </Button>
+          <Link
+            href={`/pacientes/${patient.id}`}
+            className={classesBotao({ variante: "contorno" })}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Voltar
           </Link>
         }
       />
@@ -374,11 +376,12 @@ export default async function EditarPacientePage({
           <div className="patient-new__actions">
             <Link
               href={`/pacientes/${patient.id}`}
-              className="patient-new__actions-cancel"
+              className={classesBotao({
+                variante: "contorno",
+                className: "patient-new__actions-cancel",
+              })}
             >
-              <Button type="button" variant="contorno">
-                Cancelar
-              </Button>
+              Cancelar
             </Link>
             <Button type="submit" variant="primario" className="patient-new__submit">
               <Pencil className="h-4 w-4" aria-hidden />

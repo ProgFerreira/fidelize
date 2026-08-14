@@ -6215,6 +6215,12 @@ input[type="number"] {
   border: 1px solid #fde68a;
 }
 
+.login-form__hint--ok {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
 .login-form__control {
   position: relative;
 }

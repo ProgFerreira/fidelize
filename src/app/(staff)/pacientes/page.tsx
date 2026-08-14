@@ -16,7 +16,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission, hasPermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Badge, Button, Input, Select, Paginacao } from "@/components/ui";
+import { PageHeader, Badge, Button, classesBotao, Input, Select, Paginacao } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
 import { onlyDigits } from "@/lib/patients/cpf";
 import { labelPt } from "@/lib/i18n/labels";
@@ -166,11 +166,9 @@ export default async function PacientesPage({
         title="Pacientes"
         description="Cadastro comercial do clube — encontre membros, saldos e categorias com facilidade."
         actions={
-          <Link href="/pacientes/novo">
-            <Button variant="gold">
-              <UserPlus className="h-4 w-4" aria-hidden />
-              Novo paciente
-            </Button>
+          <Link href="/pacientes/novo" className={classesBotao({ variant: "gold" })}>
+            <UserPlus className="h-4 w-4" aria-hidden />
+            Novo paciente
           </Link>
         }
       />
@@ -220,10 +218,8 @@ export default async function PacientesPage({
             </div>
             <Button type="submit">Buscar</Button>
             {hasFilters ? (
-              <Link href="/pacientes">
-                <Button type="button" variant="contorno">
-                  Limpar
-                </Button>
+              <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>
+                Limpar
               </Link>
             ) : null}
           </div>
@@ -319,15 +315,13 @@ export default async function PacientesPage({
           </p>
           <div className="patients-empty__actions">
             {hasFilters ? (
-              <Link href="/pacientes">
-                <Button variant="contorno">Ver todos</Button>
+              <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>
+                Ver todos
               </Link>
             ) : null}
-            <Link href="/pacientes/novo">
-              <Button variant="gold">
-                <UserPlus className="h-4 w-4" aria-hidden />
-                Cadastrar paciente
-              </Button>
+            <Link href="/pacientes/novo" className={classesBotao({ variant: "gold" })}>
+              <UserPlus className="h-4 w-4" aria-hidden />
+              Cadastrar paciente
             </Link>
           </div>
         </div>
@@ -396,11 +390,12 @@ export default async function PacientesPage({
 
                     {canWrite ? (
                       <div className="patient-row__actions">
-                        <Link href={`/pacientes/${patient.id}/editar`}>
-                          <Button type="button" size="sm" variant="contorno">
-                            <Pencil className="h-3.5 w-3.5" aria-hidden />
-                            Editar
-                          </Button>
+                        <Link
+                          href={`/pacientes/${patient.id}/editar`}
+                          className={classesBotao({ size: "sm", variante: "contorno" })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
+                          Editar
                         </Link>
                       </div>
                     ) : null}

@@ -10,7 +10,6 @@ import {
   Stethoscope,
   Package,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
@@ -291,15 +290,16 @@ export function Shell({
             <div className="rounded-full bg-slate-200 p-1.5 dark:bg-slate-700">
               <User className="h-4 w-4" aria-hidden />
             </div>
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              aria-label="Sair"
-              title="Sair"
-              className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <form action="/api/auth/signout" method="post">
+              <button
+                type="submit"
+                aria-label="Sair"
+                title="Sair"
+                className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </form>
           </div>
         </header>
 

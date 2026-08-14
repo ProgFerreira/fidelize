@@ -8,7 +8,7 @@ import { createPatient, updatePatient, patientSchema } from "@/lib/patients";
 import { onlyDigits } from "@/lib/patients/cpf";
 import { linkCard, blockCard, createCardStock, unblockCard, replaceCard, issueVirtualCard, saveCardSettings, searchPatientsForCardLink } from "@/lib/cards";
 import { confirmAppointment, getAppointmentSale, updateAppointmentSale } from "@/lib/reception";
-import { simulateBenefit, applyGiftCardToSimulation } from "@/lib/cashback";
+import { simulateBenefit, applyGiftCardToSimulation, campaignIsAvailableForPatient } from "@/lib/cashback";
 import { prisma } from "@/lib/db";
 import { saveBenefitSettings, type BenefitSettings } from "@/lib/cashback";
 import { reverseLedgerEntry } from "@/lib/ledger";
@@ -16,6 +16,15 @@ import { writeAuditLog } from "@/lib/audit";
 import { toPlain } from "@/lib/serialize";
 import { z } from "zod";
 import { lookupGiftCard, quoteGiftCardForSale } from "@/lib/giftcards";
+import { headers } from "next/headers";
+import {
+  confirmPasswordReset,
+  requestPasswordReset,
+} from "@/lib/auth/password-reset";
+import {
+  HEADER_ORG_SLUG,
+  resolverHost,
+} from "@/lib/organization-host";
 
 export async function createPatientAction(formData: FormData) {
   const session = await requirePermission(PERMISSIONS.PATIENTS_WRITE);
@@ -366,6 +375,13 @@ export async function simulateReceptionAction(input: {
         where: { id: input.campaignId, clinicId: session.user.clinicId },
       })
     : null;
+  const campaignAllowed =
+    campaign &&
+    (await campaignIsAvailableForPatient(
+      prisma,
+      campaign,
+      wallet.patientId,
+    ));
 
   let availableBalance = Number(wallet.availableBalance);
   if (input.editingAppointmentId) {
@@ -385,11 +401,16 @@ export async function simulateReceptionAction(input: {
 
   const simulation = await simulateBenefit({
     clinicId: session.user.clinicId,
+    patientId: wallet.patientId,
+    excludeAppointmentId: input.editingAppointmentId,
     categoryCashbackPercent: wallet.category
       ? Number(wallet.category.cashbackPercent)
       : null,
     procedureCashbackPercent,
-    campaignExtraPercent: campaign ? Number(campaign.extraCashbackPct) : null,
+    campaignExtraPercent:
+      campaign && campaignAllowed
+        ? Number(campaign.extraCashbackPct)
+        : null,
     grossAmount,
     discountAmount: input.discountAmount,
     benefitToUse: input.benefitToUse,
@@ -719,18 +740,103 @@ export async function reverseEntryAction(formData: FormData) {
   revalidatePath("/relatorios");
 }
 
-export async function requestPasswordResetAction(formData: FormData) {
-  const email = String(formData.get("email") || "").toLowerCase();
-  const user = await prisma.user.findFirst({ where: { email } });
-  if (!user) return;
+function clientIp(h: Headers) {
+  return (
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip") ||
+    null
+  );
+}
 
-  const token = crypto.randomUUID();
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      resetToken: token,
-      resetExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-    },
+function trustedBaseHost(): string | null {
+  const base = process.env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (!base) return null;
+  try {
+    return new URL(base).host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Origem usada no link de e-mail de redefinição de senha. NUNCA confiar
+ * cegamente no cabeçalho `Host` — ele é enviado pelo cliente e
+ * `resolverHost()` só valida o formato do primeiro rótulo (ex.:
+ * "dermaphios.atacante.com" também seria classificado "organizacao"), então
+ * usar o Host bruto aqui permite envenenar o link do reset de senha
+ * (CWE-640) com um domínio controlado pelo atacante. Só confiamos no Host
+ * quando ele realmente é subdomínio do domínio configurado em
+ * AUTH_URL/NEXT_PUBLIC_APP_URL (ou é localhost em dev); caso contrário caímos
+ * nessa variável de ambiente, que é confiável por não vir da requisição.
+ */
+function requestOrigin(
+  h: Headers,
+  hostTipo: "organizacao" | "plataforma" | "indefinido",
+) {
+  const trustedFallback = (
+    process.env.AUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+
+  if (hostTipo !== "organizacao") return trustedFallback;
+
+  const host = h.get("host");
+  if (!host) return trustedFallback;
+  const hostSemPorta = host.split(":")[0]!.toLowerCase();
+
+  const ehDevLocal =
+    process.env.NODE_ENV !== "production" &&
+    (hostSemPorta === "localhost" || hostSemPorta.endsWith(".localhost"));
+
+  const baseHost = trustedBaseHost();
+  const ehSubdominioConfiavel =
+    ehDevLocal ||
+    (baseHost != null &&
+      (hostSemPorta === baseHost || hostSemPorta.endsWith(`.${baseHost}`)));
+
+  if (!ehSubdominioConfiavel) return trustedFallback;
+
+  const proto =
+    h.get("x-forwarded-proto") ||
+    (process.env.NODE_ENV === "production" ? "https" : "http");
+  return `${proto}://${host}`;
+}
+
+export async function requestPasswordResetAction(input: {
+  email: string;
+  organizationSlug?: string;
+}) {
+  const h = await headers();
+  const host = resolverHost(h.get("host"));
+  const slugHeader = h.get(HEADER_ORG_SLUG);
+  const organizationSlug =
+    host.tipo === "organizacao"
+      ? host.slug
+      : host.tipo === "plataforma"
+        ? ""
+        : input.organizationSlug || slugHeader || "";
+
+  return requestPasswordReset({
+    email: input.email,
+    organizationSlug,
+    hostTipo: host.tipo,
+    origin: requestOrigin(h, host.tipo),
+    ip: clientIp(h),
+  });
+}
+
+export async function confirmPasswordResetAction(input: {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}) {
+  const h = await headers();
+  return confirmPasswordReset({
+    token: input.token,
+    password: input.password,
+    confirmPassword: input.confirmPassword,
+    ip: clientIp(h),
   });
 }
 

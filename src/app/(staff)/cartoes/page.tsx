@@ -16,6 +16,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   PageHeader,
   Button,
+  classesBotao,
   Input,
   Select,
   Paginacao,
@@ -185,11 +186,12 @@ export default async function CartoesPage({
         title="Cartões"
         description="Estoque físico, cartão virtual, vínculo, 2ª via, bloqueio e impressão de QR."
         actions={
-          <Link href="/cartoes/imprimir?status=AVAILABLE">
-            <Button variant="contorno">
-              <Printer className="h-4 w-4" aria-hidden />
-              Imprimir etiquetas
-            </Button>
+          <Link
+            href="/cartoes/imprimir?status=AVAILABLE"
+            className={classesBotao({ variante: "contorno" })}
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            Imprimir etiquetas
           </Link>
         }
       />
@@ -269,10 +271,8 @@ export default async function CartoesPage({
             </div>
             <Button type="submit">Buscar</Button>
             {hasFilters ? (
-              <Link href="/cartoes">
-                <Button type="button" variant="contorno">
-                  Limpar
-                </Button>
+              <Link href="/cartoes" className={classesBotao({ variante: "contorno" })}>
+                Limpar
               </Link>
             ) : null}
           </div>

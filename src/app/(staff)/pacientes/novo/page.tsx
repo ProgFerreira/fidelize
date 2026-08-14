@@ -16,6 +16,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   CabecalhoPagina,
   Button,
+  classesBotao,
   Input,
   Label,
   Select,
@@ -82,11 +83,9 @@ export default async function NovoPacientePage({
           { label: "Novo" },
         ]}
         acoes={
-          <Link href="/pacientes">
-            <Button variant="contorno">
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              Voltar
-            </Button>
+          <Link href="/pacientes" className={classesBotao({ variante: "contorno" })}>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Voltar
           </Link>
         }
       />
@@ -352,10 +351,14 @@ export default async function NovoPacientePage({
           </section>
 
           <div className="patient-new__actions">
-            <Link href="/pacientes" className="patient-new__actions-cancel">
-              <Button type="button" variant="contorno">
-                Cancelar
-              </Button>
+            <Link
+              href="/pacientes"
+              className={classesBotao({
+                variante: "contorno",
+                className: "patient-new__actions-cancel",
+              })}
+            >
+              Cancelar
             </Link>
             <Button type="submit" variant="gold" className="patient-new__submit">
               <UserPlus className="h-4 w-4" aria-hidden />

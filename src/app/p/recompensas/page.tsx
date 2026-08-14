@@ -2,7 +2,7 @@ import { requirePatientSession } from "@/lib/otp/session";
 import { listRewards } from "@/lib/rewards";
 import { isModuleEnabled } from "@/lib/modules";
 import { prisma } from "@/lib/db";
-import { PageHeader, Card, Badge, Button } from "@/components/ui";
+import { PageHeader, Card, Badge, Button, EmptyState } from "@/components/ui";
 import { redeemReward } from "@/lib/rewards";
 import { randomUUID } from "crypto";
 import { labelPt } from "@/lib/i18n/labels";
@@ -45,28 +45,35 @@ export default async function PortalRecompensasPage() {
         description={`Seus pontos: ${wallet?.pointsBalance ?? 0}`}
       />
       <div className="grid gap-3">
-        {active.map((reward) => (
-          <Card key={reward.id}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold">{reward.name}</p>
-                <p className="text-sm text-slate-500">{reward.description}</p>
-                <p className="mt-1 text-sm">{reward.pointsCost} pontos</p>
+        {active.length === 0 ? (
+          <EmptyState
+            titulo="Nenhum prêmio disponível"
+            descricao="Quando a clínica publicar recompensas, você poderá trocar seus pontos aqui."
+          />
+        ) : (
+          active.map((reward) => (
+            <Card key={reward.id}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">{reward.name}</p>
+                  <p className="text-sm text-slate-500">{reward.description}</p>
+                  <p className="mt-1 text-sm">{reward.pointsCost} pontos</p>
+                </div>
+                <Badge tone="muted">{labelPt(reward.status)}</Badge>
               </div>
-              <Badge tone="muted">{labelPt(reward.status)}</Badge>
-            </div>
-            <form action={redeemAction} className="mt-3">
-              <input type="hidden" name="rewardId" value={reward.id} />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={(wallet?.pointsBalance ?? 0) < reward.pointsCost}
-              >
-                Resgatar
-              </Button>
-            </form>
-          </Card>
-        ))}
+              <form action={redeemAction} className="mt-3">
+                <input type="hidden" name="rewardId" value={reward.id} />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={(wallet?.pointsBalance ?? 0) < reward.pointsCost}
+                >
+                  Resgatar
+                </Button>
+              </form>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );

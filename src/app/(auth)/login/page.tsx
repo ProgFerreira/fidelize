@@ -12,7 +12,12 @@ import {
   resolverHost,
 } from "@/lib/organization-host";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ senha?: string }>;
+}) {
+  const { senha } = await searchParams;
   const session = await auth();
   if (session?.user) {
     redirect(
@@ -62,6 +67,7 @@ export default async function LoginPage() {
           <LoginForm
             organizationSlug={organizationSlug}
             hostTipo={host.tipo}
+            senhaRedefinida={senha === "redefinida"}
           />
         </div>
       </main>

@@ -1,32 +1,55 @@
-import { Card, Input, Label, Button } from "@/components/ui";
-import { requestPasswordResetAction } from "@/app/actions";
-import Link from "next/link";
+import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+import {
+  LoginMobileBanner,
+  LoginVisual,
+} from "@/components/auth/login-visual";
+import { Stethoscope } from "lucide-react";
+import { headers } from "next/headers";
+import { HEADER_ORG_SLUG, resolverHost } from "@/lib/organization-host";
 
-export default function RecuperarSenhaPage() {
+export default async function RecuperarSenhaPage() {
+  const h = await headers();
+  const host = resolverHost(h.get("host"));
+  const slugHeader = h.get(HEADER_ORG_SLUG);
+  const organizationSlug =
+    host.tipo === "organizacao" ? host.slug : slugHeader || null;
+
+  const contexto =
+    host.tipo === "plataforma"
+      ? "Administração da plataforma"
+      : organizationSlug
+        ? `Clube de Benefícios · ${organizationSlug}`
+        : "Clube de Benefícios";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
-      <Card className="w-full max-w-md space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-            Recuperar senha
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Enviaremos um link de redefinição (simulado em desenvolvimento).
-          </p>
-        </div>
-        <form action={requestPasswordResetAction} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email">E-mail</Label>
-            <Input id="email" name="email" type="email" required />
+    <div className="login-page">
+      <LoginVisual />
+      <LoginMobileBanner contexto={contexto} />
+
+      <main className="login-panel">
+        <div className="login-panel__inner">
+          <div className="login-panel__brand">
+            <div className="login-panel__brand-icon">
+              <Stethoscope aria-hidden />
+            </div>
+            <div className="login-panel__brand-text">
+              <span className="login-panel__brand-name">Fidelize</span>
+              <span className="login-panel__brand-sub">{contexto}</span>
+            </div>
           </div>
-          <Button type="submit" className="w-full">
-            Enviar
-          </Button>
-        </form>
-        <Link href="/login" className="text-sm text-blue-600 hover:underline">
-          Voltar ao login
-        </Link>
-      </Card>
+
+          <h2 className="login-panel__heading">Recuperar senha</h2>
+          <p className="login-panel__lede">
+            Informe o e-mail da sua conta. Se estiver cadastrado, você receberá
+            um link para redefinir a senha.
+          </p>
+
+          <ForgotPasswordForm
+            organizationSlug={organizationSlug}
+            hostTipo={host.tipo}
+          />
+        </div>
+      </main>
     </div>
   );
 }

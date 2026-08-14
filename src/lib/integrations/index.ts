@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "crypto";
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
-import type { Prisma } from "@/generated/prisma/client";
+import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 
 export const apiCredentialSchema = z.object({
   name: z.string().min(2).max(80),
@@ -71,31 +72,33 @@ export async function revokeApiCredential(input: {
 }
 
 export async function verifyApiKey(rawKey: string) {
-  const prefix = rawKey.slice(0, 12);
-  const candidates = await prisma.apiCredential.findMany({
-    where: { keyPrefix: prefix, revokedAt: null },
-  });
-  const hash = hashKey(rawKey);
-  const match = candidates.find((c) => c.keyHash === hash);
-  if (!match) return null;
+  return semOrganizacao(async () => {
+    const prefix = rawKey.slice(0, 12);
+    const candidates = await prisma.apiCredential.findMany({
+      where: { keyPrefix: prefix, revokedAt: null },
+    });
+    const hash = hashKey(rawKey);
+    const match = candidates.find((c) => c.keyHash === hash);
+    if (!match) return null;
 
-  const since = new Date(Date.now() - 60_000);
-  const recent = await prisma.integrationLog.count({
-    where: {
-      clinicId: match.clinicId,
-      direction: "IN",
-      createdAt: { gte: since },
-    },
-  });
-  if (recent >= match.rateLimitRpm) {
-    return { ...match, rateLimited: true as const };
-  }
+    const since = new Date(Date.now() - 60_000);
+    const recent = await prisma.integrationLog.count({
+      where: {
+        clinicId: match.clinicId,
+        direction: "IN",
+        createdAt: { gte: since },
+      },
+    });
+    if (recent >= match.rateLimitRpm) {
+      return { ...match, rateLimited: true as const };
+    }
 
-  await prisma.apiCredential.update({
-    where: { id: match.id },
-    data: { lastUsedAt: new Date() },
+    await prisma.apiCredential.update({
+      where: { id: match.id },
+      data: { lastUsedAt: new Date() },
+    });
+    return { ...match, rateLimited: false as const };
   });
-  return { ...match, rateLimited: false as const };
 }
 
 export async function reprocessDeadWebhooks(clinicId: string) {

@@ -233,10 +233,22 @@ export const { handlers, signIn, signOut } = nextAuth;
  */
 export async function auth() {
   const sessao = await nextAuth.auth();
-  if (sessao?.user?.organizationId) {
-    // estabelecerOrganizacao usa enterWith + Map por request-id.
-    // Em seguida reforçamos com comOrganizacao no-op para garantir ALS.run
-    // no mesmo tick em que a page/layout continua (Hostinger/RSC).
+  if (!sessao?.user) return sessao;
+
+  if (sessao.user.id && sessao.user.organizationId && !sessao.user.ehAdminPlataforma) {
+    const row = await semOrganizacao(() =>
+      prisma.user.findFirst({
+        where: { id: sessao.user.id },
+        select: { clinicId: true, unitId: true },
+      }),
+    );
+    if (row) {
+      sessao.user.clinicId = row.clinicId;
+      sessao.user.unitId = row.unitId;
+    }
+  }
+
+  if (sessao.user.organizationId) {
     await estabelecerOrganizacao({
       organizationId: sessao.user.organizationId,
       suporte:

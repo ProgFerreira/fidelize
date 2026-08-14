@@ -49,6 +49,34 @@ export interface ButtonProps
   carregando?: boolean;
 }
 
+export function classesBotao({
+  variante,
+  variant,
+  tamanho,
+  size,
+  className,
+}: {
+  variante?: Variante;
+  variant?: string;
+  tamanho?: Tamanho;
+  size?: Tamanho;
+  className?: string;
+}) {
+  const resolved =
+    variante ??
+    VARIANT_ALIAS[variant ?? "primario"] ??
+    ("primario" as Variante);
+  const sizeResolved = tamanho ?? size ?? "md";
+  return cn(
+    "inline-flex items-center justify-center rounded-md font-medium transition-colors",
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+    "disabled:pointer-events-none disabled:opacity-50",
+    VARIANTES[resolved],
+    TAMANHOS[sizeResolved],
+    className,
+  );
+}
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
@@ -64,24 +92,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref,
   ) => {
-    const resolved =
-      variante ??
-      VARIANT_ALIAS[variant ?? "primario"] ??
-      ("primario" as Variante);
-    const sizeResolved = tamanho ?? size ?? "md";
-
     return (
       <button
         ref={ref}
         disabled={disabled || carregando}
-        className={cn(
-          "inline-flex items-center rounded-md font-medium transition-colors",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
-          "disabled:pointer-events-none disabled:opacity-50",
-          VARIANTES[resolved],
-          TAMANHOS[sizeResolved],
+        className={classesBotao({
+          variante,
+          variant,
+          tamanho,
+          size,
           className,
-        )}
+        })}
         {...props}
       >
         {carregando && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}

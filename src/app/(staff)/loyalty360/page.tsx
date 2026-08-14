@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { PageHeader, Card, Badge, Button } from "@/components/ui";
+import { PageHeader, Card, Badge, classesBotao } from "@/components/ui";
 import { getLoyalty360Snapshot } from "@/lib/loyalty360";
 
 export default async function Loyalty360Page() {
@@ -22,10 +22,11 @@ export default async function Loyalty360Page() {
               {step.label}
             </p>
             <p className="mt-2 text-3xl font-semibold">{step.value}</p>
-            <Link href={step.href} className="mt-3 inline-block">
-              <Button size="sm" variant="outline">
-                Abrir
-              </Button>
+            <Link
+              href={step.href}
+              className={classesBotao({ size: "sm", variant: "outline", className: "mt-3" })}
+            >
+              Abrir
             </Link>
           </Card>
         ))}

@@ -4,6 +4,7 @@ import { formatBRL } from "@/lib/money";
 import { dispatchProvider } from "@/lib/providers";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 import { onlyDigits } from "@/lib/patients";
+import { hmacSha256Hex, secretsMatch } from "@/lib/security/secrets";
 
 /**
  * Webhook Meta WhatsApp Cloud API — consulta de saldo por mensagem "saldo".
@@ -14,18 +15,55 @@ export async function GET(request: Request) {
   const mode = url.searchParams.get("hub.mode");
   const token = url.searchParams.get("hub.verify_token");
   const challenge = url.searchParams.get("hub.challenge");
+  const expected = process.env.WHATSAPP_VERIFY_TOKEN;
   if (
     mode === "subscribe" &&
-    token &&
-    token === process.env.WHATSAPP_VERIFY_TOKEN
+    expected &&
+    secretsMatch(token, expected)
   ) {
     return new NextResponse(challenge ?? "", { status: 200 });
   }
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
+function webhookSecret() {
+  return (
+    process.env.WHATSAPP_APP_SECRET?.trim() ||
+    process.env.WHATSAPP_WEBHOOK_SECRET?.trim() ||
+    ""
+  );
+}
+
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
+  const secret = webhookSecret();
+  if (secret.length < 8) {
+    return NextResponse.json(
+      { error: "Webhook não configurado" },
+      { status: 503 },
+    );
+  }
+
+  const raw = await request.text();
+  const header = request.headers.get("x-hub-signature-256") ?? "";
+  const expected = `sha256=${hmacSha256Hex(secret, raw)}`;
+  if (!secretsMatch(header, expected)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  let body: {
+    entry?: Array<{
+      changes?: Array<{
+        value?: {
+          messages?: Array<{ from?: string; text?: { body?: string } }>;
+        };
+      }>;
+    }>;
+  } | null;
+  try {
+    body = JSON.parse(raw || "null") as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
   const entry = body?.entry?.[0];
   const change = entry?.changes?.[0];
   const value = change?.value;

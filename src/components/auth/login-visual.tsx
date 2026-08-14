@@ -1,5 +1,3 @@
-import { Gift, Star, TrendingUp } from "lucide-react";
-
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg
@@ -23,104 +21,13 @@ function LogoMark({ className }: { className?: string }) {
 
 export function LoginVisual() {
   return (
-    <aside className="login-visual">
-      <div className="login-visual__glow" aria-hidden />
-      <div className="login-visual__grid" aria-hidden />
-      <div className="login-visual__chart" aria-hidden />
-
-      <header className="login-visual__brand">
-        <span className="login-visual__mark">
-          <LogoMark />
-        </span>
-        <div className="login-visual__brand-text">
-          <strong>Fidelize</strong>
-          <span>Plataforma de Fidelização</span>
-        </div>
-      </header>
-
-      <div className="login-visual__copy">
-        <h1 className="login-visual__title">
-          Fidelize clientes.
-          <span>Aumente resultados.</span>
-        </h1>
-        <p className="login-visual__desc">
-          Programa de benefícios completo para transformar relacionamento em
-          crescimento real.
-        </p>
-        <ul className="login-visual__features">
-          <li>
-            <span className="login-visual__feature-icon">
-              <Gift aria-hidden />
-            </span>
-            Benefícios Personalizados
-          </li>
-          <li>
-            <span className="login-visual__feature-icon">
-              <Star aria-hidden />
-            </span>
-            Clientes Mais fiéis
-          </li>
-          <li>
-            <span className="login-visual__feature-icon">
-              <TrendingUp aria-hidden />
-            </span>
-            Resultados Que crescem
-          </li>
-        </ul>
-      </div>
-
-      <div className="login-visual__stage" aria-hidden>
-        <article className="login-card-mock">
-          <span className="login-card-mock__chip" />
-          <div className="login-card-mock__brand">
-            <LogoMark />
-            Fidelize
-          </div>
-          <p>Clube de benefícios</p>
-        </article>
-
-        <article className="login-phone-mock">
-          <div className="login-phone-mock__notch" />
-          <div className="login-phone-mock__screen">
-            <header className="login-phone-mock__bar">
-              <LogoMark />
-              Fidelize
-            </header>
-            <p className="login-phone-mock__hello">Olá, Maria!</p>
-            <div className="login-phone-mock__stats">
-              <div>
-                <strong>2.450</strong>
-                <span>pontos</span>
-              </div>
-              <div>
-                <strong>R$ 128,50</strong>
-                <span>cashback</span>
-              </div>
-            </div>
-            <div className="login-phone-mock__progress">
-              <span>Próximo benefício</span>
-              <b />
-            </div>
-            <div className="login-phone-mock__rewards">
-              <div>
-                <em>☕</em>
-                Vale Café
-              </div>
-              <div>
-                <em>🎁</em>
-                Combo Especial
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <div className="login-gift-mock">
-          <span className="login-gift-mock__lid" />
-          <span className="login-gift-mock__box" />
-          <span className="login-gift-mock__ribbon" />
-          <span className="login-gift-mock__bow" />
-        </div>
-      </div>
+    <aside className="login-visual login-visual--image">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/login-hero.jpg"
+        alt="Fidelize — Clube de Benefícios: fidelize clientes, aumente resultados"
+        className="login-visual__hero-image"
+      />
     </aside>
   );
 }

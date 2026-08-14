@@ -5670,7 +5670,7 @@ input[type="number"] {
   display: grid;
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--login-navy);
+  background: #eef2f9;
 }
 
 @media (min-width: 960px) {
@@ -5697,6 +5697,18 @@ input[type="number"] {
     padding: 2.35rem 2.6rem 0;
     border-radius: 1.5rem;
   }
+}
+
+.login-visual--image {
+  padding: 0;
+}
+
+.login-visual__hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left center;
+  display: block;
 }
 
 .login-visual__glow,

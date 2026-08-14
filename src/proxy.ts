@@ -5,6 +5,7 @@ import { authConfig } from "@/lib/auth/config";
 import {
   HEADER_ORG_SLUG,
   HEADER_REQUEST_ID,
+  HEADER_PATHNAME,
   resolverHost,
 } from "@/lib/organization-host";
 import {
@@ -80,6 +81,7 @@ export default auth((req) => {
     HEADER_REQUEST_ID,
     req.headers.get(HEADER_REQUEST_ID) ?? novoRequestId(),
   );
+  cabecalhos.set(HEADER_PATHNAME, pathname);
   const seguir = () =>
     comCookieRef(req, NextResponse.next({ request: { headers: cabecalhos } }));
 

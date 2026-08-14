@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPatientSession, establishPatientTenantContext } from "@/lib/otp/session";
 import { patientLogoutAction } from "@/app/patient-actions";
+import { HEADER_PATHNAME } from "@/lib/organization-host";
 
 const links = [
   { href: "/p", label: "Início" },
@@ -19,7 +21,14 @@ export default async function PatientLayout({
   children: React.ReactNode;
 }) {
   const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  if (!session) {
+    const pathname = (await headers()).get(HEADER_PATHNAME);
+    redirect(
+      pathname && pathname !== "/p"
+        ? `/paciente?callbackUrl=${encodeURIComponent(pathname)}`
+        : "/paciente",
+    );
+  }
   await establishPatientTenantContext(session.clinicId);
 
   return (

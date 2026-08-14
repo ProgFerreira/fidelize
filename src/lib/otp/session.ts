@@ -73,9 +73,29 @@ export async function establishPatientTenantContext(clinicId: string) {
  * da page — cada page/action precisa chamar isto por conta própria, não dá
  * pra confiar só no layout pai.
  */
-export async function requirePatientSession(): Promise<PatientSession> {
+export async function requirePatientSession(
+  callbackUrl?: string,
+): Promise<PatientSession> {
   const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  if (!session) {
+    redirect(
+      callbackUrl
+        ? `/paciente?callbackUrl=${encodeURIComponent(callbackUrl)}`
+        : "/paciente",
+    );
+  }
   await establishPatientTenantContext(session.clinicId);
   return session;
+}
+
+/**
+ * Só aceita caminho relativo interno (ex.: "/p/videochamadas/abc") — nunca
+ * URL absoluta/protocol-relative, senão vira open redirect.
+ */
+export function safePatientCallbackUrl(value: string | null | undefined) {
+  if (!value) return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("://")) {
+    return null;
+  }
+  return value;
 }

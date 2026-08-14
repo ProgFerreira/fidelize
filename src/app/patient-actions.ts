@@ -4,7 +4,12 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requestPatientOtp, verifyPatientOtp } from "@/lib/otp";
-import { setPatientSession, clearPatientSession, getPatientSession } from "@/lib/otp/session";
+import {
+  setPatientSession,
+  clearPatientSession,
+  getPatientSession,
+  safePatientCallbackUrl,
+} from "@/lib/otp/session";
 import { buscarClinicaPorHost } from "@/lib/organization";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
 
@@ -62,7 +67,8 @@ export async function verifyOtpAction(formData: FormData) {
     fullName: patient.fullName,
   });
 
-  redirect("/p");
+  const callbackUrl = safePatientCallbackUrl(String(formData.get("callbackUrl") || ""));
+  redirect(callbackUrl ?? "/p");
 }
 
 export async function patientLogoutAction() {

@@ -11,7 +11,7 @@ export default async function PortalVideochamadaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requirePatientSession();
+  const session = await requirePatientSession(`/p/videochamadas/${id}`);
 
   const moduleEnabled = await isModuleEnabled(session.clinicId, "VIDEOCALLS");
   const room = await getVideoCallRoom(session.clinicId, id);

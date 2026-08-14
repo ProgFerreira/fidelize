@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Card, Campo, Input } from "@/components/ui";
 import { requestOtpAction, verifyOtpAction } from "@/app/patient-actions";
 
-export function PatientLoginForm() {
+export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [simulatedCode, setSimulatedCode] = useState<string | undefined>();
@@ -65,6 +65,9 @@ export function PatientLoginForm() {
       ) : (
         <form action={verifyOtpAction} className="mt-6 space-y-4">
           <input type="hidden" name="phone" value={phone} />
+          {callbackUrl ? (
+            <input type="hidden" name="callbackUrl" value={callbackUrl} />
+          ) : null}
           <Campo label="Código" obrigatorio>
             <Input
               name="code"

@@ -33,6 +33,9 @@ export const HEADER_REQUEST_ID = "x-fidelize-request-id";
 /** Host do portal do paciente (clínica via slug/customDomain). */
 export const HEADER_CLINIC_HOST = "x-clinic-host";
 
+/** Pathname da requisição — layouts não têm acesso nativo a isso via headers(). */
+export const HEADER_PATHNAME = "x-fidelize-pathname";
+
 export type ResolucaoHost =
   | { tipo: "organizacao"; slug: string }
   | { tipo: "plataforma" }

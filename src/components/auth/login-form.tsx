@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { Building2, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button, Campo, Input } from "@/components/ui";
 
 export function LoginForm({
@@ -16,6 +17,7 @@ export function LoginForm({
     hostTipo === "plataforma" ? "admin@plataforma.local" : "admin@dermaphios.com",
   );
   const [password, setPassword] = useState("Admin@123");
+  const [showPassword, setShowPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [needsMfa, setNeedsMfa] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,33 +94,53 @@ export function LoginForm({
       ) : null}
       {hostTipo === "indefinido" ? (
         <Campo label="Slug da organização" obrigatorio>
-          <Input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase())}
-            placeholder="dermaphios"
-            required
-          />
+          <div className="login-form__control">
+            <Building2 className="login-form__control-icon" aria-hidden />
+            <Input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase())}
+              placeholder="Ex.: dermaphios"
+              required
+              className="login-form__control-input"
+            />
+          </div>
         </Campo>
       ) : null}
       <Campo label="E-mail" obrigatorio>
-        <Input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="username"
-          placeholder="seu@email.com"
-        />
+        <div className="login-form__control">
+          <Mail className="login-form__control-icon" aria-hidden />
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="username"
+            placeholder="seu@email.com"
+            className="login-form__control-input"
+          />
+        </div>
       </Campo>
       <Campo label="Senha" obrigatorio>
-        <Input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-          placeholder="••••••••"
-        />
+        <div className="login-form__control">
+          <Lock className="login-form__control-icon" aria-hidden />
+          <Input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            placeholder="••••••••"
+            className="login-form__control-input login-form__control-input--password"
+          />
+          <button
+            type="button"
+            className="login-form__reveal"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+          >
+            {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+          </button>
+        </div>
       </Campo>
       <div className="login-form__row">
         <Link href="/recuperar-senha" className="login-form__link">
@@ -144,7 +166,8 @@ export function LoginForm({
         Entrar
       </Button>
       <p className="login-form__footer">
-        Acesso restrito à equipe autorizada da clínica.
+        <Lock aria-hidden />
+        Acesso restrito e seguro.
       </p>
     </form>
   );

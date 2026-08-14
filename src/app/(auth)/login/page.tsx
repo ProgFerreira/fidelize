@@ -1,8 +1,11 @@
 import { LoginForm } from "@/components/auth/login-form";
+import {
+  LoginMobileBanner,
+  LoginVisual,
+} from "@/components/auth/login-visual";
 import { auth } from "@/lib/auth";
-import { Sparkles, Stethoscope } from "lucide-react";
+import { Stethoscope } from "lucide-react";
 import { headers } from "next/headers";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import {
   HEADER_ORG_SLUG,
@@ -36,60 +39,8 @@ export default async function LoginPage() {
 
   return (
     <div className="login-page">
-      <aside className="login-visual">
-        <div className="login-visual__media">
-          <Image
-            src="/images/login-hero.jpg"
-            alt="Ambiente premium de clínica"
-            fill
-            sizes="(min-width: 960px) 55vw, 1px"
-          />
-        </div>
-        <div className="login-visual__overlay" />
-        <div className="login-visual__content">
-          <p className="login-visual__eyebrow">
-            <Sparkles aria-hidden />
-            Fidelize Premium
-          </p>
-          <h1 className="login-visual__title">
-            Seu clube de benefícios, <span>com elegância</span>
-          </h1>
-          <p className="login-visual__desc">
-            Cashback, pontos, cartão digital e campanhas em uma experiência
-            feita para clínicas que valorizam cada paciente.
-          </p>
-          <div className="login-visual__stats">
-            <div className="login-visual__stat">
-              <strong>Cashback</strong>
-              <span>Retorno real nas vendas</span>
-            </div>
-            <div className="login-visual__stat">
-              <strong>Pontos</strong>
-              <span>Engajamento contínuo</span>
-            </div>
-            <div className="login-visual__stat">
-              <strong>Cartão</strong>
-              <span>Identidade digital</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div className="login-mobile-banner">
-        <div className="login-mobile-banner__media">
-          <Image
-            src="/images/login-hero.jpg"
-            alt=""
-            fill
-            sizes="100vw"
-          />
-        </div>
-        <div className="login-mobile-banner__overlay" />
-        <div className="login-mobile-banner__content">
-          <h2>Fidelize</h2>
-          <p>{contexto}</p>
-        </div>
-      </div>
+      <LoginVisual />
+      <LoginMobileBanner contexto={contexto} />
 
       <main className="login-panel">
         <div className="login-panel__inner">

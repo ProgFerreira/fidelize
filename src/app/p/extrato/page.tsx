@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { formatBRL } from "@/lib/money";
 import { Badge, Card } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 
 export default async function ExtratoPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   const wallet = await prisma.wallet.findFirst({
     where: { patientId: session.patientId, clinicId: session.clinicId },

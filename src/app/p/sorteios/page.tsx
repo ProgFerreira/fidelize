@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
 import { listRaffles, buyRaffleTicket } from "@/lib/raffles";
 import { PageHeader, Card, Button, Badge } from "@/components/ui";
@@ -7,8 +6,7 @@ import { revalidatePath } from "next/cache";
 
 async function buyTicketAction(formData: FormData) {
   "use server";
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
   await buyRaffleTicket({
     clinicId: session.clinicId,
     raffleId: String(formData.get("raffleId")),
@@ -19,8 +17,7 @@ async function buyTicketAction(formData: FormData) {
 }
 
 export default async function PortalSorteiosPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
   if (!(await isModuleEnabled(session.clinicId, "RAFFLES"))) {
     return (
       <div>

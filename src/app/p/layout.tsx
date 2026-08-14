@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getPatientSession } from "@/lib/otp/session";
+import { getPatientSession, establishPatientTenantContext } from "@/lib/otp/session";
 import { patientLogoutAction } from "@/app/patient-actions";
 
 const links = [
@@ -20,6 +20,7 @@ export default async function PatientLayout({
 }) {
   const session = await getPatientSession();
   if (!session) redirect("/paciente");
+  await establishPatientTenantContext(session.clinicId);
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-slate-50 px-4 pb-24 pt-6 dark:bg-slate-950">

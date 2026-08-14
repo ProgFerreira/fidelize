@@ -1,13 +1,11 @@
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { isModuleEnabled } from "@/lib/modules";
 import { Card, Badge } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
 
 export default async function PortalVouchersPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   if (!(await isModuleEnabled(session.clinicId, "VOUCHERS"))) {
     return (

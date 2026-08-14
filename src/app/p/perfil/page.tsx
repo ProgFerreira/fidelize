@@ -1,13 +1,11 @@
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { Card, Button, Label } from "@/components/ui";
 import { updatePatientPreferencesAction } from "@/app/patient-actions";
 import { LgpdPatientActions } from "@/components/patient/lgpd-actions";
 
 export default async function PerfilPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   const patient = await prisma.patient.findFirst({
     where: { id: session.patientId, clinicId: session.clinicId },

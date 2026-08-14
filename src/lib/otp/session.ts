@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createHash } from "crypto";
+import { prisma } from "@/lib/db";
+import { estabelecerOrganizacao, semOrganizacao } from "@/lib/tenant";
 
 const COOKIE = "patient_session";
 
@@ -43,4 +46,36 @@ export async function getPatientSession(): Promise<PatientSession | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * A sessão do portal do paciente só carrega `clinicId` — diferente da sessão
+ * staff (NextAuth), nada estabelece o contexto de organização automaticamente.
+ * Chame isto uma vez por request (ex.: no layout de `/p`) antes de qualquer
+ * leitura tenant-scoped, senão toda query lança SemContextoTenantError.
+ */
+export async function establishPatientTenantContext(clinicId: string) {
+  const clinic = await semOrganizacao(() =>
+    prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: { organizationId: true },
+    }),
+  );
+  if (clinic?.organizationId) {
+    await estabelecerOrganizacao({ organizationId: clinic.organizationId });
+  }
+}
+
+/**
+ * Uso padrão em toda page/Server Action do portal do paciente: busca a
+ * sessão, redireciona se ausente, e já estabelece o contexto de organização
+ * antes de devolver. Next.js não garante que o layout termine de rodar antes
+ * da page — cada page/action precisa chamar isto por conta própria, não dá
+ * pra confiar só no layout pai.
+ */
+export async function requirePatientSession(): Promise<PatientSession> {
+  const session = await getPatientSession();
+  if (!session) redirect("/paciente");
+  await establishPatientTenantContext(session.clinicId);
+  return session;
 }

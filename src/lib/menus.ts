@@ -7,6 +7,8 @@ export type MenuAreaId =
   | "atendimento"
   | "clientes"
   | "cadastros"
+  | "fidelidade"
+  | "marketing"
   | "comunicacao"
   | "relatorios"
   | "configuracoes";
@@ -38,6 +40,8 @@ export const MENU_AREAS: MenuAreaDef[] = [
   { id: "atendimento", label: "Atendimento" },
   { id: "clientes", label: "Clientes" },
   { id: "cadastros", label: "Cadastros" },
+  { id: "fidelidade", label: "Fidelidade" },
+  { id: "marketing", label: "Marketing" },
   { id: "comunicacao", label: "Comunicação" },
   { id: "relatorios", label: "Relatórios" },
   { id: "configuracoes", label: "Configurações" },
@@ -83,6 +87,15 @@ export const MENUS: MenuDef[] = [
     icone: "CalendarDays",
     area: "atendimento",
     permission: PERMISSIONS.AGENDA_MANAGE,
+  },
+  {
+    id: "videochamadas",
+    label: "Videochamadas",
+    rota: "/videochamadas",
+    icone: "Video",
+    area: "atendimento",
+    permission: PERMISSIONS.VIDEOCALLS_MANAGE,
+    module: "VIDEOCALLS",
   },
   {
     id: "profissionais",
@@ -139,7 +152,7 @@ export const MENUS: MenuDef[] = [
     label: "Campanhas",
     rota: "/campanhas",
     icone: "Megaphone",
-    area: "cadastros",
+    area: "marketing",
     permission: PERMISSIONS.CAMPAIGNS_MANAGE,
   },
   {
@@ -147,7 +160,7 @@ export const MENUS: MenuDef[] = [
     label: "Recompensas",
     rota: "/recompensas",
     icone: "Gift",
-    area: "cadastros",
+    area: "fidelidade",
     permission: PERMISSIONS.REWARDS_MANAGE,
     module: "REWARDS",
   },
@@ -156,7 +169,7 @@ export const MENUS: MenuDef[] = [
     label: "Vouchers",
     rota: "/vouchers",
     icone: "Ticket",
-    area: "cadastros",
+    area: "fidelidade",
     permission: PERMISSIONS.VOUCHERS_MANAGE,
     module: "VOUCHERS",
   },
@@ -165,7 +178,7 @@ export const MENUS: MenuDef[] = [
     label: "Vales-presente",
     rota: "/vales-presente",
     icone: "WalletCards",
-    area: "cadastros",
+    area: "fidelidade",
     permission: PERMISSIONS.GIFTCARDS_MANAGE,
     module: "GIFT_CARD",
   },
@@ -174,7 +187,7 @@ export const MENUS: MenuDef[] = [
     label: "Aceleradores",
     rota: "/aceleradores",
     icone: "Zap",
-    area: "cadastros",
+    area: "fidelidade",
     permission: PERMISSIONS.ACCELERATORS_MANAGE,
     module: "ACCELERATORS",
   },
@@ -183,7 +196,7 @@ export const MENUS: MenuDef[] = [
     label: "Indicações",
     rota: "/indicacoes",
     icone: "Share2",
-    area: "cadastros",
+    area: "marketing",
     permission: PERMISSIONS.REFERRALS_MANAGE,
     module: "REFERRAL",
   },
@@ -237,7 +250,7 @@ export const MENUS: MenuDef[] = [
     label: "Sorteios",
     rota: "/sorteios",
     icone: "Dices",
-    area: "cadastros",
+    area: "marketing",
     permission: PERMISSIONS.RAFFLES_MANAGE,
     module: "RAFFLES",
   },

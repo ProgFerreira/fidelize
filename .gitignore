@@ -29,6 +29,9 @@ Thumbs.db
 /public/uploads/services/**
 !/public/uploads/services/.gitkeep
 
+# Gravações de videochamada — fora de public/, nunca versionar
+/storage/
+
 # Credenciais locais (não versionar)
 credenciais.md
 hostinger.env

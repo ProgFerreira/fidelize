@@ -31,6 +31,7 @@ import {
 } from "@/lib/integrations";
 import { setOnboardingStep } from "@/lib/onboarding";
 import { createRaffle, setRaffleStatus, drawRaffle } from "@/lib/raffles";
+import { createVideoCallRoom, cancelVideoCallRoom } from "@/lib/videocalls";
 import { submitReceipt, reviewReceipt } from "@/lib/receipts";
 import {
   computePatientPredictions,
@@ -727,6 +728,27 @@ export async function drawRaffleAction(formData: FormData) {
     actorId: session.user.id,
   });
   revalidatePath("/sorteios");
+}
+
+export async function createVideoCallRoomAction(formData: FormData) {
+  const session = await requirePermission(PERMISSIONS.VIDEOCALLS_MANAGE);
+  await createVideoCallRoom({
+    clinicId: session.user.clinicId,
+    actorId: session.user.id,
+    patientId: String(formData.get("patientId") || ""),
+    scheduleEventId: String(formData.get("scheduleEventId") || "") || null,
+  });
+  revalidatePath("/videochamadas");
+}
+
+export async function cancelVideoCallRoomAction(formData: FormData) {
+  const session = await requirePermission(PERMISSIONS.VIDEOCALLS_MANAGE);
+  await cancelVideoCallRoom({
+    clinicId: session.user.clinicId,
+    roomId: String(formData.get("roomId") || ""),
+    actorId: session.user.id,
+  });
+  revalidatePath("/videochamadas");
 }
 
 export async function submitReceiptAction(formData: FormData) {

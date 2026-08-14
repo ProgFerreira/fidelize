@@ -173,6 +173,7 @@ enum AuditAction {
   AFFILIATE_PROFILE_CHANGE
   PLATFORM_SALE_CONFIRM
   PLATFORM_SALE_CANCEL
+  VIDEOCALL_CHANGE
   OTHER
 }
 
@@ -251,6 +252,7 @@ enum ModuleCode {
   SEGMENTS
   COMMUNICATIONS
   CONSENT
+  VIDEOCALLS
 }
 
 enum CommunicationChannel {
@@ -523,6 +525,7 @@ model Clinic {
   revenueForecasts      RevenueForecast[]
   widgetOrigins         WidgetOrigin[]
   mobileSessions        MobileSession[]
+  videoCallRooms        VideoCallRoom[]
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, active])
@@ -627,6 +630,8 @@ model User {
   redemptions      Redemption[]
   platformAccesses PlatformAccess[]
   affiliateProfile Affiliate?
+  videoCallRoomsCreated      VideoCallRoom[]      @relation("VideoCallRoomCreator")
+  videoCallRecordingsCreated VideoCallRecording[] @relation("VideoCallRecordingCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -717,6 +722,7 @@ model Patient {
   raffleTickets RaffleTicket[]
   predictionScores PredictionScore[]
   mobileSessions MobileSession[]
+  videoCallRooms VideoCallRoom[]
 
   @@unique([clinicId, cpf])
   @@index([clinicId, phone])
@@ -930,12 +936,87 @@ model ScheduleEvent {
   procedure    Procedure?    @relation(fields: [procedureId], references: [id])
   professional Professional? @relation(fields: [professionalId], references: [id])
   createdBy    User?         @relation("ScheduleEventCreator", fields: [createdById], references: [id])
+  videoCallRoom VideoCallRoom?
 
   @@index([clinicId, startsAt])
   @@index([clinicId, status])
   @@index([clinicId, endsAt])
   @@index([patientId, startsAt])
   @@index([professionalId, startsAt])
+  @@index([organizationId])
+}
+
+enum VideoCallStatus {
+  CRIADA
+  AGUARDANDO
+  EM_ANDAMENTO
+  ENCERRADA
+  CANCELADA
+}
+
+enum VideoCallParticipantRole {
+  PROFISSIONAL
+  PACIENTE
+}
+
+model VideoCallRoom {
+  id               String          @id @default(cuid())
+  organizationId   String?
+  clinicId         String
+  scheduleEventId  String?         @unique
+  patientId        String
+  status           VideoCallStatus @default(CRIADA)
+  patientConsentAt DateTime?
+  staffConsentAt   DateTime?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  clinic        Clinic               @relation(fields: [clinicId], references: [id])
+  scheduleEvent ScheduleEvent?       @relation(fields: [scheduleEventId], references: [id])
+  patient       Patient              @relation(fields: [patientId], references: [id])
+  createdBy     User?                @relation("VideoCallRoomCreator", fields: [createdById], references: [id])
+  signals       VideoCallSignal[]
+  recordings    VideoCallRecording[]
+
+  @@index([clinicId, status])
+  @@index([patientId])
+  @@index([organizationId])
+}
+
+model VideoCallSignal {
+  id             String                   @id @default(cuid())
+  organizationId String?
+  roomId         String
+  fromRole       VideoCallParticipantRole
+  type           String
+  payload        Json
+  createdAt      DateTime                 @default(now())
+
+  room VideoCallRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([organizationId])
+}
+
+model VideoCallRecording {
+  id             String   @id @default(cuid())
+  organizationId String?
+  roomId         String
+  clinicId       String
+  filePath       String
+  mimeType       String
+  sizeBytes      Int
+  status         String   @default("DISPONIVEL")
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  room      VideoCallRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation("VideoCallRecordingCreator", fields: [createdById], references: [id])
+
+  @@index([clinicId, createdAt])
   @@index([organizationId])
 }
 

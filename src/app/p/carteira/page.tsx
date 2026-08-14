@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { generateCardQrDataUrl } from "@/lib/cards";
 import { loyaltyCardWhatsAppText } from "@/lib/cards/image";
 import { CardWhatsAppShare } from "@/components/cards/card-whatsapp-share";
 
 export default async function CarteiraPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   const wallet = await prisma.wallet.findFirst({
     where: { patientId: session.patientId, clinicId: session.clinicId },

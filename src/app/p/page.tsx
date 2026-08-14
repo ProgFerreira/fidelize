@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { formatBRL } from "@/lib/money";
 import { getCategoryProgress } from "@/lib/categories";
 import { generateCardQrDataUrl } from "@/lib/cards";
@@ -9,8 +8,7 @@ import { Badge, Button, Card } from "@/components/ui";
 import { labelPt } from "@/lib/i18n/labels";
 
 export default async function PatientHomePage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   const patient = await prisma.patient.findFirst({
     where: { id: session.patientId, clinicId: session.clinicId },

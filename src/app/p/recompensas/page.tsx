@@ -1,5 +1,4 @@
-import { getPatientSession } from "@/lib/otp/session";
-import { redirect } from "next/navigation";
+import { requirePatientSession } from "@/lib/otp/session";
 import { listRewards } from "@/lib/rewards";
 import { isModuleEnabled } from "@/lib/modules";
 import { prisma } from "@/lib/db";
@@ -10,8 +9,7 @@ import { labelPt } from "@/lib/i18n/labels";
 
 async function redeemAction(formData: FormData) {
   "use server";
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
   await redeemReward({
     clinicId: session.clinicId,
     patientId: session.patientId,
@@ -21,8 +19,7 @@ async function redeemAction(formData: FormData) {
 }
 
 export default async function PortalRecompensasPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   if (!(await isModuleEnabled(session.clinicId, "REWARDS"))) {
     return (

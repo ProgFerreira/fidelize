@@ -40,6 +40,7 @@ export const PERMISSIONS = {
   AGENDA_MANAGE: "agenda.manage",
   PROFESSIONALS_MANAGE: "professionals.manage",
   SERVICES_MANAGE: "services.manage",
+  VIDEOCALLS_MANAGE: "videocalls.manage",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -111,6 +112,7 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.RECEIPTS_MANAGE,
     PERMISSIONS.PREDICTIVE_VIEW,
     PERMISSIONS.PUSH_MANAGE,
+    PERMISSIONS.VIDEOCALLS_MANAGE,
   ],
   RECEPTION: [
     PERMISSIONS.DASHBOARD_VIEW,
@@ -184,4 +186,5 @@ export const PERMISSION_LABELS: Record<PermissionCode, string> = {
   [PERMISSIONS.RECEIPTS_MANAGE]: "Comprovantes e OCR",
   [PERMISSIONS.PREDICTIVE_VIEW]: "Inteligência preditiva",
   [PERMISSIONS.PUSH_MANAGE]: "Notificações push",
+  [PERMISSIONS.VIDEOCALLS_MANAGE]: "Gerenciar videochamadas",
 };

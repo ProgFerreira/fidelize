@@ -79,10 +79,12 @@ export async function updatePatientPreferencesAction(formData: FormData) {
   const email = formData.get("email") === "on";
   const sms = formData.get("sms") === "on";
 
-  const clinic = await prisma.clinic.findUnique({
-    where: { id: session.clinicId },
-    select: { organizationId: true },
-  });
+  const clinic = await semOrganizacao(() =>
+    prisma.clinic.findUnique({
+      where: { id: session.clinicId },
+      select: { organizationId: true },
+    }),
+  );
   if (!clinic?.organizationId) throw new Error("Clínica inválida");
 
   await comOrganizacao({ organizationId: clinic.organizationId }, async () => {
@@ -124,10 +126,12 @@ export async function exportMyDataAction() {
   const session = await getPatientSession();
   if (!session) redirect("/paciente");
 
-  const clinic = await prisma.clinic.findUnique({
-    where: { id: session.clinicId },
-    select: { organizationId: true },
-  });
+  const clinic = await semOrganizacao(() =>
+    prisma.clinic.findUnique({
+      where: { id: session.clinicId },
+      select: { organizationId: true },
+    }),
+  );
   if (!clinic?.organizationId) throw new Error("Clínica inválida");
 
   const { exportPatientData } = await import("@/lib/lgpd");
@@ -145,10 +149,12 @@ export async function anonymizeMyDataAction() {
   const session = await getPatientSession();
   if (!session) redirect("/paciente");
 
-  const clinic = await prisma.clinic.findUnique({
-    where: { id: session.clinicId },
-    select: { organizationId: true },
-  });
+  const clinic = await semOrganizacao(() =>
+    prisma.clinic.findUnique({
+      where: { id: session.clinicId },
+      select: { organizationId: true },
+    }),
+  );
   if (!clinic?.organizationId) throw new Error("Clínica inválida");
 
   const { anonymizePatient } = await import("@/lib/lgpd");

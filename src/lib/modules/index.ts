@@ -30,6 +30,7 @@ export const MODULE_CATALOG: Array<{
   { code: "RAFFLES", name: "Sorteios", description: "Sorteios com bilhetes por pontos" },
   { code: "RECEIPTS", name: "Comprovantes", description: "OCR e antifraude de comprovantes" },
   { code: "PREDICTIVE", name: "Inteligência preditiva", description: "Churn, LTV e previsão de faturamento" },
+  { code: "VIDEOCALLS", name: "Videochamadas", description: "Consulta por vídeo com gravação" },
 ];
 
 const CORE_ENABLED: ModuleCode[] = ["CASHBACK", "POINTS", "CATEGORIES", "TAGS", "CONSENT", "COMMUNICATIONS"];

@@ -96,6 +96,7 @@ export default auth((req) => {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/recepcao") ||
     pathname.startsWith("/agenda") ||
+    pathname.startsWith("/videochamadas") ||
     pathname.startsWith("/profissionais") ||
     pathname.startsWith("/servicos") ||
     pathname.startsWith("/pacientes") ||

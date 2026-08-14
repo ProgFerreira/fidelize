@@ -1,11 +1,9 @@
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getPatientSession } from "@/lib/otp/session";
+import { requirePatientSession } from "@/lib/otp/session";
 import { Card, Badge } from "@/components/ui";
 
 export default async function BeneficiosPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   const [wallet, campaigns] = await Promise.all([
     prisma.wallet.findFirst({

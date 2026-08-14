@@ -1,5 +1,4 @@
-import { getPatientSession } from "@/lib/otp/session";
-import { redirect } from "next/navigation";
+import { requirePatientSession } from "@/lib/otp/session";
 import {
   ensureReferralLink,
   referralQrUrl,
@@ -9,8 +8,7 @@ import { isModuleEnabled } from "@/lib/modules";
 import { PageHeader, Card, Button } from "@/components/ui";
 
 export default async function PortalIndicacoesPage() {
-  const session = await getPatientSession();
-  if (!session) redirect("/paciente");
+  const session = await requirePatientSession();
 
   if (!(await isModuleEnabled(session.clinicId, "REFERRAL"))) {
     return (

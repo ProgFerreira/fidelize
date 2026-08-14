@@ -7,6 +7,7 @@ import { listVideoCallRooms } from "@/lib/videocalls";
 import { createVideoCallRoomAction, cancelVideoCallRoomAction } from "@/app/v2-actions";
 import { PageHeader, Card, Badge, Button, Label, Select } from "@/components/ui";
 import { CopyLinkButton } from "@/components/videochamadas/copy-link-button";
+import { ensureSystemRolePermissions } from "@/lib/auth/sync-roles";
 
 const STATUS_LABEL: Record<string, string> = {
   CRIADA: "Criada",
@@ -32,6 +33,7 @@ async function patientPortalBaseUrl() {
 
 export default async function VideochamadasPage() {
   const session = await requirePermission(PERMISSIONS.VIDEOCALLS_MANAGE);
+  await ensureSystemRolePermissions(session.clinicId);
   const baseUrl = await patientPortalBaseUrl();
   const [rooms, patients] = await Promise.all([
     listVideoCallRooms(session.user.clinicId),

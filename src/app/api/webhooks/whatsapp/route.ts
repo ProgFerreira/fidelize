@@ -58,7 +58,11 @@ export async function POST(request: Request) {
     entry?: Array<{
       changes?: Array<{
         value?: {
-          messages?: Array<{ from?: string; text?: { body?: string } }>;
+          messages?: Array<{
+            id?: string;
+            from?: string;
+            text?: { body?: string };
+          }>;
         };
       }>;
     }>;
@@ -86,13 +90,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
+  // A Meta reentrega webhooks não confirmados (timeout, 5xx). Sem isso, um
+  // reenvio duplicado reenvia a resposta ao paciente e duplica notas de
+  // recusa de agendamento (handleAppointmentReply não é idempotente).
+  const wamid = String(message?.id || "").trim();
+  if (wamid) {
+    const duplicado = await prisma.inboundWebhookEvent
+      .create({ data: { provider: "whatsapp", externalId: wamid } })
+      .then(() => false)
+      .catch((error: unknown) => {
+        if ((error as { code?: string })?.code === "P2002") return true;
+        throw error;
+      });
+    if (duplicado) {
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+  }
+
   const phoneDigits = onlyDigits(from);
   const phoneBr = phoneDigits.startsWith("55")
     ? phoneDigits.slice(2)
     : phoneDigits;
 
-  const patient = await semOrganizacao(() =>
-    prisma.patient.findFirst({
+  // Hoje o WhatsApp é um único número compartilhado pela plataforma (sem
+  // phone_number_id por clínica), então o telefone do paciente é o único
+  // sinal que temos. Se o mesmo número existir em clínicas diferentes, não
+  // dá pra saber pra qual delas a mensagem é — melhor não responder do que
+  // vazar saldo/agenda da clínica errada.
+  const candidatos = await semOrganizacao(() =>
+    prisma.patient.findMany({
       where: {
         status: "ACTIVE",
         OR: [{ phone: phoneBr }, { phone: phoneDigits }],
@@ -104,6 +130,20 @@ export async function POST(request: Request) {
       orderBy: { updatedAt: "desc" },
     }),
   );
+
+  if (candidatos.length === 0) {
+    return NextResponse.json({ ok: true, matched: false });
+  }
+
+  const clinicasDistintas = new Set(candidatos.map((p) => p.clinicId));
+  if (clinicasDistintas.size > 1) {
+    console.error("[webhook/whatsapp] telefone ambíguo entre clínicas", {
+      clinicIds: [...clinicasDistintas],
+    });
+    return NextResponse.json({ ok: true, ambiguous: true });
+  }
+
+  const patient = candidatos[0];
 
   if (!patient?.clinic.organizationId) {
     return NextResponse.json({ ok: true, matched: false });

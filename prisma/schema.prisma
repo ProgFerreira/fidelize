@@ -704,6 +704,20 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/**
+ * Idempotência de webhooks recebidos de provedores externos (ex.: Meta
+ * WhatsApp). Sem organizationId de propósito: a checagem de duplicidade
+ * precisa acontecer antes de sabermos a qual clínica o evento pertence.
+ */
+model InboundWebhookEvent {
+  id         String   @id @default(cuid())
+  provider   String
+  externalId String
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, externalId])
+}
+
 model Patient {
   id                String        @id @default(cuid())
   organizationId String?

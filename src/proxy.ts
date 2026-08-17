@@ -12,6 +12,7 @@ import {
   AFFILIATE_COOKIE,
   buildAffCookieFromRequest,
 } from "@/lib/affiliates/cookie";
+import { comHeadersSeguranca } from "@/lib/security-headers";
 
 const { auth } = NextAuth(authConfig);
 
@@ -109,19 +110,21 @@ export default auth((req) => {
     comCookieRef(req, NextResponse.next({ request: { headers: cabecalhos } }));
 
   if (rotaPublica(pathname)) {
-    const res = seguir();
-    if (pathname.startsWith("/embed/widget")) {
-      res.headers.set("X-Content-Type-Options", "nosniff");
-      res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    }
-    return res;
+    return comHeadersSeguranca(seguir(), pathname);
   }
 
   if (!sessao?.user) {
-    if (ehApi) return respostaJsonApi(401, "Não autenticado");
+    if (ehApi)
+      return comHeadersSeguranca(
+        respostaJsonApi(401, "Não autenticado"),
+        pathname,
+      );
     const url = new URL("/login", req.url);
     if (pathname !== "/") url.searchParams.set("callbackUrl", pathname);
-    return comCookieRef(req, NextResponse.redirect(url));
+    return comHeadersSeguranca(
+      comCookieRef(req, NextResponse.redirect(url)),
+      pathname,
+    );
   }
 
   const slugSessao = sessao.user.organizationSlug ?? null;
@@ -129,27 +132,44 @@ export default auth((req) => {
 
   if (host.tipo === "organizacao") {
     if (slugSessao !== host.slug) {
-      if (ehApi) return respostaJsonApi(401, "Sessão de outra organização");
+      if (ehApi)
+        return comHeadersSeguranca(
+          respostaJsonApi(401, "Sessão de outra organização"),
+          pathname,
+        );
       const url = new URL("/login", req.url);
       url.searchParams.set("motivo", "organizacao-diferente");
-      return NextResponse.redirect(url);
+      return comHeadersSeguranca(NextResponse.redirect(url), pathname);
     }
   } else if (host.tipo === "plataforma") {
     const ehAdmin = Boolean(sessao.user.ehAdminPlataforma);
     if (slugSessao !== null || (!ehAdmin && !ehAfiliado)) {
-      if (ehApi) return respostaJsonApi(403, "Acesso restrito à plataforma");
-      return NextResponse.redirect(new URL("/login", req.url));
+      if (ehApi)
+        return comHeadersSeguranca(
+          respostaJsonApi(403, "Acesso restrito à plataforma"),
+          pathname,
+        );
+      return comHeadersSeguranca(
+        NextResponse.redirect(new URL("/login", req.url)),
+        pathname,
+      );
     }
     if (ehAfiliado && !caminhoPermitidoAfiliado(pathname)) {
-      return NextResponse.redirect(new URL("/afiliado", req.url));
+      return comHeadersSeguranca(
+        NextResponse.redirect(new URL("/afiliado", req.url)),
+        pathname,
+      );
     }
   }
 
   if (ehAfiliado) {
     if (!caminhoPermitidoAfiliado(pathname)) {
-      return NextResponse.redirect(new URL("/afiliado", req.url));
+      return comHeadersSeguranca(
+        NextResponse.redirect(new URL("/afiliado", req.url)),
+        pathname,
+      );
     }
-    return seguir();
+    return comHeadersSeguranca(seguir(), pathname);
   }
 
   if (sessao.user.ehAdminPlataforma && !sessao.user.suporteAcessoId) {
@@ -161,12 +181,18 @@ export default auth((req) => {
 
     if (!permitidoPlataforma) {
       if (ehApi) {
-        return respostaJsonApi(
-          403,
-          "Entre em uma organização pelo painel da plataforma",
+        return comHeadersSeguranca(
+          respostaJsonApi(
+            403,
+            "Entre em uma organização pelo painel da plataforma",
+          ),
+          pathname,
         );
       }
-      return NextResponse.redirect(new URL("/organizacoes", req.url));
+      return comHeadersSeguranca(
+        NextResponse.redirect(new URL("/organizacoes", req.url)),
+        pathname,
+      );
     }
   }
 
@@ -175,10 +201,13 @@ export default auth((req) => {
     sessao.user.suporteAcessoId &&
     pathname.startsWith("/organizacoes")
   ) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return comHeadersSeguranca(
+      NextResponse.redirect(new URL("/dashboard", req.url)),
+      pathname,
+    );
   }
 
-  return seguir();
+  return comHeadersSeguranca(seguir(), pathname);
 });
 
 export const config = {

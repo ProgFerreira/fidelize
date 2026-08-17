@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Cópias de árvore de trabalho de agentes de IA (ex.: worktrees do
+    // Claude Code) — não são código do projeto, e sem isso o eslint varre
+    // duplicatas inteiras de src/ escondidas em .claude/worktrees/**.
+    ".claude/**",
   ]),
   {
     // Débito pré-existente (anterior a esta sessão): react-hooks/set-state-in-effect

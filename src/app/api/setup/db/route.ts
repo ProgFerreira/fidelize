@@ -58,6 +58,16 @@ async function runNodeScript(scriptPath: string, args: string[]) {
   };
 }
 
+/**
+ * stdout/stderr de migrate/seed nunca voltam na resposta HTTP (podem
+ * revelar paths do servidor, versão do MySQL, nomes de tabela/coluna).
+ * Ficam só no log do servidor — quem tem acesso ao terminal/Sentry já tem
+ * acesso equivalente ao SETUP_SECRET de qualquer forma.
+ */
+function logDetalhesSetup(etapa: string, detalhes: Record<string, unknown>) {
+  console.error(`[api/setup/db] ${etapa}`, detalhes);
+}
+
 function writeEnabled() {
   return process.env.ALLOW_SETUP_DB_WRITE === "true";
 }
@@ -101,16 +111,20 @@ export async function POST(request: Request) {
       if (prismaCli) {
         try {
           const result = await runNodeScript(prismaCli, ["migrate", "deploy"]);
-          steps.push({ step: "migrate", mode: "cli", ok: true, ...result });
+          logDetalhesSetup("migrate:cli", result);
+          steps.push({ step: "migrate", mode: "cli", ok: true });
         } catch (error) {
           const err = error as { stdout?: string; stderr?: string; message?: string };
+          logDetalhesSetup("migrate:cli:erro", {
+            stdout: String(err.stdout || "").slice(-8000),
+            stderr: String(err.stderr || "").slice(-8000),
+            message: err.message,
+          });
           steps.push({
             step: "migrate",
             mode: "cli",
             ok: false,
-            stdout: String(err.stdout || "").slice(-8000),
-            stderr: String(err.stderr || err.message || "").slice(-8000),
-            error: err.message || "migrate failed",
+            error: "Falha ao rodar migrate. Detalhes no log do servidor.",
           });
           // Fallback para SQL via Prisma Client
           const fallback = await applyMigrationsWithClient();
@@ -135,17 +149,21 @@ export async function POST(request: Request) {
       if (tsxCli) {
         try {
           const result = await runNodeScript(tsxCli, [seedScript]);
-          steps.push({ step: "seed", mode: "cli", ok: true, ...result });
+          logDetalhesSetup("seed:cli", result);
+          steps.push({ step: "seed", mode: "cli", ok: true });
           seededViaCli = true;
         } catch (error) {
           const err = error as { stdout?: string; stderr?: string; message?: string };
+          logDetalhesSetup("seed:cli:erro", {
+            stdout: String(err.stdout || "").slice(-8000),
+            stderr: String(err.stderr || "").slice(-8000),
+            message: err.message,
+          });
           steps.push({
             step: "seed",
             mode: "cli",
             ok: false,
-            stdout: String(err.stdout || "").slice(-8000),
-            stderr: String(err.stderr || err.message || "").slice(-8000),
-            error: err.message || "seed failed",
+            error: "Falha ao rodar seed. Detalhes no log do servidor.",
           });
         }
       }
@@ -168,10 +186,13 @@ export async function POST(request: Request) {
       ],
     });
   } catch (error) {
+    logDetalhesSetup("erro-inesperado", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Falha no setup",
+        error: "Falha no setup. Detalhes no log do servidor.",
         steps,
       },
       { status: 500 },

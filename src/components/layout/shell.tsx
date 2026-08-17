@@ -36,17 +36,18 @@ function grupoTemRotaAtiva(grupo: MenuGrupo, pathname: string) {
   return grupo.items.some((item) => rotaAtiva(pathname, item.rota));
 }
 
-function lerRecolhidos(): Set<string> {
-  if (typeof window === "undefined") return new Set();
+/** Preferência salva do usuário. `null` = ainda não mexeu (primeira visita). */
+function lerRecolhidosSalvos(): Set<string> | null {
+  if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return new Set();
+    if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed)
       ? new Set(parsed.filter((id): id is string => typeof id === "string"))
-      : new Set();
+      : null;
   } catch {
-    return new Set();
+    return null;
   }
 }
 
@@ -177,8 +178,14 @@ export function Shell({
   const hamburgerRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
-    setRecolhidos(lerRecolhidos());
+    const salvo = lerRecolhidosSalvos();
+    setRecolhidos(
+      salvo ??
+        // Primeira visita (nada salvo ainda): tudo colapsado, exceto "Frequentes".
+        new Set(grupos.map((g) => g.area.id).filter((id) => id !== "frequentes")),
+    );
     setHidratar(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
@@ -334,18 +341,18 @@ export function Shell({
           />
           <aside
             ref={drawerRef}
-            className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white lg:hidden dark:border-slate-800 dark:bg-slate-900"
+            className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white lg:hidden"
             role="dialog"
             aria-modal="true"
             aria-label="Menu principal"
           >
-            <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
+            <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
               <Marca subtitulo={supportOrgName} />
               <button
                 type="button"
                 onClick={() => setMenuAberto(false)}
                 aria-label="Fechar menu"
-                className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="rounded p-1.5 hover:bg-slate-100"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -360,14 +367,14 @@ export function Shell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 print:hidden dark:border-slate-800 dark:bg-slate-900">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 print:hidden">
           <button
             ref={hamburgerRef}
             type="button"
             onClick={() => setMenuAberto(true)}
             aria-label="Abrir menu"
             aria-expanded={menuAberto}
-            className="rounded p-1.5 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-800"
+            className="rounded p-1.5 hover:bg-slate-100 lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -376,20 +383,20 @@ export function Shell({
           <div className="hidden flex-1 lg:block" />
 
           {usuario.papel && (
-            <span className="hidden rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 sm:inline dark:bg-slate-800 dark:text-slate-300">
+            <span className="hidden rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 sm:inline">
               {labelPt(usuario.papel)}
             </span>
           )}
 
           <details className="relative">
-            <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md p-1 hover:bg-slate-50 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md p-1 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
               <div className="hidden text-right sm:block">
                 <p className="text-sm leading-tight font-medium">{usuario.nome}</p>
-                <p className="text-xs leading-tight text-slate-500 dark:text-slate-400">
+                <p className="text-xs leading-tight text-slate-500">
                   {usuario.email}
                 </p>
               </div>
-              <div className="rounded-full bg-slate-200 p-1.5 dark:bg-slate-700">
+              <div className="rounded-full bg-slate-200 p-1.5">
                 <User className="h-4 w-4" aria-hidden />
               </div>
             </summary>

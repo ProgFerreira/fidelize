@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listVouchers } from "@/lib/vouchers";
 import { prisma } from "@/lib/db";
-import { CabecalhoPagina } from "@/components/ui";
+import { CabecalhoPagina, IconTag } from "@/components/ui";
 import {
   VouchersClient,
   type VoucherDTO,
@@ -30,10 +30,7 @@ export default async function VouchersPage() {
         titulo="Cupons"
         descricao="Cupons rastreáveis com código único — emissão, validade e resgate na recepção."
         acoes={
-          <span className="services-page__pill">
-            <Ticket className="h-3.5 w-3.5" aria-hidden />
-            Vouchers
-          </span>
+          <IconTag icone={Ticket}>Vouchers</IconTag>
         }
       />
       <VouchersClient

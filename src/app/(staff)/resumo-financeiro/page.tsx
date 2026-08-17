@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Activity,
 } from "lucide-react";
+import { CardKpi } from "@/components/ui";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatBRL } from "@/lib/money";
@@ -143,49 +144,38 @@ export default async function ResumoFinanceiroPage({
         </div>
       </header>
 
-      <section className="rf-kpis" aria-label="Indicadores financeiros">
-        <article className="rf-kpi">
-          <div className="rf-kpi__icon rf-kpi__icon--blue">
-            <CircleDollarSign aria-hidden />
-          </div>
-          <div>
-            <p className="rf-kpi__label">Faturamento bruto</p>
-            <p className="rf-kpi__value">{formatBRL(data.bruto)}</p>
-            <p className="rf-kpi__hint">100% do total</p>
-          </div>
-        </article>
-        <article className="rf-kpi">
-          <div className="rf-kpi__icon rf-kpi__icon--green">
-            <CircleDollarSign aria-hidden />
-          </div>
-          <div>
-            <p className="rf-kpi__label">Valor líquido recebido</p>
-            <p className="rf-kpi__value">{formatBRL(data.liquido)}</p>
-            <p className="rf-kpi__hint">{formatPct(data.liquidoPct)} do bruto</p>
-          </div>
-        </article>
-        <article className="rf-kpi">
-          <div className="rf-kpi__icon rf-kpi__icon--orange">
-            <ArrowDownCircle aria-hidden />
-          </div>
-          <div>
-            <p className="rf-kpi__label">Custos totais</p>
-            <p className="rf-kpi__value">{formatBRL(data.custos)}</p>
-            <p className="rf-kpi__hint">
-              {formatPct(data.custosPct)} do bruto · descontos + benefícios
-            </p>
-          </div>
-        </article>
-        <article className="rf-kpi">
-          <div className="rf-kpi__icon rf-kpi__icon--purple">
-            <Users aria-hidden />
-          </div>
-          <div>
-            <p className="rf-kpi__label">Ticket médio (bruto)</p>
-            <p className="rf-kpi__value">{formatBRL(data.ticketMedio)}</p>
-            <p className="rf-kpi__hint">por transação com recebimento</p>
-          </div>
-        </article>
+      <section
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        aria-label="Indicadores financeiros"
+      >
+        <CardKpi
+          titulo="Faturamento bruto"
+          valor={formatBRL(data.bruto)}
+          detalhe="100% do total"
+          icone={CircleDollarSign}
+          cor="azul"
+        />
+        <CardKpi
+          titulo="Valor líquido recebido"
+          valor={formatBRL(data.liquido)}
+          detalhe={`${formatPct(data.liquidoPct)} do bruto`}
+          icone={CircleDollarSign}
+          cor="verde"
+        />
+        <CardKpi
+          titulo="Custos totais"
+          valor={formatBRL(data.custos)}
+          detalhe={`${formatPct(data.custosPct)} do bruto · descontos + benefícios`}
+          icone={ArrowDownCircle}
+          cor="ambar"
+        />
+        <CardKpi
+          titulo="Ticket médio (bruto)"
+          valor={formatBRL(data.ticketMedio)}
+          detalhe="por transação com recebimento"
+          icone={Users}
+          cor="roxo"
+        />
       </section>
 
       <section className="rf-grid">

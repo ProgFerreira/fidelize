@@ -36,12 +36,10 @@ export function RouteError({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="text-2xl font-semibold text-slate-900">
         {tituloExibido}
       </h1>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-        {descricaoExibida}
-      </p>
+      <p className="mt-2 text-sm text-slate-500">{descricaoExibida}</p>
       {error.digest ? (
         <p className="mt-2 text-xs text-slate-400">Ref: {error.digest}</p>
       ) : null}

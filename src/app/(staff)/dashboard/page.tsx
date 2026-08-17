@@ -20,6 +20,7 @@ import { requirePermission, hasPermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatBRL } from "@/lib/money";
 import { DashboardCharts } from "@/components/dashboard/charts";
+import { CardKpi } from "@/components/ui";
 import { advancedDashboardMetrics } from "@/lib/metrics";
 import { CREDIT_LEDGER_TYPES } from "@/lib/ledger";
 import { Prisma } from "@/generated/prisma/client";
@@ -249,56 +250,38 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="dashboard-kpis" aria-label="Indicadores principais">
-        <article className="dashboard-kpi">
-          <div className="dashboard-kpi__top">
-            <p className="dashboard-kpi__label">Pacientes ativos</p>
-            <div className="dashboard-kpi__icon">
-              <Users className="h-4 w-4" aria-hidden />
-            </div>
-          </div>
-          <p className="dashboard-kpi__value">{activePatients}</p>
-          <p className="dashboard-kpi__hint">
-            {newPatients} novos nos últimos 30 dias
-          </p>
-        </article>
-
-        <article className="dashboard-kpi">
-          <div className="dashboard-kpi__top">
-            <p className="dashboard-kpi__label">Saldo em carteira</p>
-            <div className="dashboard-kpi__icon dashboard-kpi__icon--gold">
-              <Wallet className="h-4 w-4" aria-hidden />
-            </div>
-          </div>
-          <p className="dashboard-kpi__value">
-            {formatBRL(walletAgg._sum.availableBalance ?? 0)}
-          </p>
-          <p className="dashboard-kpi__hint">Disponível para resgate</p>
-        </article>
-
-        <article className="dashboard-kpi">
-          <div className="dashboard-kpi__top">
-            <p className="dashboard-kpi__label">Cashback gerado</p>
-            <div className="dashboard-kpi__icon dashboard-kpi__icon--green">
-              <TrendingUp className="h-4 w-4" aria-hidden />
-            </div>
-          </div>
-          <p className="dashboard-kpi__value">{formatBRL(creditTotal)}</p>
-          <p className="dashboard-kpi__hint">
-            Utilizado: {formatBRL(debitTotal)}
-          </p>
-        </article>
-
-        <article className="dashboard-kpi">
-          <div className="dashboard-kpi__top">
-            <p className="dashboard-kpi__label">Taxa de resgate</p>
-            <div className="dashboard-kpi__icon dashboard-kpi__icon--blue">
-              <Percent className="h-4 w-4" aria-hidden />
-            </div>
-          </div>
-          <p className="dashboard-kpi__value">{redemptionRate}%</p>
-          <p className="dashboard-kpi__hint">Do cashback emitido</p>
-        </article>
+      <section
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        aria-label="Indicadores principais"
+      >
+        <CardKpi
+          titulo="Pacientes ativos"
+          valor={String(activePatients)}
+          detalhe={`${newPatients} novos nos últimos 30 dias`}
+          icone={Users}
+          cor="azul"
+        />
+        <CardKpi
+          titulo="Saldo em carteira"
+          valor={formatBRL(walletAgg._sum.availableBalance ?? 0)}
+          detalhe="Disponível para resgate"
+          icone={Wallet}
+          cor="marca"
+        />
+        <CardKpi
+          titulo="Cashback gerado"
+          valor={formatBRL(creditTotal)}
+          detalhe={`Utilizado: ${formatBRL(debitTotal)}`}
+          icone={TrendingUp}
+          cor="verde"
+        />
+        <CardKpi
+          titulo="Taxa de resgate"
+          valor={`${redemptionRate}%`}
+          detalhe="Do cashback emitido"
+          icone={Percent}
+          cor="roxo"
+        />
       </section>
 
       <section className="dashboard-attention" aria-label="Atenção do dia">

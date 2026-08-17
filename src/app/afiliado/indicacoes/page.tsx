@@ -41,7 +41,7 @@ export default async function AfiliadoIndicacoesPage() {
           <Card key={r.id}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <p className="font-medium text-slate-900 dark:text-slate-100">
+                <p className="font-medium text-slate-900">
                   {maskOrgName(r.organization.name)}
                 </p>
                 <p className="text-xs text-slate-500">

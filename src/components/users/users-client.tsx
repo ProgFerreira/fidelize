@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  Avatar,
   Badge,
   Button,
   Campo,
@@ -85,13 +86,6 @@ function statusTone(status: UserStatus) {
   if (status === "ACTIVE") return "success" as const;
   if (status === "BLOCKED") return "danger" as const;
   return "muted" as const;
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
 }
 
 function formatLogin(iso: string | null) {
@@ -287,9 +281,7 @@ export function UsersClient({
               <div key={user.id} className="patient-row">
                 <div className="patient-row__inner">
                   <div className="patient-row__main">
-                    <div className="patient-avatar" aria-hidden>
-                      {initials(user.name)}
-                    </div>
+                    <Avatar nome={user.name} />
                     <div className="min-w-0">
                       <p className="patient-row__name">
                         {user.name}

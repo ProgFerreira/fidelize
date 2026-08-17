@@ -8,11 +8,9 @@ import {
   listStaffUsers,
 } from "@/lib/users";
 import { toPlain } from "@/lib/serialize";
-import { ensureSystemRoles } from "@/lib/auth/sync-roles";
 
 export default async function UsuariosPage() {
   const session = await requirePermission(PERMISSIONS.USERS_MANAGE);
-  await ensureSystemRoles(session.clinicId);
 
   const [users, roles, units] = await Promise.all([
     listStaffUsers({ clinicId: session.clinicId }),

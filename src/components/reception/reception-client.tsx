@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import {
+  Avatar,
   Button,
   Campo,
   Card,
@@ -46,7 +47,7 @@ import {
   getReceptionCopilotAction,
 } from "@/app/actions";
 import { formatBRL } from "@/lib/money";
-import { onlyDigits } from "@/lib/patients/cpf";
+import { formatCpf, formatPhone } from "@/lib/patients/cpf";
 import { resolveServicePrice } from "@/lib/professionals/price";
 import {
   AppointmentHistoryCard,
@@ -99,24 +100,6 @@ const PAYMENT_METHOD_ICON: Record<string, typeof Banknote> = {
   debito: WalletCards,
   link: Link2,
 };
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
-}
-
-function formatCpf(value: string) {
-  const d = onlyDigits(value);
-  if (d.length !== 11) return value;
-  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
-
-function formatPhone(value: string) {
-  const d = onlyDigits(value);
-  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-  return value;
-}
 
 export function ReceptionClient({
   procedures,
@@ -602,8 +585,8 @@ export function ReceptionClient({
 
       <div className="grid gap-4 xl:grid-cols-12">
         <Card className="xl:col-span-3">
-          <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+          <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
               <Search className="h-4 w-4" aria-hidden />
             </span>
             Localizar paciente
@@ -649,15 +632,13 @@ export function ReceptionClient({
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors hover:border-blue-400 hover:bg-blue-50/50",
                     selected?.id === patient.id
-                      ? "border-blue-500 bg-blue-50 shadow-sm dark:bg-blue-950/40"
-                      : "border-slate-200 dark:border-slate-800",
+                      ? "border-blue-500 bg-blue-50 shadow-sm"
+                      : "border-slate-200",
                   )}
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    {initials(patient.fullName)}
-                  </span>
+                  <Avatar nome={patient.fullName} tamanho="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                    <p className="truncate font-semibold text-slate-900">
                       {patient.fullName}
                     </p>
                     <p className="text-sm text-slate-500">
@@ -702,11 +683,9 @@ export function ReceptionClient({
           {selected && wallet ? (
             <>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white shadow-sm">
-                  {initials(selected.fullName)}
-                </span>
+                <Avatar nome={selected.fullName} />
                 <div className="min-w-0">
-                  <h2 className="truncate text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  <h2 className="truncate text-xl font-semibold text-slate-900">
                     {selected.fullName}
                   </h2>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -897,8 +876,8 @@ export function ReceptionClient({
 
         <Card className="pdv-cart-sticky xl:col-span-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300">
+            <h2 className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
                 <ShoppingCart className="h-4 w-4" aria-hidden />
               </span>
               {editingSaleId ? "Editando venda" : "Carrinho"}
@@ -922,7 +901,7 @@ export function ReceptionClient({
           ) : null}
 
           {editingSaleId ? (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
               Venda <span className="font-mono">{editingSaleId.slice(0, 10)}…</span>{" "}
               carregada. Altere o carrinho, simule e salve.
               <div className="mt-2">
@@ -1013,7 +992,7 @@ export function ReceptionClient({
 
               <div className="mt-4 grid gap-3">
                 <Campo label="Profissional do carrinho">
-                  <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <p className="text-sm text-slate-700">
                     {cartProfessionals.length > 0
                       ? cartProfessionals.join(", ")
                       : selectedProfessional
@@ -1177,12 +1156,12 @@ export function ReceptionClient({
               ) : null}
 
               {simulation ? (
-                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-900/60">
-                  <p className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                  <p className="flex items-center gap-1.5 font-semibold text-slate-700">
                     <Receipt className="h-4 w-4" aria-hidden />
                     Resumo da venda
                   </p>
-                  <div className="mt-2.5 grid gap-1 text-slate-600 dark:text-slate-400">
+                  <div className="mt-2.5 grid gap-1 text-slate-600">
                     <p className="flex justify-between">
                       <span>Bruto</span>
                       <span className="tabular">{formatBRL(simulation.grossAmount)}</span>
@@ -1209,19 +1188,19 @@ export function ReceptionClient({
                     ) : null}
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-slate-950">
+                  <div className="mt-3 flex items-center justify-between rounded-lg bg-white px-3 py-2.5 shadow-sm">
                     <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       A pagar
                       {Number(simulation.paidAmount) > 0
                         ? ` · ${paymentMethodLabel(paymentMethod)}`
                         : ""}
                     </span>
-                    <span className="text-xl font-bold tabular text-slate-900 dark:text-slate-100">
+                    <span className="text-xl font-bold tabular text-slate-900">
                       {formatBRL(simulation.paidAmount)}
                     </span>
                   </div>
 
-                  <div className="mt-2.5 flex items-center justify-between text-xs text-emerald-700 dark:text-emerald-400">
+                  <div className="mt-2.5 flex items-center justify-between text-xs text-emerald-700">
                     <span>Cashback gerado ({simulation.cashbackPercent}%)</span>
                     <span className="tabular font-semibold">
                       {formatBRL(simulation.cashbackAmount)} · {simulation.points} pts

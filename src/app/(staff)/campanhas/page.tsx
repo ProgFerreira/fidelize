@@ -2,7 +2,7 @@ import { Megaphone } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { CabecalhoPagina } from "@/components/ui";
+import { CabecalhoPagina, IconTag } from "@/components/ui";
 import { campaignRoi } from "@/lib/metrics";
 import { toClientProps } from "@/lib/serialize";
 import {
@@ -29,10 +29,7 @@ export default async function CampanhasPage() {
         titulo="Campanhas"
         descricao="Cashback e pontos adicionais com público, vigência, receita e ROI."
         acoes={
-          <span className="services-page__pill">
-            <Megaphone className="h-3.5 w-3.5" aria-hidden />
-            Marketing
-          </span>
+          <IconTag icone={Megaphone}>Marketing</IconTag>
         }
       />
       <CampaignsClient

@@ -9,14 +9,12 @@ const VARIANTES: Record<Variante, string> = {
   primario:
     "bg-brand-blue text-white hover:bg-blue-700 focus-visible:outline-brand-blue",
   gold:
-    "bg-brand-gold text-brand-navy hover:bg-brand-gold-dark hover:text-white focus-visible:outline-brand-gold",
-  secundario:
-    "bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+    "bg-brand-gold text-white hover:bg-brand-gold-dark focus-visible:outline-brand-gold",
+  secundario: "bg-slate-100 text-slate-900 hover:bg-slate-200",
   perigo: "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600",
-  fantasma:
-    "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+  fantasma: "text-slate-700 hover:bg-slate-100",
   contorno:
-    "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800",
+    "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
 };
 
 const TAMANHOS: Record<Tamanho, string> = {

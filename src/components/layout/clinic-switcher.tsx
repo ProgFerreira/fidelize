@@ -73,7 +73,7 @@ export function ClinicSwitcher({
       className={
         compact
           ? "flex min-w-0 items-center gap-2"
-          : "space-y-2 border-t border-slate-200 p-3 dark:border-slate-700"
+          : "space-y-2 border-t border-slate-200 p-3"
       }
     >
       {isSupport ? (
@@ -83,8 +83,8 @@ export function ClinicSwitcher({
           disabled={pending}
           className={
             compact
-              ? "shrink-0 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
-              : "w-full rounded-md bg-amber-100 px-2 py-1.5 text-left text-xs font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+              ? "shrink-0 rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-900"
+              : "w-full rounded-md bg-blue-100 px-2 py-1.5 text-left text-xs font-medium text-blue-900"
           }
         >
           Encerrar suporte
@@ -107,8 +107,8 @@ export function ClinicSwitcher({
             <select
               className={
                 compact
-                  ? "w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
-                  : "mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  ? "w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+                  : "mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm"
               }
               value={clinicId}
               disabled={pending}
@@ -140,8 +140,8 @@ export function ClinicSwitcher({
               <select
                 className={
                   compact
-                    ? "w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900"
-                    : "mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+                    ? "w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
+                    : "mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm"
                 }
                 value={unitId}
                 disabled={pending || !clinicId}

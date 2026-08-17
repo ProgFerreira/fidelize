@@ -34,14 +34,14 @@ const ESTILO: Record<Tipo, { classe: string; Icone: typeof Info }> = {
     Icone: CheckCircle2,
   },
   erro: { classe: "border-l-4 border-l-red-500", Icone: XCircle },
-  aviso: { classe: "border-l-4 border-l-amber-500", Icone: AlertTriangle },
+  aviso: { classe: "border-l-4 border-l-sky-500", Icone: AlertTriangle },
   info: { classe: "border-l-4 border-l-blue-500", Icone: Info },
 };
 
 const COR_ICONE: Record<Tipo, string> = {
   sucesso: "text-green-500",
   erro: "text-red-500",
-  aviso: "text-amber-500",
+  aviso: "text-sky-500",
   info: "text-blue-500",
 };
 
@@ -70,7 +70,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             duration={item.tipo === "erro" ? 8000 : 4000}
             onOpenChange={(aberto) => !aberto && remover(item.id)}
             className={cn(
-              "flex items-start gap-3 rounded-md bg-white p-4 shadow-lg dark:bg-slate-800",
+              "flex items-start gap-3 rounded-md bg-white p-4 shadow-lg",
               classe,
             )}
           >
@@ -79,18 +79,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               aria-hidden
             />
             <div className="min-w-0 flex-1">
-              <ToastPrimitive.Title className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              <ToastPrimitive.Title className="text-sm font-medium text-slate-900">
                 {item.mensagem}
               </ToastPrimitive.Title>
               {item.descricao && (
-                <ToastPrimitive.Description className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                <ToastPrimitive.Description className="mt-1 text-sm text-slate-600">
                   {item.descricao}
                 </ToastPrimitive.Description>
               )}
             </div>
             <ToastPrimitive.Close
               aria-label="Fechar"
-              className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
+              className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
             >
               <X className="h-4 w-4" />
             </ToastPrimitive.Close>

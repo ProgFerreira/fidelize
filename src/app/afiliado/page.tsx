@@ -23,7 +23,7 @@ export default async function AfiliadoHomePage() {
     <div className="space-y-6">
       <Card>
         <p className="text-sm text-slate-500">Seu link exclusivo</p>
-        <p className="mt-1 break-all font-mono text-sm text-slate-900 dark:text-slate-100">
+        <p className="mt-1 break-all font-mono text-sm text-slate-900">
           {link}
         </p>
         <div className="mt-3">
@@ -52,7 +52,7 @@ function Metric({ title, value }: { title: string; value: string }) {
   return (
     <Card>
       <p className="text-xs uppercase tracking-wide text-slate-500">{title}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
+      <p className="mt-1 text-xl font-semibold text-slate-900">
         {value}
       </p>
     </Card>

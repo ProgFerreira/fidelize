@@ -1,4 +1,5 @@
 export { Button, classesBotao } from "@/components/ui/button";
+export { Avatar, initials } from "@/components/ui/avatar";
 export { Input, Select, Textarea, Campo, Label } from "@/components/ui/input";
 export {
   Card,
@@ -8,6 +9,8 @@ export {
   CabecalhoPagina,
   PageHeader,
   StatCard,
+  IconTag,
+  IconFeature,
   Breadcrumbs,
   Skeleton,
   SkeletonTabela,

@@ -5,13 +5,11 @@ import { ReceptionClient } from "@/components/reception/reception-client";
 import { listProfessionals } from "@/lib/professionals";
 import { toPlain } from "@/lib/serialize";
 import { isModuleEnabled } from "@/lib/modules";
-import { ensureSystemRolePermissions } from "@/lib/auth/sync-roles";
 import { getReceptionKpi } from "@/lib/reception/kpi";
 
 export default async function RecepcaoPage() {
   const session = await requirePermission(PERMISSIONS.RECEPTION_OPERATE);
   const clinicId = session.clinicId;
-  await ensureSystemRolePermissions(clinicId);
 
   const [procedures, professionals, campaigns, availableCards, giftCardEnabled, kpi] =
     await Promise.all([

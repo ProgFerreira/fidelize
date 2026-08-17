@@ -14,39 +14,15 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission, hasPermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { CabecalhoPagina, Badge, classesBotao, Paginacao } from "@/components/ui";
+import { Avatar, CabecalhoPagina, Badge, classesBotao, Paginacao } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
-import { onlyDigits } from "@/lib/patients/cpf";
+import { formatCpf, formatPhone, onlyDigits } from "@/lib/patients/cpf";
 import { labelPt } from "@/lib/i18n/labels";
 import { PatientsSearchForm } from "@/components/patients/patients-search-form";
 
 const PAGE_SIZE = 50;
 const PATIENT_STATUSES = ["ACTIVE", "INACTIVE", "BLOCKED"] as const;
 type PatientStatusFilter = (typeof PATIENT_STATUSES)[number];
-
-function formatCpf(value: string) {
-  const d = onlyDigits(value);
-  if (d.length !== 11) return value;
-  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
-
-function formatPhone(value: string) {
-  const d = onlyDigits(value);
-  if (d.length === 11) {
-    return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  }
-  if (d.length === 10) {
-    return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-  }
-  return value;
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 function parseStatus(value?: string): PatientStatusFilter | undefined {
   if (!value) return undefined;
@@ -280,9 +256,7 @@ export default async function PacientesPage({
                       className="patient-row__link"
                     >
                       <div className="patient-row__main">
-                        <div className="patient-avatar" aria-hidden>
-                          {initials(patient.fullName)}
-                        </div>
+                        <Avatar nome={patient.fullName} />
                         <div className="min-w-0">
                           <p className="patient-row__name">{patient.fullName}</p>
                           <div className="patient-row__meta">

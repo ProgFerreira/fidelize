@@ -24,13 +24,13 @@ export default async function AfiliadoLayout({
 
   return (
     <div className="mx-auto min-h-full max-w-5xl px-4 py-8">
-      <header className="mb-8 border-b border-slate-200 pb-4 dark:border-slate-800">
+      <header className="mb-8 border-b border-slate-200 pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-gold-dark">
               Fidelize
             </p>
-            <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+            <h1 className="text-2xl font-semibold text-slate-900">
               Painel do afiliado
             </h1>
           </div>
@@ -52,8 +52,8 @@ export default async function AfiliadoLayout({
                 href={item.href}
                 aria-current={atual ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900",
-                  atual && "bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-slate-100",
+                  "rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  atual && "bg-slate-100 font-medium text-slate-900",
                 )}
               >
                 {item.label}

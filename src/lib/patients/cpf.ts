@@ -2,6 +2,19 @@ export function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
 }
 
+export function formatCpf(value: string) {
+  const d = onlyDigits(value);
+  if (d.length !== 11) return value;
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+}
+
+export function formatPhone(value: string) {
+  const d = onlyDigits(value);
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  return value;
+}
+
 export function isValidCpf(cpf: string): boolean {
   const digits = onlyDigits(cpf);
   if (digits.length !== 11 || /^(\d)\1+$/.test(digits)) return false;

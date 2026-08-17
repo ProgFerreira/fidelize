@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CreditCard, Gift, Sparkles, Stethoscope } from "lucide-react";
-import { classesBotao } from "@/components/ui";
+import { classesBotao, IconFeature } from "@/components/ui";
 
 const PILARES = [
   {
@@ -77,20 +77,15 @@ export function PublicLanding({
           </div>
 
           <ul className="landing-page__pills">
-            {PILARES.map((item) => {
-              const Icone = item.icone;
-              return (
-                <li key={item.titulo} className="landing-page__pill">
-                  <span className="landing-page__pill-icon">
-                    <Icone className="h-4 w-4" aria-hidden />
-                  </span>
-                  <div>
-                    <p className="landing-page__pill-title">{item.titulo}</p>
-                    <p className="landing-page__pill-desc">{item.desc}</p>
-                  </div>
-                </li>
-              );
-            })}
+            {PILARES.map((item) => (
+              <li key={item.titulo}>
+                <IconFeature
+                  icone={item.icone}
+                  titulo={item.titulo}
+                  descricao={item.desc}
+                />
+              </li>
+            ))}
           </ul>
         </main>
 

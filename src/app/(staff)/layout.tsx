@@ -1,6 +1,7 @@
 import { Shell } from "@/components/layout/shell";
 import { menusAgrupados } from "@/lib/menus";
 import { requireSession } from "@/lib/auth/guards";
+import { ensureSystemRoles } from "@/lib/auth/sync-roles";
 import { prisma } from "@/lib/db";
 import { comOrganizacao } from "@/lib/tenant";
 
@@ -14,15 +15,21 @@ export default async function StaffLayout({
   const session = await requireSession();
   const clinicId = session.user.clinicId;
   const organizationId = session.user.organizationId;
-  const modules =
-    clinicId && organizationId
-      ? await comOrganizacao({ organizationId }, () =>
-          prisma.featureModule.findMany({
-            where: { clinicId, enabled: true },
-            select: { code: true },
-          }),
-        )
-      : [];
+
+  let modules: { code: string }[] = [];
+  if (clinicId && organizationId) {
+    [modules] = await Promise.all([
+      comOrganizacao({ organizationId }, () =>
+        prisma.featureModule.findMany({
+          where: { clinicId, enabled: true },
+          select: { code: true },
+        }),
+      ),
+      // Garante que permissões novas cheguem nos papéis de clínicas já
+      // existentes sem depender de visitar uma página específica.
+      comOrganizacao({ organizationId }, () => ensureSystemRoles(clinicId)),
+    ]);
+  }
   const enabled = modules.map((m) => m.code);
 
   return (

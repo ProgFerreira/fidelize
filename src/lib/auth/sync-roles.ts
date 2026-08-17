@@ -7,20 +7,26 @@ import {
   STAFF_ROLE_DEFS,
 } from "@/lib/auth/permissions";
 
-/** Garante permissões, perfis de sistema e vínculos role↔permissão da clínica. */
-export async function ensureSystemRoles(clinicId: string) {
-  for (const code of Object.values(PERMISSIONS)) {
-    await prisma.permission.upsert({
-      where: { code },
-      create: { code, name: PERMISSION_LABELS[code] ?? code },
-      update: { name: PERMISSION_LABELS[code] ?? code },
-    });
-  }
-
-  const permissions = await prisma.permission.findMany({
+async function sincronizarPermissoesEPapeis(clinicId: string) {
+  const codigos = Object.values(PERMISSIONS);
+  const existentes = await prisma.permission.findMany({
     select: { id: true, code: true },
   });
-  const byCode = Object.fromEntries(permissions.map((p) => [p.code, p.id]));
+  const idPorCodigo = new Map(existentes.map((p) => [p.code, p.id]));
+
+  const faltando = codigos.filter((code) => !idPorCodigo.has(code));
+  if (faltando.length > 0) {
+    await prisma.permission.createMany({
+      data: faltando.map((code) => ({ code, name: PERMISSION_LABELS[code] ?? code })),
+      skipDuplicates: true,
+    });
+    const criadas = await prisma.permission.findMany({
+      where: { code: { in: faltando } },
+      select: { id: true, code: true },
+    });
+    for (const p of criadas) idPorCodigo.set(p.code, p.id);
+  }
+
   const organizationId = organizacaoAtual();
 
   for (const def of STAFF_ROLE_DEFS) {
@@ -42,7 +48,7 @@ export async function ensureSystemRoles(clinicId: string) {
     }
 
     const rows = (ROLE_PERMISSIONS[def.code] ?? [])
-      .map((code) => byCode[code])
+      .map((code) => idPorCodigo.get(code))
       .filter((permissionId): permissionId is string => Boolean(permissionId))
       .map((permissionId) => ({ roleId: role.id, permissionId }));
 
@@ -55,7 +61,27 @@ export async function ensureSystemRoles(clinicId: string) {
   }
 }
 
-/** Garante permissões novas dos perfis de sistema (ex.: vale-presente na recepção). */
+const SYNC_TTL_MS = 10 * 60 * 1000;
+const sincronizadosEm = new Map<string, number>();
+
+/**
+ * Garante permissões, perfis de sistema e vínculos role↔permissão da clínica.
+ *
+ * Chamada a cada requisição no layout do staff (`src/app/(staff)/layout.tsx`)
+ * para que uma permissão nova adicionada no código chegue automaticamente nos
+ * papéis de clínicas já existentes, sem depender de alguém visitar uma página
+ * específica. Por isso o resultado fica em cache em memória por clínica por
+ * `SYNC_TTL_MS` — sem isso, cada navegação repetiria ~10 queries à toa.
+ */
+export async function ensureSystemRoles(clinicId: string) {
+  const ultimaVez = sincronizadosEm.get(clinicId);
+  if (ultimaVez && Date.now() - ultimaVez < SYNC_TTL_MS) return;
+
+  await sincronizarPermissoesEPapeis(clinicId);
+  sincronizadosEm.set(clinicId, Date.now());
+}
+
+/** Alias semântico, usado nos fluxos de recepção/onboarding. */
 export async function ensureSystemRolePermissions(clinicId: string) {
   await ensureSystemRoles(clinicId);
 }

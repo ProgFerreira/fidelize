@@ -350,7 +350,7 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     return (
       <Card className="max-w-lg">
         <p className="text-lg font-semibold">Consentimento para videochamada</p>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-2 text-sm text-slate-600">
           Esta consulta pode ser gravada em vídeo para fins de registro clínico. Ao continuar,
           você concorda em liberar câmera e microfone e, se aplicável, em ser gravado(a).
         </p>
@@ -370,7 +370,7 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   return (
     <div className="space-y-3">
       {error && (
-        <Card className="border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950">
+        <Card className="border-red-200 bg-red-50 text-red-700">
           {error}
         </Card>
       )}

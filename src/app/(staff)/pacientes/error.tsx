@@ -17,10 +17,10 @@ export default function PacientesError({
 
   return (
     <div className="patients-page" style={{ padding: "2rem 0" }}>
-      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+      <h1 className="text-2xl font-semibold text-slate-900">
         Não foi possível carregar
       </h1>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+      <p className="mt-2 text-sm text-slate-500">
         Ocorreu um erro no servidor ao abrir esta página. Isso costuma ser
         temporário (banco lento ou sessão sem organização). Tente de novo.
       </p>

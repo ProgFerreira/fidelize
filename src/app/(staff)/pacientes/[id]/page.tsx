@@ -18,6 +18,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission, hasPermission } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
+  Avatar,
   CabecalhoPagina,
   Badge,
   Button,
@@ -37,31 +38,7 @@ import {
 } from "@/app/v2-actions";
 import { AppointmentHistoryCard } from "@/components/patients/appointment-history";
 import { AnonymizePatientButton } from "@/components/patients/anonymize-patient-button";
-import { onlyDigits } from "@/lib/patients/cpf";
-
-function formatCpf(value: string) {
-  const d = onlyDigits(value);
-  if (d.length !== 11) return value;
-  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
-
-function formatPhone(value: string) {
-  const d = onlyDigits(value);
-  if (d.length === 11) {
-    return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  }
-  if (d.length === 10) {
-    return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-  }
-  return value;
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
+import { formatCpf, formatPhone } from "@/lib/patients/cpf";
 
 export default async function PacienteDetalhePage({
   params,
@@ -167,9 +144,7 @@ export default async function PacienteDetalhePage({
 
       <section className="patient-detail__hero">
         <div className="patient-detail__hero-main">
-          <div className="patient-detail__avatar" aria-hidden>
-            {initials(patient.fullName)}
-          </div>
+          <Avatar nome={patient.fullName} tamanho="lg" />
           <div className="min-w-0">
             <h2 className="patient-detail__name">{patient.fullName}</h2>
             <div className="patient-detail__meta">

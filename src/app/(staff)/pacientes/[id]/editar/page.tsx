@@ -24,26 +24,9 @@ import {
   Badge,
 } from "@/components/ui";
 import { updatePatientAction } from "@/app/actions";
-import { onlyDigits } from "@/lib/patients/cpf";
+import { formatCpf, formatPhone } from "@/lib/patients/cpf";
 import { labelPt } from "@/lib/i18n/labels";
 import { comOrganizacao } from "@/lib/tenant";
-
-function formatCpf(value: string) {
-  const d = onlyDigits(value);
-  if (d.length !== 11) return value;
-  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
-
-function formatPhone(value: string) {
-  const d = onlyDigits(value);
-  if (d.length === 11) {
-    return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  }
-  if (d.length === 10) {
-    return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
-  }
-  return value;
-}
 
 function toDateInput(value: Date | null) {
   if (!value) return "";

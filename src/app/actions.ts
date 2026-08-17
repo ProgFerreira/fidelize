@@ -10,6 +10,7 @@ import { linkCard, blockCard, createCardStock, unblockCard, replaceCard, issueVi
 import { confirmAppointment, getAppointmentSale, updateAppointmentSale } from "@/lib/reception";
 import { simulateBenefit, applyGiftCardToSimulation, campaignIsAvailableForPatient } from "@/lib/cashback";
 import { prisma } from "@/lib/db";
+import { isBancoIndisponivel, MSG_BANCO_INDISPONIVEL } from "@/lib/db-errors";
 import { saveBenefitSettings, type BenefitSettings } from "@/lib/cashback";
 import { reverseLedgerEntry } from "@/lib/ledger";
 import { writeAuditLog } from "@/lib/audit";
@@ -65,7 +66,7 @@ function redirectErroCadastroPaciente(err: unknown): never {
       `/pacientes/novo?erro=validacao&detalhe=${encodeURIComponent(detalhe)}`,
     );
   }
-  if (/pool timeout|P2039|acquireTimeout|Can't connect|ECONNREFUSED/i.test(msg)) {
+  if (isBancoIndisponivel(err)) {
     redirect("/pacientes/novo?erro=banco-indisponivel");
   }
   if (/Illegal mix of collations|1267/i.test(msg)) {
@@ -557,8 +558,8 @@ function mensagemErroAcao(error: unknown, fallback: string) {
       : typeof error === "string"
         ? error
         : "";
-  if (/pool timeout|Can't connect|ECONNREFUSED|ETIMEDOUT/i.test(raw)) {
-    return "Banco de dados indisponível ou lento. Verifique o MySQL (WAMP) e tente de novo.";
+  if (isBancoIndisponivel(error)) {
+    return MSG_BANCO_INDISPONIVEL;
   }
   if (/SemContextoTenantError|sem contexto de organização/i.test(raw)) {
     return "Sessão sem organização. Faça login novamente.";

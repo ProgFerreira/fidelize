@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
 
 const ERROS_CADASTRO: Record<string, string> = {
   "banco-indisponivel":
-    "O banco está lento ou sem conexão no momento. Aguarde alguns segundos e tente de novo.",
+    "Banco de dados indisponível. Verifique se o MySQL está em execução e tente de novo.",
   "sessao-org":
     "Sua sessão perdeu a organização. Saia e entre novamente, depois tente cadastrar.",
   "cpf-duplicado": "Já existe paciente com este CPF nesta clínica.",

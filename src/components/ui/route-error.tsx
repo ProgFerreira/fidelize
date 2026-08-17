@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { Button, classesBotao } from "@/components/ui/button";
+import {
+  isBancoIndisponivel,
+  MSG_BANCO_INDISPONIVEL,
+} from "@/lib/db-errors";
 
 export function RouteError({
   error,
@@ -26,13 +30,18 @@ export function RouteError({
   }, [error]);
 
   const tentarDeNovo = retry ?? reset;
+  const bancoFora = isBancoIndisponivel(error);
+  const tituloExibido = bancoFora ? "MySQL indisponível" : titulo;
+  const descricaoExibida = bancoFora ? MSG_BANCO_INDISPONIVEL : descricao;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
       <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-        {titulo}
+        {tituloExibido}
       </h1>
-      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{descricao}</p>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        {descricaoExibida}
+      </p>
       {error.digest ? (
         <p className="mt-2 text-xs text-slate-400">Ref: {error.digest}</p>
       ) : null}

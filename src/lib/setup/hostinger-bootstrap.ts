@@ -146,6 +146,26 @@ export async function diagnoseDb() {
     orgCount = await semOrganizacao(() => prisma.organization.count());
   }
 
+  const availableMigrations = loadMigrationSources().map((m) => m.name);
+  let appliedMigrations: string[] = [];
+  if (hasMigrationsTable) {
+    const rows = await prisma
+      .$queryRawUnsafe<Array<{ migration_name: string }>>(
+        `SELECT migration_name FROM _prisma_migrations WHERE rolled_back_at IS NULL ORDER BY migration_name`,
+      )
+      .catch(() => [] as Array<{ migration_name: string }>);
+    appliedMigrations = rows.map((r) => r.migration_name);
+  }
+  const appliedSet = new Set(appliedMigrations);
+  const pendingMigrations = availableMigrations.filter((n) => !appliedSet.has(n));
+
+  const hasTreatmentPackage = await tableExists("TreatmentPackage").catch(
+    () => false,
+  );
+  const hasMembershipPlan = await tableExists("MembershipPlan").catch(
+    () => false,
+  );
+
   return {
     prismaCli: findPrismaCli(),
     tsxCli: findTsxCli(),
@@ -155,9 +175,13 @@ export async function diagnoseDb() {
     hasMigrationsTable,
     hasUserTable,
     hasOrganizationTable,
+    hasTreatmentPackage,
+    hasMembershipPlan,
     userCount,
     orgCount,
     hasDermaphiosAdmin,
+    appliedMigrations,
+    pendingMigrations,
   };
 }
 

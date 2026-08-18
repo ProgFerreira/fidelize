@@ -7,10 +7,11 @@ on:
     branches: [master]
 
 env:
-  # Valores fake — nenhum destes precisa ser real. Prisma generate e o
-  # build do Next não conectam no banco; testes que precisam de banco
-  # real ficam pulados (RUN_DB_TESTS não é setado aqui).
-  DATABASE_URL: "mysql://user:pass@127.0.0.1:3306/ci_placeholder"
+  # DATABASE_URL aponta pro MariaDB efêmero definido em `services` abaixo —
+  # é real dentro do job (existe só durante o workflow), mas não é nenhum
+  # banco de verdade fora daqui. Prisma generate e o build do Next não
+  # precisam dele; os testes de integração (test:db) sim.
+  DATABASE_URL: "mysql://root:root@127.0.0.1:3306/fidelize_ci"
   AUTH_SECRET: "ci-placeholder-secret-not-used-in-prod"
   AUTH_URL: "http://localhost:3000"
   NEXT_PUBLIC_APP_URL: "http://localhost:3000"
@@ -18,6 +19,19 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: fidelize_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +51,18 @@ jobs:
 
       - name: Unit tests (sem banco)
         run: npm test
+
+      - name: Aplicar migrations no banco efêmero
+        run: npx prisma migrate deploy
+
+      - name: Semear o banco efêmero
+        # A maioria dos testes de integração parte de uma clínica/usuário já
+        # existentes (mesmo pré-requisito do ambiente local — ver mensagens
+        # "Seed necessário antes dos testes de DB" nos próprios arquivos).
+        run: npm run db:seed
+
+      - name: Testes de integração (com banco, inclui isolamento de tenant)
+        run: npm run test:db
 
       - name: Build de produção
         run: npm run build

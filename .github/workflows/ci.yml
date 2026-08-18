@@ -43,6 +43,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Gerar tipos de rotas do Next
+        # tsconfig.json inclui .next/types e .next/dev/types (LayoutProps,
+        # PageProps etc.) — sem gerar isso antes, o typecheck falha achando
+        # que faltam esses tipos, mesmo com o código correto.
+        run: npx next typegen
+
       - name: Typecheck
         run: npm run typecheck
 

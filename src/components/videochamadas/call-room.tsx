@@ -55,6 +55,143 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
+type RecordingKind = "video" | "audio";
+
+/**
+ * Grava vídeo (composição via canvas dos dois lados + áudio misturado) ou
+ * só o áudio misturado (local+remoto), dependendo de `kind`. As duas
+ * gravações são independentes — cada uma vira um VideoCallRecording próprio.
+ */
+function useCallRecorder(
+  kind: RecordingKind,
+  ctx: {
+    roomId: string;
+    role: Role;
+    localStreamRef: React.RefObject<MediaStream | null>;
+    remoteStreamRef: React.RefObject<MediaStream | null>;
+    localVideoRef: React.RefObject<HTMLVideoElement | null>;
+    remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
+  },
+) {
+  const [recording, setRecording] = React.useState(false);
+  const recorderRef = React.useRef<MediaRecorder | null>(null);
+  const chunksRef = React.useRef<Blob[]>([]);
+  const audioCtxRef = React.useRef<AudioContext | null>(null);
+  const rafRef = React.useRef<number | null>(null);
+
+  const stop = React.useCallback(async () => {
+    const recorder = recorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+
+    const stopped = new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve();
+    });
+    recorder.stop();
+    await stopped;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    audioCtxRef.current?.close().catch(() => undefined);
+    audioCtxRef.current = null;
+
+    const mimeType = kind === "video" ? "video/webm" : "audio/webm";
+    const blob = new Blob(chunksRef.current, { type: mimeType });
+    chunksRef.current = [];
+    setRecording(false);
+
+    if (blob.size === 0) return;
+
+    try {
+      await fetch(`/api/videochamadas/${ctx.roomId}/recording`, {
+        method: "POST",
+        headers: { "Content-Type": mimeType },
+        body: blob,
+      });
+      toast.success(
+        kind === "video" ? "Gravação de vídeo enviada." : "Gravação de áudio enviada.",
+      );
+    } catch {
+      toast.error("Falha ao enviar a gravação.");
+    }
+  }, [kind, ctx.roomId]);
+
+  const start = React.useCallback(() => {
+    if (ctx.role !== "PROFISSIONAL") return;
+
+    const audioCtx = new AudioContext();
+    const destination = audioCtx.createMediaStreamDestination();
+    let temAudio = false;
+    for (const stream of [ctx.localStreamRef.current, ctx.remoteStreamRef.current]) {
+      if (!stream) continue;
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) continue;
+      temAudio = true;
+      const source = audioCtx.createMediaStreamSource(new MediaStream(audioTracks));
+      source.connect(destination);
+    }
+    if (!temAudio) {
+      audioCtx.close().catch(() => undefined);
+      toast.error("Nenhum áudio disponível para gravar ainda.");
+      return;
+    }
+    audioCtxRef.current = audioCtx;
+
+    let combined: MediaStream;
+    let mimeType: string;
+
+    if (kind === "video") {
+      const localVideo = ctx.localVideoRef.current;
+      const remoteVideo = ctx.remoteVideoRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = 960;
+      canvas.height = 360;
+      const cvsCtx = canvas.getContext("2d");
+      if (!localVideo || !remoteVideo || !cvsCtx) {
+        audioCtx.close().catch(() => undefined);
+        audioCtxRef.current = null;
+        return;
+      }
+
+      const draw = () => {
+        cvsCtx.fillStyle = "#0f172a";
+        cvsCtx.fillRect(0, 0, canvas.width, canvas.height);
+        if (localVideo.readyState >= 2) cvsCtx.drawImage(localVideo, 0, 0, 480, 360);
+        if (remoteVideo.readyState >= 2) cvsCtx.drawImage(remoteVideo, 480, 0, 480, 360);
+        rafRef.current = requestAnimationFrame(draw);
+      };
+      draw();
+
+      const canvasStream = canvas.captureStream(25);
+      combined = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...destination.stream.getAudioTracks(),
+      ]);
+      mimeType = "video/webm;codecs=vp8,opus";
+    } else {
+      combined = destination.stream;
+      mimeType = "audio/webm;codecs=opus";
+    }
+
+    const recorder = new MediaRecorder(combined, { mimeType });
+    chunksRef.current = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    recorder.start(1000);
+    recorderRef.current = recorder;
+    setRecording(true);
+  }, [kind, ctx.role, ctx.localStreamRef, ctx.remoteStreamRef, ctx.localVideoRef, ctx.remoteVideoRef]);
+
+  React.useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      audioCtxRef.current?.close().catch(() => undefined);
+    };
+  }, []);
+
+  return { recording, start, stop };
+}
+
 export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   const [room, setRoom] = React.useState<RoomDTO | null>(null);
   const [phase, setPhase] = React.useState<"consent" | "connecting" | "in-call" | "ended">(
@@ -62,7 +199,6 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   );
   const [micOn, setMicOn] = React.useState(true);
   const [camOn, setCamOn] = React.useState(true);
-  const [recording, setRecording] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = React.useState("");
@@ -78,9 +214,16 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   const lastSignalIdRef = React.useRef<string | null>(null);
   const negotiationStartedRef = React.useRef(false);
 
-  const recorderRef = React.useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = React.useRef<Blob[]>([]);
-  const audioCtxRef = React.useRef<AudioContext | null>(null);
+  const recorderCtx = {
+    roomId,
+    role,
+    localStreamRef,
+    remoteStreamRef,
+    localVideoRef,
+    remoteVideoRef,
+  };
+  const videoRecorder = useCallRecorder("video", recorderCtx);
+  const audioRecorder = useCallRecorder("audio", recorderCtx);
 
   const otherConsentGiven = (r: RoomDTO | null) =>
     role === "PACIENTE" ? Boolean(r?.staffConsentAt) : Boolean(r?.patientConsentAt);
@@ -174,70 +317,6 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
-
-  const stopRecordingAndUpload = React.useCallback(async () => {
-    const recorder = recorderRef.current;
-    if (!recorder || recorder.state === "inactive") return;
-
-    const stopped = new Promise<void>((resolve) => {
-      recorder.onstop = () => resolve();
-    });
-    recorder.stop();
-    await stopped;
-
-    audioCtxRef.current?.close().catch(() => undefined);
-    audioCtxRef.current = null;
-
-    const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
-    recordedChunksRef.current = [];
-    setRecording(false);
-
-    if (blob.size === 0) return;
-
-    try {
-      await fetch(`/api/videochamadas/${roomId}/recording`, {
-        method: "POST",
-        headers: { "Content-Type": "audio/webm" },
-        body: blob,
-      });
-      toast.success("Gravação de áudio enviada.");
-    } catch {
-      toast.error("Falha ao enviar a gravação.");
-    }
-  }, [roomId]);
-
-  const startRecording = React.useCallback(() => {
-    if (role !== "PROFISSIONAL") return;
-
-    const audioCtx = new AudioContext();
-    const destination = audioCtx.createMediaStreamDestination();
-    let temAudio = false;
-    for (const stream of [localStreamRef.current, remoteStreamRef.current]) {
-      if (!stream) continue;
-      const audioTracks = stream.getAudioTracks();
-      if (audioTracks.length === 0) continue;
-      temAudio = true;
-      const source = audioCtx.createMediaStreamSource(new MediaStream(audioTracks));
-      source.connect(destination);
-    }
-    if (!temAudio) {
-      audioCtx.close().catch(() => undefined);
-      toast.error("Nenhum áudio disponível para gravar ainda.");
-      return;
-    }
-    audioCtxRef.current = audioCtx;
-
-    const recorder = new MediaRecorder(destination.stream, {
-      mimeType: "audio/webm;codecs=opus",
-    });
-    recordedChunksRef.current = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-    };
-    recorder.start(1000);
-    recorderRef.current = recorder;
-    setRecording(true);
-  }, [role]);
 
   // Setup de mídia + WebRTC assim que os dois lados consentirem.
   React.useEffect(() => {
@@ -349,7 +428,8 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   }, [phase, roomId]);
 
   const endCall = React.useCallback(async () => {
-    if (recording) await stopRecordingAndUpload();
+    if (videoRecorder.recording) await videoRecorder.stop();
+    if (audioRecorder.recording) await audioRecorder.stop();
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     setPhase("ended");
@@ -361,7 +441,7 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     } catch {
       // sala pode já estar encerrada pelo outro lado
     }
-  }, [roomId, recording, stopRecordingAndUpload]);
+  }, [roomId, videoRecorder, audioRecorder]);
 
   React.useEffect(() => {
     return () => {
@@ -399,8 +479,9 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
       <Card className="max-w-lg">
         <p className="text-lg font-semibold">Consentimento para videochamada</p>
         <p className="mt-2 text-sm text-slate-600">
-          O áudio desta consulta pode ser gravado para fins de registro clínico. Ao continuar,
-          você concorda em liberar câmera e microfone e, se aplicável, em ter o áudio gravado.
+          Esta consulta pode ser gravada em vídeo ou áudio para fins de registro clínico. Ao
+          continuar, você concorda em liberar câmera e microfone e, se aplicável, em ser
+          gravado(a).
         </p>
         {given ? (
           <p className="mt-4 text-sm text-emerald-600">
@@ -454,23 +535,41 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
           {camOn ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
         </Button>
         {role === "PROFISSIONAL" && (
-          <Button
-            variante={recording ? "perigo" : "secundario"}
-            onClick={recording ? stopRecordingAndUpload : startRecording}
-            disabled={phase !== "in-call"}
-          >
-            {recording ? (
-              <>
-                <Square className="h-4 w-4" /> Parar gravação
-              </>
-            ) : (
-              <>
-                <Circle className="h-4 w-4" /> Gravar áudio
-              </>
-            )}
-          </Button>
+          <>
+            <Button
+              variante={videoRecorder.recording ? "perigo" : "secundario"}
+              onClick={videoRecorder.recording ? videoRecorder.stop : videoRecorder.start}
+              disabled={phase !== "in-call"}
+            >
+              {videoRecorder.recording ? (
+                <>
+                  <Square className="h-4 w-4" /> Parar vídeo
+                </>
+              ) : (
+                <>
+                  <Circle className="h-4 w-4" /> Gravar vídeo
+                </>
+              )}
+            </Button>
+            <Button
+              variante={audioRecorder.recording ? "perigo" : "secundario"}
+              onClick={audioRecorder.recording ? audioRecorder.stop : audioRecorder.start}
+              disabled={phase !== "in-call"}
+            >
+              {audioRecorder.recording ? (
+                <>
+                  <Square className="h-4 w-4" /> Parar áudio
+                </>
+              ) : (
+                <>
+                  <Circle className="h-4 w-4" /> Gravar áudio
+                </>
+              )}
+            </Button>
+          </>
         )}
-        {recording && <Badge tone="warning">Gravando</Badge>}
+        {videoRecorder.recording && <Badge tone="warning">Gravando vídeo</Badge>}
+        {audioRecorder.recording && <Badge tone="warning">Gravando áudio</Badge>}
         {role === "PROFISSIONAL" && (
           <Button
             variante="secundario"

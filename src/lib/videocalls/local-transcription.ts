@@ -68,6 +68,20 @@ const TAXA_AMOSTRAGEM = 16000;
 // chamamos o modelo uma vez por trecho, sem esse parâmetro.
 const JANELA_SEGUNDOS = 30;
 
+// Whisper "alucina" (inventa frases sem relação nenhuma com o áudio) em
+// trechos de silêncio/ruído de fundo — problema documentado do modelo, não
+// bug nosso. Detecção de energia (RMS) simples: se o trecho é baixo demais
+// pra ter fala de verdade, pula sem mandar pro modelo. Limiar aproximado,
+// pode precisar de ajuste conforme o microfone/ambiente.
+const LIMIAR_SILENCIO_RMS = 0.01;
+
+export function calcularRms(trecho: Float32Array): number {
+  if (trecho.length === 0) return 0;
+  let somaQuadrados = 0;
+  for (let i = 0; i < trecho.length; i++) somaQuadrados += trecho[i] * trecho[i];
+  return Math.sqrt(somaQuadrados / trecho.length);
+}
+
 export async function transcreverAudioLocal(
   blob: Blob,
   onProgress?: (info: ProgressoTranscricao) => void,
@@ -86,9 +100,12 @@ export async function transcreverAudioLocal(
       progress: Math.min(99, Math.round((inicio / audio.length) * 100)),
     });
     const trecho = audio.subarray(inicio, inicio + tamanhoJanela);
+    if (calcularRms(trecho) < LIMIAR_SILENCIO_RMS) continue;
+
     const resultado = await transcriber(trecho, {
       language: "portuguese",
       task: "transcribe",
+      no_repeat_ngram_size: 3,
     });
     const texto = Array.isArray(resultado)
       ? resultado.map((r) => r.text).join(" ")

@@ -663,6 +663,7 @@ model User {
   videoCallRoomsCreated      VideoCallRoom[]           @relation("VideoCallRoomCreator")
   videoCallRecordingsCreated VideoCallRecording[]      @relation("VideoCallRecordingCreator")
   videoCallChatTranscriptsCreated VideoCallChatTranscript[] @relation("VideoCallChatTranscriptCreator")
+  videoCallAudioTranscriptsCreated VideoCallAudioTranscript[] @relation("VideoCallAudioTranscriptCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1047,6 +1048,7 @@ model VideoCallRoom {
   signals       VideoCallSignal[]
   recordings    VideoCallRecording[]
   chatTranscripts VideoCallChatTranscript[]
+  audioTranscripts VideoCallAudioTranscript[]
 
   @@index([clinicId, status])
   @@index([patientId])
@@ -1099,6 +1101,29 @@ model VideoCallChatTranscript {
 
   room      VideoCallRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdBy User?         @relation("VideoCallChatTranscriptCreator", fields: [createdById], references: [id])
+
+  @@index([clinicId, createdAt])
+  @@index([organizationId])
+}
+
+/**
+ * Texto da transcrição de áudio, gerado localmente no navegador do médico
+ * (Whisper via WASM) e enviado só o resultado em texto — o áudio em si
+ * nunca sai da máquina de quem grava. Guardado como texto, sem arquivo,
+ * pra ficar barato e disponível no histórico do paciente.
+ */
+model VideoCallAudioTranscript {
+  id              String   @id @default(cuid())
+  organizationId  String?
+  roomId          String
+  clinicId        String
+  text            String   @db.Text
+  durationSeconds Int?
+  createdById     String?
+  createdAt       DateTime @default(now())
+
+  room      VideoCallRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation("VideoCallAudioTranscriptCreator", fields: [createdById], references: [id])
 
   @@index([clinicId, createdAt])
   @@index([organizationId])

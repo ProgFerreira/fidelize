@@ -146,7 +146,7 @@ export async function listVideoCallRooms(clinicId: string) {
       include: {
         patient: { select: { fullName: true } },
         scheduleEvent: { select: { title: true, startsAt: true } },
-        recordings: { select: { id: true, createdAt: true, status: true } },
+        _count: { select: { chatTranscripts: true, audioTranscripts: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -354,6 +354,84 @@ export async function getVideoCallChatTranscript(
   return withClinicOrg(clinicId, () =>
     prisma.videoCallChatTranscript.findFirst({
       where: { id: transcriptId, clinicId },
+    }),
+  );
+}
+
+export async function listChatTranscripts(clinicId: string, roomId: string) {
+  return withClinicOrg(clinicId, () =>
+    prisma.videoCallChatTranscript.findMany({
+      where: { roomId, clinicId },
+      orderBy: { createdAt: "desc" },
+    }),
+  );
+}
+
+/**
+ * Guarda só o TEXTO da transcrição de áudio — feita localmente no navegador
+ * de quem grava (Whisper via WASM). O áudio nunca chega ao servidor; aqui só
+ * persistimos o resultado já em texto, pra ficar disponível no histórico do
+ * paciente sem custo de storage de mídia.
+ */
+export async function saveAudioTranscript(input: {
+  clinicId: string;
+  roomId: string;
+  actorId?: string;
+  text: string;
+  durationSeconds?: number;
+}) {
+  const text = input.text.trim();
+  if (!text) throw new Error("Transcrição vazia");
+
+  return withClinicOrg(input.clinicId, async () => {
+    const room = await prisma.videoCallRoom.findFirst({
+      where: { id: input.roomId, clinicId: input.clinicId },
+    });
+    if (!room) throw new Error("Sala não encontrada");
+
+    const transcript = await prisma.videoCallAudioTranscript.create({
+      data: {
+        roomId: room.id,
+        clinicId: input.clinicId,
+        text,
+        durationSeconds: input.durationSeconds ?? null,
+        createdById: input.actorId ?? null,
+      },
+    });
+
+    await writeAuditLog({
+      clinicId: input.clinicId,
+      userId: input.actorId,
+      action: "VIDEOCALL_CHANGE",
+      entityType: "VideoCallAudioTranscript",
+      entityId: transcript.id,
+      afterData: { roomId: room.id, durationSeconds: transcript.durationSeconds },
+    });
+
+    return transcript;
+  });
+}
+
+export async function listAudioTranscripts(clinicId: string, roomId: string) {
+  return withClinicOrg(clinicId, () =>
+    prisma.videoCallAudioTranscript.findMany({
+      where: { roomId, clinicId },
+      orderBy: { createdAt: "desc" },
+    }),
+  );
+}
+
+/** Histórico de videochamadas de um paciente, com as transcrições já carregadas — pra ficha do paciente. */
+export async function listVideoCallRoomsForPatient(clinicId: string, patientId: string) {
+  return withClinicOrg(clinicId, () =>
+    prisma.videoCallRoom.findMany({
+      where: { clinicId, patientId, status: { not: "CANCELADA" } },
+      include: {
+        chatTranscripts: { orderBy: { createdAt: "desc" } },
+        audioTranscripts: { orderBy: { createdAt: "desc" } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
     }),
   );
 }

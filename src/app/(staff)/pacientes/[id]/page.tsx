@@ -39,6 +39,10 @@ import {
 import { AppointmentHistoryCard } from "@/components/patients/appointment-history";
 import { AnonymizePatientButton } from "@/components/patients/anonymize-patient-button";
 import { formatCpf, formatPhone } from "@/lib/patients/cpf";
+import { VideoCallHistoryCard } from "@/components/patients/video-call-history";
+import { listVideoCallRoomsForPatient } from "@/lib/videocalls";
+import { readChatTranscriptFile } from "@/lib/uploads/chat-transcript";
+import { isModuleEnabled } from "@/lib/modules";
 
 export default async function PacienteDetalhePage({
   params,
@@ -104,6 +108,35 @@ export default async function PacienteDetalhePage({
     : null;
   const tags = await listTags(clinicId).catch(() => []);
   const canManageTags = session.user.permissions.includes(PERMISSIONS.TAGS_MANAGE);
+  const canSeeVideoCalls =
+    session.user.permissions.includes(PERMISSIONS.VIDEOCALLS_MANAGE) &&
+    (await isModuleEnabled(clinicId, "VIDEOCALLS").catch(() => false));
+  const videoCallRooms = canSeeVideoCalls
+    ? await listVideoCallRoomsForPatient(clinicId, patient.id)
+    : [];
+  const videoCallHistory = await Promise.all(
+    videoCallRooms.map(async (room) => ({
+      id: room.id,
+      status: room.status,
+      createdAt: room.createdAt,
+      chatTranscripts: await Promise.all(
+        room.chatTranscripts.map(async (t) => ({
+          id: t.id,
+          messageCount: t.messageCount,
+          createdAt: t.createdAt,
+          content: await readChatTranscriptFile(t.filePath).catch(
+            () => "(arquivo indisponível)",
+          ),
+        })),
+      ),
+      audioTranscripts: room.audioTranscripts.map((t) => ({
+        id: t.id,
+        text: t.text,
+        durationSeconds: t.durationSeconds,
+        createdAt: t.createdAt,
+      })),
+    })),
+  );
   const statusTone =
     patient.status === "ACTIVE"
       ? "success"
@@ -392,6 +425,8 @@ export default async function PacienteDetalhePage({
             patientName={patient.fullName}
             items={patient.appointments}
           />
+
+          {canSeeVideoCalls ? <VideoCallHistoryCard items={videoCallHistory} /> : null}
         </div>
 
         <aside className="patient-detail__aside">

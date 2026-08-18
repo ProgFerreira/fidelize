@@ -342,22 +342,34 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     setAudioTranscrito(null);
     setProgressoAudio("Carregando modelo local (só na primeira vez, pode demorar)...");
     try {
-      const texto = await transcreverAudioLocal(blob, (info) => {
+      const { text, durationSeconds } = await transcreverAudioLocal(blob, (info) => {
         if (info.status === "progress" && typeof info.progress === "number") {
           setProgressoAudio(`Baixando modelo... ${Math.round(info.progress)}%`);
         } else if (info.status === "ready" || info.status === "done") {
           setProgressoAudio("Transcrevendo áudio no seu navegador...");
         }
       });
-      setAudioTranscrito(texto || "Nenhuma fala reconhecida no áudio.");
+      setAudioTranscrito(text || "Nenhuma fala reconhecida no áudio.");
       toast.success("Transcrição concluída (processada localmente).");
+
+      if (text) {
+        try {
+          await getJson(`/api/videochamadas/${roomId}/audio-transcript`, {
+            method: "POST",
+            body: JSON.stringify({ text, durationSeconds }),
+          });
+          toast.success("Transcrição salva no histórico do paciente.");
+        } catch {
+          toast.error("A transcrição ficou só nesta tela — falha ao salvar no histórico.");
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao transcrever o áudio");
     } finally {
       setTranscrevendoAudio(false);
       setProgressoAudio(null);
     }
-  }, [audioRecorder.lastBlob]);
+  }, [audioRecorder.lastBlob, roomId]);
 
   const baixarTranscricaoAudio = React.useCallback(() => {
     if (!audioTranscrito) return;

@@ -84,7 +84,9 @@ export default async function VideochamadasPage() {
                   <p className="text-sm text-slate-500">{room.scheduleEvent.title}</p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">
-                  {room.recordings.length} gravação(ões)
+                  {room._count.chatTranscripts + room._count.audioTranscripts} transcrição
+                  {room._count.chatTranscripts + room._count.audioTranscripts === 1 ? "" : "ões"}
+                  {" · "}gravação de vídeo/áudio fica no computador de quem atendeu
                 </p>
               </div>
               <Badge tone={STATUS_TONE[room.status]}>{STATUS_LABEL[room.status]}</Badge>

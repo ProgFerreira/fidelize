@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { persistentStorageRoot } from "@/lib/persistent-storage-root";
 
@@ -30,6 +30,11 @@ export async function saveChatTranscriptFile(params: {
   await writeFile(absolute, params.content, "utf8");
 
   return { relativePath: relative };
+}
+
+/** Lê o conteúdo do arquivo pra exibir inline (ex.: histórico do paciente). */
+export async function readChatTranscriptFile(relativePath: string): Promise<string> {
+  return readFile(absoluteChatTranscriptPath(relativePath), "utf8");
 }
 
 export function absoluteChatTranscriptPath(relativePath: string) {

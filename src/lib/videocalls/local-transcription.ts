@@ -32,7 +32,9 @@ function getTranscriber(onProgress?: (info: ProgressoTranscricao) => void) {
 }
 
 /** Decodifica o Blob gravado (webm) e reamostra para mono 16kHz — formato que o Whisper espera. */
-async function blobParaFloat32Mono16k(blob: Blob): Promise<Float32Array> {
+async function blobParaFloat32Mono16k(
+  blob: Blob,
+): Promise<{ audio: Float32Array; durationSeconds: number }> {
   const arrayBuffer = await blob.arrayBuffer();
   const audioCtx = new AudioContext();
   try {
@@ -48,7 +50,7 @@ async function blobParaFloat32Mono16k(blob: Blob): Promise<Float32Array> {
     source.connect(offline.destination);
     source.start();
     const rendered = await offline.startRendering();
-    return rendered.getChannelData(0);
+    return { audio: rendered.getChannelData(0), durationSeconds: decodedBuffer.duration };
   } finally {
     await audioCtx.close().catch(() => undefined);
   }
@@ -57,8 +59,8 @@ async function blobParaFloat32Mono16k(blob: Blob): Promise<Float32Array> {
 export async function transcreverAudioLocal(
   blob: Blob,
   onProgress?: (info: ProgressoTranscricao) => void,
-): Promise<string> {
-  const [transcriber, audio] = await Promise.all([
+): Promise<{ text: string; durationSeconds: number }> {
+  const [transcriber, { audio, durationSeconds }] = await Promise.all([
     getTranscriber(onProgress),
     blobParaFloat32Mono16k(blob),
   ]);
@@ -70,8 +72,9 @@ export async function transcreverAudioLocal(
     stride_length_s: 5,
   });
 
-  if (Array.isArray(resultado)) {
-    return resultado.map((r) => r.text).join(" ").trim();
-  }
-  return resultado.text.trim();
+  const text = Array.isArray(resultado)
+    ? resultado.map((r) => r.text).join(" ").trim()
+    : resultado.text.trim();
+
+  return { text, durationSeconds: Math.round(durationSeconds) };
 }

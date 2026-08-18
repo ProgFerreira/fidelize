@@ -397,6 +397,8 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
           setProgressoAudio(`Baixando modelo... ${Math.round(info.progress)}%`);
         } else if (info.status === "ready" || info.status === "done") {
           setProgressoAudio("Transcrevendo áudio no seu navegador...");
+        } else if (info.status === "transcribing" && typeof info.progress === "number") {
+          setProgressoAudio(`Transcrevendo áudio no seu navegador... ${info.progress}%`);
         }
       });
       setAudioTranscrito(text || "Nenhuma fala reconhecida no áudio.");

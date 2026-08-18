@@ -61,6 +61,13 @@ async function blobParaFloat32Mono16k(
   }
 }
 
+const TAXA_AMOSTRAGEM = 16000;
+// Whisper só processa ~30s por passagem. A opção de chunking embutida da lib
+// (chunk_length_s/stride_length_s) tem bugs conhecidos que retornam texto
+// vazio em algumas versões — em vez disso, fatiamos o áudio nós mesmos e
+// chamamos o modelo uma vez por trecho, sem esse parâmetro.
+const JANELA_SEGUNDOS = 30;
+
 export async function transcreverAudioLocal(
   blob: Blob,
   onProgress?: (info: ProgressoTranscricao) => void,
@@ -70,16 +77,24 @@ export async function transcreverAudioLocal(
     blobParaFloat32Mono16k(blob),
   ]);
 
-  const resultado = await transcriber(audio, {
-    language: "portuguese",
-    task: "transcribe",
-    chunk_length_s: 30,
-    stride_length_s: 5,
-  });
+  const tamanhoJanela = JANELA_SEGUNDOS * TAXA_AMOSTRAGEM;
+  const partes: string[] = [];
 
-  const text = Array.isArray(resultado)
-    ? resultado.map((r) => r.text).join(" ").trim()
-    : resultado.text.trim();
+  for (let inicio = 0; inicio < audio.length; inicio += tamanhoJanela) {
+    onProgress?.({
+      status: "transcribing",
+      progress: Math.min(99, Math.round((inicio / audio.length) * 100)),
+    });
+    const trecho = audio.subarray(inicio, inicio + tamanhoJanela);
+    const resultado = await transcriber(trecho, {
+      language: "portuguese",
+      task: "transcribe",
+    });
+    const texto = Array.isArray(resultado)
+      ? resultado.map((r) => r.text).join(" ")
+      : resultado.text;
+    if (texto.trim()) partes.push(texto.trim());
+  }
 
-  return { text, durationSeconds: Math.round(durationSeconds) };
+  return { text: partes.join(" ").trim(), durationSeconds: Math.round(durationSeconds) };
 }

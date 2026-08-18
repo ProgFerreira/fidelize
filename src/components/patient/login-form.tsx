@@ -23,9 +23,9 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
         setError(result.error);
         return;
       }
-      setSimulatedCode(
-        process.env.NODE_ENV === "production" ? undefined : result.simulatedCode,
-      );
+      // O servidor já decide se pode expor o código (dev, ou
+      // OTP_SHOW_CODE_INSECURE=true em produção) — não repetir a checagem aqui.
+      setSimulatedCode(result.simulatedCode);
       setStep("code");
     });
   }
@@ -77,9 +77,10 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
               className="tabular text-center text-lg tracking-[0.3em]"
             />
           </Campo>
-          {simulatedCode && process.env.NODE_ENV !== "production" ? (
-            <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600">
-              Código de desenvolvimento: <strong>{simulatedCode}</strong>
+          {simulatedCode ? (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Canal de envio ainda não configurado — seu código é{" "}
+              <strong>{simulatedCode}</strong>
             </p>
           ) : null}
           {error ? (

@@ -137,8 +137,17 @@ export async function requestPatientOtp(params: {
     // fallback simulado
   }
 
+  // TEMPORÁRIO/INSEGURO: enquanto não há WhatsApp/SMS/E-mail real
+  // configurado, o código só chega ao paciente se OTP_SHOW_CODE_INSECURE=true
+  // estiver setado no ambiente — aí ele volta na resposta e aparece na tela,
+  // mesmo em produção. Isso derrota o propósito do OTP como segundo fator
+  // (qualquer um vendo a tela vê o código). Remover essa variável do
+  // hostinger.env assim que um canal de entrega real estiver configurado.
+  const exporCodigoInseguro = process.env.OTP_SHOW_CODE_INSECURE === "true";
   const simulatedCode =
-    process.env.NODE_ENV === "production" ? undefined : delivery.simulated ? code : undefined;
+    delivery.simulated && (exporCodigoInseguro || process.env.NODE_ENV !== "production")
+      ? code
+      : undefined;
 
   return {
     sent: true as const,

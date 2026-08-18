@@ -12,33 +12,44 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  function onSubmitPhone(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      setError(null);
+      const fd = new FormData();
+      fd.set("phone", phone);
+      const result = await requestOtpAction(fd);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSimulatedCode(
+        process.env.NODE_ENV === "production" ? undefined : result.simulatedCode,
+      );
+      setStep("code");
+    });
+  }
+
+  function onSubmitCode(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      setError(null);
+      const fd = new FormData();
+      fd.set("phone", phone);
+      fd.set("code", code);
+      if (callbackUrl) fd.set("callbackUrl", callbackUrl);
+      const result = await verifyOtpAction(fd);
+      // Em caso de sucesso, verifyOtpAction redireciona e não retorna nada.
+      if (result && !result.ok) {
+        setError(result.error);
+      }
+    });
+  }
+
   return (
     <div className="login-form">
       {step === "phone" ? (
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            startTransition(async () => {
-              setError(null);
-              try {
-                const fd = new FormData();
-                fd.set("phone", phone);
-                const result = await requestOtpAction(fd);
-                setSimulatedCode(
-                  process.env.NODE_ENV === "production"
-                    ? undefined
-                    : result.simulatedCode,
-                );
-                setStep("code");
-              } catch (err) {
-                setError(
-                  err instanceof Error ? err.message : "Falha ao enviar código",
-                );
-              }
-            });
-          }}
-        >
+        <form className="space-y-4" onSubmit={onSubmitPhone}>
           <Campo label="Telefone" obrigatorio>
             <Input
               value={phone}
@@ -57,14 +68,9 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
           </Button>
         </form>
       ) : (
-        <form action={verifyOtpAction} className="space-y-4">
-          <input type="hidden" name="phone" value={phone} />
-          {callbackUrl ? (
-            <input type="hidden" name="callbackUrl" value={callbackUrl} />
-          ) : null}
+        <form className="space-y-4" onSubmit={onSubmitCode}>
           <Campo label="Código" obrigatorio>
             <Input
-              name="code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
@@ -76,7 +82,12 @@ export function PatientLoginForm({ callbackUrl }: { callbackUrl?: string }) {
               Código de desenvolvimento: <strong>{simulatedCode}</strong>
             </p>
           ) : null}
-          <Button type="submit" className="w-full">
+          {error ? (
+            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          ) : null}
+          <Button type="submit" className="w-full" carregando={pending}>
             Entrar
           </Button>
         </form>

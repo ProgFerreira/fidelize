@@ -47,45 +47,76 @@ function clientIp(h: Headers) {
   return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
 }
 
-export async function requestOtpAction(formData: FormData) {
-  const phone = String(formData.get("phone") || "");
-  const h = await headers();
-  const clinic = await resolvePatientClinic();
-  if (!clinic?.organizationId) throw new Error("Clínica indisponível");
+/**
+ * Erros lançados dentro de Server Actions chegam ao client redigidos em
+ * produção (Next.js troca a mensagem original por um erro genérico, tipo
+ * "Minified React error #441" — de propósito, pra não vazar detalhes de
+ * implementação). Por isso essas duas actions NUNCA lançam pra sinalizar
+ * erro esperado (clínica indisponível, código errado etc.) — sempre
+ * devolvem `{ ok: false, error }`, que o client mostra direto.
+ */
+export async function requestOtpAction(
+  formData: FormData,
+): Promise<{ ok: true; simulatedCode?: string } | { ok: false; error: string }> {
+  try {
+    const phone = String(formData.get("phone") || "");
+    const h = await headers();
+    const clinic = await resolvePatientClinic();
+    if (!clinic?.organizationId) {
+      return { ok: false, error: "Clínica indisponível" };
+    }
 
-  return comOrganizacao({ organizationId: clinic.organizationId }, () =>
-    requestPatientOtp({
-      clinicId: clinic.id,
-      phone,
-      ip: clientIp(h),
-    }),
-  );
+    const result = await comOrganizacao(
+      { organizationId: clinic.organizationId },
+      () => requestPatientOtp({ clinicId: clinic.id, phone, ip: clientIp(h) }),
+    );
+    return { ok: true, simulatedCode: result.simulatedCode };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Falha ao enviar código",
+    };
+  }
 }
 
-export async function verifyOtpAction(formData: FormData) {
-  const phone = String(formData.get("phone") || "");
-  const code = String(formData.get("code") || "");
-  const clinic = await resolvePatientClinic();
-  if (!clinic?.organizationId) throw new Error("Clínica indisponível");
+export async function verifyOtpAction(
+  formData: FormData,
+): Promise<{ ok: false; error: string } | void> {
+  let redirectTo: string | null = null;
 
-  const patient = await comOrganizacao(
-    { organizationId: clinic.organizationId },
-    () =>
-      verifyPatientOtp({
-        clinicId: clinic.id,
-        phone,
-        code,
-      }),
-  );
+  try {
+    const phone = String(formData.get("phone") || "");
+    const code = String(formData.get("code") || "");
+    const clinic = await resolvePatientClinic();
+    if (!clinic?.organizationId) {
+      return { ok: false, error: "Clínica indisponível" };
+    }
 
-  await setPatientSession({
-    patientId: patient.id,
-    clinicId: clinic.id,
-    fullName: patient.fullName,
-  });
+    const patient = await comOrganizacao(
+      { organizationId: clinic.organizationId },
+      () => verifyPatientOtp({ clinicId: clinic.id, phone, code }),
+    );
 
-  const callbackUrl = safePatientCallbackUrl(String(formData.get("callbackUrl") || ""));
-  redirect(callbackUrl ?? "/p");
+    await setPatientSession({
+      patientId: patient.id,
+      clinicId: clinic.id,
+      fullName: patient.fullName,
+    });
+
+    const callbackUrl = safePatientCallbackUrl(
+      String(formData.get("callbackUrl") || ""),
+    );
+    redirectTo = callbackUrl ?? "/p";
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Falha ao verificar código",
+    };
+  }
+
+  // redirect() lança um sinal especial do Next.js — precisa ficar fora do
+  // try/catch acima, senão o catch genérico o intercepta como erro comum.
+  redirect(redirectTo);
 }
 
 export async function patientLogoutAction() {

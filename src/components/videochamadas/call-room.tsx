@@ -1,8 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Circle, Square } from "lucide-react";
-import { Button, Card, Badge, toast } from "@/components/ui";
+import {
+  Video,
+  VideoOff,
+  Mic,
+  MicOff,
+  PhoneOff,
+  Circle,
+  Square,
+  Send,
+  FileText,
+} from "lucide-react";
+import { Button, Card, Badge, Input, toast } from "@/components/ui";
 
 type Role = "PROFISSIONAL" | "PACIENTE";
 
@@ -15,8 +25,17 @@ type RoomDTO = {
 
 type SignalDTO = {
   id: string;
-  type: "offer" | "answer" | "ice-candidate" | "leave";
+  type: "offer" | "answer" | "ice-candidate" | "leave" | "chat";
+  fromRole: Role;
   payload: unknown;
+  createdAt: string;
+};
+
+type ChatMessage = {
+  id: string;
+  role: Role;
+  text: string;
+  at: string;
 };
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -45,6 +64,10 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   const [camOn, setCamOn] = React.useState(true);
   const [recording, setRecording] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = React.useState("");
+  const [savingTranscript, setSavingTranscript] = React.useState(false);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
 
   const localVideoRef = React.useRef<HTMLVideoElement>(null);
   const remoteVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -118,6 +141,41 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     },
     [roomId],
   );
+
+  const sendChatMessage = React.useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setChatInput("");
+    setChatMessages((prev) => [
+      ...prev,
+      { id: `local-${Date.now()}`, role, text, at: new Date().toISOString() },
+    ]);
+    try {
+      await sendSignal("chat", { text });
+    } catch {
+      toast.error("Falha ao enviar mensagem.");
+    }
+  }, [chatInput, role, sendSignal]);
+
+  const saveTranscript = React.useCallback(async () => {
+    setSavingTranscript(true);
+    try {
+      const transcript = await getJson<{ id: string }>(
+        `/api/videochamadas/${roomId}/chat-transcript`,
+        { method: "POST" },
+      );
+      window.open(`/api/videochamadas/${roomId}/chat-transcript/${transcript.id}`, "_blank");
+      toast.success("Transcrição gravada.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gravar transcrição");
+    } finally {
+      setSavingTranscript(false);
+    }
+  }, [roomId]);
+
+  React.useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
 
   const stopRecordingAndUpload = React.useCallback(async () => {
     const recorder = recorderRef.current;
@@ -283,6 +341,15 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
             await pc.setRemoteDescription(signal.payload as RTCSessionDescriptionInit);
           } else if (signal.type === "ice-candidate") {
             await pc.addIceCandidate(signal.payload as RTCIceCandidateInit).catch(() => undefined);
+          } else if (signal.type === "chat") {
+            const payload = signal.payload as { text?: unknown } | null;
+            const text = payload && typeof payload.text === "string" ? payload.text : "";
+            if (text) {
+              setChatMessages((prev) => [
+                ...prev,
+                { id: signal.id, role: signal.fromRole, text, at: signal.createdAt },
+              ]);
+            }
           }
         }
       } catch {
@@ -424,9 +491,59 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
           </Button>
         )}
         {recording && <Badge tone="warning">Gravando</Badge>}
+        {role === "PROFISSIONAL" && (
+          <Button
+            variante="secundario"
+            onClick={saveTranscript}
+            disabled={chatMessages.length === 0}
+            carregando={savingTranscript}
+          >
+            <FileText className="h-4 w-4" /> Transcrição
+          </Button>
+        )}
         <Button variante="perigo" onClick={endCall} className="ml-auto">
           <PhoneOff className="h-4 w-4" /> Encerrar chamada
         </Button>
+      </Card>
+
+      <Card className="flex flex-col gap-2 p-3">
+        <p className="text-sm font-semibold text-slate-700">Chat</p>
+        <div className="flex h-48 flex-col gap-1.5 overflow-y-auto rounded-md bg-slate-50 p-2">
+          {chatMessages.length === 0 ? (
+            <p className="m-auto text-sm text-slate-400">Nenhuma mensagem ainda.</p>
+          ) : (
+            chatMessages.map((m) => (
+              <div
+                key={m.id}
+                className={`max-w-[80%] rounded-md px-3 py-1.5 text-sm ${
+                  m.role === role
+                    ? "ml-auto bg-brand-blue text-white"
+                    : "bg-white text-slate-800 border border-slate-200"
+                }`}
+              >
+                {m.text}
+              </div>
+            ))
+          )}
+          <div ref={chatEndRef} />
+        </div>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sendChatMessage();
+          }}
+        >
+          <Input
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Digite uma mensagem..."
+            aria-label="Mensagem de chat"
+          />
+          <Button type="submit" tamanho="icone" aria-label="Enviar mensagem">
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
       </Card>
     </div>
   );

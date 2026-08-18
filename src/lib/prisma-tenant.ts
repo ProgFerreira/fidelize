@@ -78,6 +78,7 @@ const MODELOS_TENANT: ReadonlySet<string> = new Set([
   "VideoCallRoom",
   "VideoCallSignal",
   "VideoCallRecording",
+  "VideoCallChatTranscript",
   "OrganizationInvoice",
   "MembershipPlan",
   "PatientMembership",

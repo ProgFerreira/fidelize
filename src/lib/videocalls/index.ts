@@ -6,6 +6,10 @@ import { prisma } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit";
 import { requireModule } from "@/lib/modules";
 import { comOrganizacao, semOrganizacao } from "@/lib/tenant";
+import { saveChatTranscriptFile } from "@/lib/uploads/chat-transcript";
+import { formatChatTranscript } from "@/lib/videocalls/chat-transcript-format";
+
+export { formatChatTranscript } from "@/lib/videocalls/chat-transcript-format";
 import type {
   Prisma,
   VideoCallParticipantRole,
@@ -218,7 +222,7 @@ export async function transitionVideoCallStatus(input: {
 }
 
 const signalSchema = z.object({
-  type: z.enum(["offer", "answer", "ice-candidate", "leave"]),
+  type: z.enum(["offer", "answer", "ice-candidate", "leave", "chat"]),
   payload: z.unknown(),
 });
 
@@ -289,6 +293,67 @@ export async function getVideoCallRecording(clinicId: string, recordingId: strin
   return withClinicOrg(clinicId, () =>
     prisma.videoCallRecording.findFirst({
       where: { id: recordingId, clinicId },
+    }),
+  );
+}
+
+export async function saveChatTranscript(input: {
+  clinicId: string;
+  roomId: string;
+  actorId?: string;
+}) {
+  return withClinicOrg(input.clinicId, async () => {
+    const room = await prisma.videoCallRoom.findFirst({
+      where: { id: input.roomId, clinicId: input.clinicId },
+    });
+    if (!room) throw new Error("Sala não encontrada");
+
+    const messages = await prisma.videoCallSignal.findMany({
+      where: { roomId: room.id, type: "chat" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { fromRole: true, payload: true, createdAt: true },
+    });
+    if (messages.length === 0) {
+      throw new Error("Nenhuma mensagem de chat pra gravar ainda");
+    }
+
+    const content = formatChatTranscript(messages);
+    const saved = await saveChatTranscriptFile({
+      clinicId: input.clinicId,
+      roomId: room.id,
+      content,
+    });
+
+    const transcript = await prisma.videoCallChatTranscript.create({
+      data: {
+        roomId: room.id,
+        clinicId: input.clinicId,
+        filePath: saved.relativePath,
+        messageCount: messages.length,
+        createdById: input.actorId ?? null,
+      },
+    });
+
+    await writeAuditLog({
+      clinicId: input.clinicId,
+      userId: input.actorId,
+      action: "VIDEOCALL_CHANGE",
+      entityType: "VideoCallChatTranscript",
+      entityId: transcript.id,
+      afterData: { roomId: room.id, messageCount: transcript.messageCount },
+    });
+
+    return transcript;
+  });
+}
+
+export async function getVideoCallChatTranscript(
+  clinicId: string,
+  transcriptId: string,
+) {
+  return withClinicOrg(clinicId, () =>
+    prisma.videoCallChatTranscript.findFirst({
+      where: { id: transcriptId, clinicId },
     }),
   );
 }

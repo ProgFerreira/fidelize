@@ -24,7 +24,7 @@ async function authorizedRoom(roomId: string) {
 }
 
 const postSchema = z.object({
-  type: z.enum(["offer", "answer", "ice-candidate", "leave"]),
+  type: z.enum(["offer", "answer", "ice-candidate", "leave", "chat"]),
   payload: z.unknown(),
 });
 

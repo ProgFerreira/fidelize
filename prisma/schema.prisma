@@ -660,8 +660,9 @@ model User {
   redemptions      Redemption[]
   platformAccesses PlatformAccess[]
   affiliateProfile Affiliate?
-  videoCallRoomsCreated      VideoCallRoom[]      @relation("VideoCallRoomCreator")
-  videoCallRecordingsCreated VideoCallRecording[] @relation("VideoCallRecordingCreator")
+  videoCallRoomsCreated      VideoCallRoom[]           @relation("VideoCallRoomCreator")
+  videoCallRecordingsCreated VideoCallRecording[]      @relation("VideoCallRecordingCreator")
+  videoCallChatTranscriptsCreated VideoCallChatTranscript[] @relation("VideoCallChatTranscriptCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1045,6 +1046,7 @@ model VideoCallRoom {
   createdBy     User?                @relation("VideoCallRoomCreator", fields: [createdById], references: [id])
   signals       VideoCallSignal[]
   recordings    VideoCallRecording[]
+  chatTranscripts VideoCallChatTranscript[]
 
   @@index([clinicId, status])
   @@index([patientId])
@@ -1080,6 +1082,23 @@ model VideoCallRecording {
 
   room      VideoCallRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdBy User?         @relation("VideoCallRecordingCreator", fields: [createdById], references: [id])
+
+  @@index([clinicId, createdAt])
+  @@index([organizationId])
+}
+
+model VideoCallChatTranscript {
+  id             String   @id @default(cuid())
+  organizationId String?
+  roomId         String
+  clinicId       String
+  filePath       String
+  messageCount   Int
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  room      VideoCallRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation("VideoCallChatTranscriptCreator", fields: [createdById], references: [id])
 
   @@index([clinicId, createdAt])
   @@index([organizationId])

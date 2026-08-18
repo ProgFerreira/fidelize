@@ -71,7 +71,6 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
 
   const localVideoRef = React.useRef<HTMLVideoElement>(null);
   const remoteVideoRef = React.useRef<HTMLVideoElement>(null);
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   const pcRef = React.useRef<RTCPeerConnection | null>(null);
   const localStreamRef = React.useRef<MediaStream | null>(null);
@@ -82,7 +81,6 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   const recorderRef = React.useRef<MediaRecorder | null>(null);
   const recordedChunksRef = React.useRef<Blob[]>([]);
   const audioCtxRef = React.useRef<AudioContext | null>(null);
-  const rafRef = React.useRef<number | null>(null);
 
   const otherConsentGiven = (r: RoomDTO | null) =>
     role === "PACIENTE" ? Boolean(r?.staffConsentAt) : Boolean(r?.patientConsentAt);
@@ -187,10 +185,10 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     recorder.stop();
     await stopped;
 
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     audioCtxRef.current?.close().catch(() => undefined);
+    audioCtxRef.current = null;
 
-    const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+    const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
     recordedChunksRef.current = [];
     setRecording(false);
 
@@ -199,10 +197,10 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     try {
       await fetch(`/api/videochamadas/${roomId}/recording`, {
         method: "POST",
-        headers: { "Content-Type": "video/webm" },
+        headers: { "Content-Type": "audio/webm" },
         body: blob,
       });
-      toast.success("Gravação enviada.");
+      toast.success("Gravação de áudio enviada.");
     } catch {
       toast.error("Falha ao enviar a gravação.");
     }
@@ -210,44 +208,28 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
 
   const startRecording = React.useCallback(() => {
     if (role !== "PROFISSIONAL") return;
-    const canvas = canvasRef.current;
-    const localVideo = localVideoRef.current;
-    const remoteVideo = remoteVideoRef.current;
-    if (!canvas || !localVideo || !remoteVideo) return;
-
-    canvas.width = 960;
-    canvas.height = 360;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const draw = () => {
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (localVideo.readyState >= 2) ctx.drawImage(localVideo, 0, 0, 480, 360);
-      if (remoteVideo.readyState >= 2) ctx.drawImage(remoteVideo, 480, 0, 480, 360);
-      rafRef.current = requestAnimationFrame(draw);
-    };
-    draw();
-
-    const canvasStream = canvas.captureStream(25);
 
     const audioCtx = new AudioContext();
-    audioCtxRef.current = audioCtx;
     const destination = audioCtx.createMediaStreamDestination();
+    let temAudio = false;
     for (const stream of [localStreamRef.current, remoteStreamRef.current]) {
       if (!stream) continue;
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length === 0) continue;
+      temAudio = true;
       const source = audioCtx.createMediaStreamSource(new MediaStream(audioTracks));
       source.connect(destination);
     }
+    if (!temAudio) {
+      audioCtx.close().catch(() => undefined);
+      toast.error("Nenhum áudio disponível para gravar ainda.");
+      return;
+    }
+    audioCtxRef.current = audioCtx;
 
-    const combined = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...destination.stream.getAudioTracks(),
-    ]);
-
-    const recorder = new MediaRecorder(combined, { mimeType: "video/webm;codecs=vp8,opus" });
+    const recorder = new MediaRecorder(destination.stream, {
+      mimeType: "audio/webm;codecs=opus",
+    });
     recordedChunksRef.current = [];
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) recordedChunksRef.current.push(e.data);
@@ -385,7 +367,6 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     return () => {
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
       pcRef.current?.close();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
@@ -418,8 +399,8 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
       <Card className="max-w-lg">
         <p className="text-lg font-semibold">Consentimento para videochamada</p>
         <p className="mt-2 text-sm text-slate-600">
-          Esta consulta pode ser gravada em vídeo para fins de registro clínico. Ao continuar,
-          você concorda em liberar câmera e microfone e, se aplicável, em ser gravado(a).
+          O áudio desta consulta pode ser gravado para fins de registro clínico. Ao continuar,
+          você concorda em liberar câmera e microfone e, se aplicável, em ter o áudio gravado.
         </p>
         {given ? (
           <p className="mt-4 text-sm text-emerald-600">
@@ -464,7 +445,6 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
           </div>
         </Card>
       </div>
-      <canvas ref={canvasRef} className="hidden" />
 
       <Card className="flex flex-wrap items-center gap-2">
         <Button variante="secundario" tamanho="icone" onClick={toggleMic} aria-label="Microfone">
@@ -485,7 +465,7 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
               </>
             ) : (
               <>
-                <Circle className="h-4 w-4" /> Iniciar gravação
+                <Circle className="h-4 w-4" /> Gravar áudio
               </>
             )}
           </Button>

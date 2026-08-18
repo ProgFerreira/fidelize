@@ -7,7 +7,7 @@ import { pipeline } from "stream/promises";
 import type { ReadableStream as NodeWebReadableStream } from "stream/web";
 import { persistentStorageRoot } from "@/lib/persistent-storage-root";
 
-const ALLOWED_MIME = new Set(["video/webm"]);
+const ALLOWED_MIME = new Set(["video/webm", "audio/webm"]);
 const DEFAULT_MAX_MB = 500;
 
 function maxBytes() {

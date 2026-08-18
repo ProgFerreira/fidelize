@@ -40,7 +40,7 @@ export async function POST(
       roomId,
       actorId: caller.userId,
       filePath: saved.relativePath,
-      mimeType: "video/webm",
+      mimeType: mimeType.split(";")[0]?.trim() ?? "audio/webm",
       sizeBytes: saved.sizeBytes,
     });
 

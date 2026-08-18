@@ -95,6 +95,28 @@ export async function requestPatientOtp(params: {
     };
   }
 
+  // Se o profissional já gerou e repassou um código válido por WhatsApp
+  // (requestStaffOtpForPatient), não gera outro nem mostra nada na tela —
+  // o paciente precisa pegar o código que já recebeu por um canal real.
+  // Não reusa código de uma solicitação normal anterior: mantém o
+  // comportamento atual pra quem ainda não usa o repasse por staff.
+  const jaEnviadoPeloStaff = await prisma.patientOtp.findFirst({
+    where: {
+      clinicId: params.clinicId,
+      patientId: patient.id,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+      generatedByStaff: true,
+    },
+  });
+  if (jaEnviadoPeloStaff) {
+    return {
+      sent: true as const,
+      simulatedCode: undefined as string | undefined,
+      message: GENERIC_SENT,
+    };
+  }
+
   const code = String(randomInt(100000, 999999));
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -153,6 +175,51 @@ export async function requestPatientOtp(params: {
     sent: true as const,
     simulatedCode,
     message: GENERIC_SENT,
+  };
+}
+
+/**
+ * Gera um código de acesso pra um paciente já identificado, pra o profissional
+ * repassar manualmente (ex.: link wa.me) — não depende de WhatsApp/SMS
+ * automatizado configurado. Sempre gera um código novo e retorna o texto
+ * puro: quem chama já está autenticado como staff e vai repassar na hora.
+ */
+export async function requestStaffOtpForPatient(params: {
+  clinicId: string;
+  patientId: string;
+  actorId?: string;
+}) {
+  const patient = await prisma.patient.findFirst({
+    where: { id: params.patientId, clinicId: params.clinicId },
+  });
+  if (!patient) throw new Error("Paciente não encontrado");
+
+  const code = String(randomInt(100000, 999999));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await prisma.patientOtp.create({
+    data: {
+      clinicId: params.clinicId,
+      patientId: patient.id,
+      phone: patient.phone,
+      codeHash: hashCode(code),
+      expiresAt,
+      generatedByStaff: true,
+    },
+  });
+
+  await writeAuditLog({
+    clinicId: params.clinicId,
+    userId: params.actorId,
+    action: "OTP_REQUEST",
+    entityType: "Patient",
+    entityId: patient.id,
+    metadata: { generatedByStaff: true },
+  });
+
+  return {
+    code,
+    patient: { fullName: patient.fullName, phone: patient.phone },
   };
 }
 

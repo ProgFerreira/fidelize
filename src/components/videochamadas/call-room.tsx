@@ -12,9 +12,11 @@ import {
   Send,
   FileText,
   Captions,
+  MessageCircle,
 } from "lucide-react";
 import { Button, Card, Badge, Input, Textarea, toast } from "@/components/ui";
 import { transcreverAudioLocal } from "@/lib/videocalls/local-transcription";
+import { whatsappDeepLink } from "@/lib/whatsapp/deep-link";
 
 type Role = "PROFISSIONAL" | "PACIENTE";
 
@@ -220,6 +222,7 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   const [transcrevendoAudio, setTranscrevendoAudio] = React.useState(false);
   const [progressoAudio, setProgressoAudio] = React.useState<string | null>(null);
   const [audioTranscrito, setAudioTranscrito] = React.useState<string | null>(null);
+  const [enviandoCodigo, setEnviandoCodigo] = React.useState(false);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
   const localVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -287,6 +290,27 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
       toast.success("Consentimento registrado. Aguardando o outro lado...");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao registrar consentimento");
+    }
+  }, [roomId]);
+
+  const enviarCodigoPorWhatsapp = React.useCallback(async () => {
+    setEnviandoCodigo(true);
+    try {
+      const result = await getJson<{ code: string; patient: { fullName: string; phone: string } }>(
+        `/api/videochamadas/${roomId}/access-code`,
+        { method: "POST" },
+      );
+      const primeiroNome = result.patient.fullName.split(" ")[0];
+      const link = `${window.location.origin}/p/videochamadas/${roomId}`;
+      const mensagem =
+        `Olá ${primeiroNome}! Aqui está seu código de acesso para a sua consulta por vídeo: ` +
+        `*${result.code}*\n\nAcesse por este link: ${link}\n\nVálido por 10 minutos.`;
+      window.open(whatsappDeepLink(result.patient.phone, mensagem), "_blank");
+      toast.success("Código gerado. Confirme o envio na aba do WhatsApp que abriu.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar código de acesso");
+    } finally {
+      setEnviandoCodigo(false);
     }
   }, [roomId]);
 
@@ -617,6 +641,20 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
           <Button className="mt-4" onClick={acceptConsent}>
             Aceito e quero entrar na chamada
           </Button>
+        )}
+        {role === "PROFISSIONAL" && (
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <p className="mb-2 text-xs text-slate-500">
+              Se o paciente ainda não tem o código de acesso, gere e envie por WhatsApp.
+            </p>
+            <Button
+              variante="secundario"
+              onClick={enviarCodigoPorWhatsapp}
+              carregando={enviandoCodigo}
+            >
+              <MessageCircle className="h-4 w-4" /> Enviar código por WhatsApp
+            </Button>
+          </div>
         )}
       </Card>
     );

@@ -1593,6 +1593,8 @@ model PatientOtp {
   usedAt    DateTime?
   attempts  Int      @default(0)
   createdAt DateTime @default(now())
+  /** Gerado pelo profissional pra repassar manualmente por WhatsApp (fora do fluxo de auto-envio). */
+  generatedByStaff Boolean @default(false)
 
   clinic  Clinic  @relation(fields: [clinicId], references: [id])
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)

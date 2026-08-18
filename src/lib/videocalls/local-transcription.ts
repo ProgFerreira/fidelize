@@ -24,6 +24,11 @@ function getTranscriber(onProgress?: (info: ProgressoTranscricao) => void) {
       const { pipeline } = await import("@huggingface/transformers");
       const transcriber = await pipeline("automatic-speech-recognition", MODEL_ID, {
         progress_callback: onProgress as never,
+        // Força fp32: o decodificador quantizado (q8, padrão da lib) tem um bug
+        // conhecido no runtime ONNX atual ("Missing required scale" no
+        // MatMulNBits) que impede a sessão de ser criada. fp32 é mais pesado
+        // pra baixar, mas é a variante garantida de funcionar.
+        dtype: "fp32",
       });
       return transcriber as unknown as TranscriberFn;
     })();

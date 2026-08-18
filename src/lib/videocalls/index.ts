@@ -436,6 +436,17 @@ export async function listVideoCallRoomsForPatient(clinicId: string, patientId: 
   );
 }
 
+/** Histórico completo do chat da sala (dos dois lados) — pra repopular a tela ao reabrir a chamada. */
+export async function listChatMessages(clinicId: string, roomId: string) {
+  return withClinicOrg(clinicId, () =>
+    prisma.videoCallSignal.findMany({
+      where: { roomId, type: "chat" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, fromRole: true, payload: true, createdAt: true },
+    }),
+  );
+}
+
 export async function listVideoCallSignalsSince(input: {
   clinicId: string;
   roomId: string;

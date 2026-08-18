@@ -300,20 +300,46 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     [roomId],
   );
 
+  /** Idempotente por id — evita duplicar mensagem que já veio pelo histórico ou por outro poll. */
+  const adicionarMensagemChat = React.useCallback((msg: ChatMessage) => {
+    setChatMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+  }, []);
+
+  // Busca o histórico completo do chat (dos dois lados) ao abrir a sala —
+  // sem isso, quem reabre a chamada perde as próprias mensagens antigas,
+  // já que o poll de sinais só traz mensagens do OUTRO participante.
+  React.useEffect(() => {
+    let cancelled = false;
+    getJson<Array<{ id: string; fromRole: Role; payload: unknown; createdAt: string }>>(
+      `/api/videochamadas/${roomId}/chat-messages`,
+    )
+      .then((historico) => {
+        if (cancelled) return;
+        for (const msg of historico) {
+          const payload = msg.payload as { text?: unknown } | null;
+          const text = payload && typeof payload.text === "string" ? payload.text : "";
+          if (text) {
+            adicionarMensagemChat({ id: msg.id, role: msg.fromRole, text, at: msg.createdAt });
+          }
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId, adicionarMensagemChat]);
+
   const sendChatMessage = React.useCallback(async () => {
     const text = chatInput.trim();
     if (!text) return;
     setChatInput("");
-    setChatMessages((prev) => [
-      ...prev,
-      { id: `local-${Date.now()}`, role, text, at: new Date().toISOString() },
-    ]);
+    adicionarMensagemChat({ id: `local-${Date.now()}`, role, text, at: new Date().toISOString() });
     try {
       await sendSignal("chat", { text });
     } catch {
       toast.error("Falha ao enviar mensagem.");
     }
-  }, [chatInput, role, sendSignal]);
+  }, [chatInput, role, sendSignal, adicionarMensagemChat]);
 
   const saveTranscript = React.useCallback(async () => {
     setSavingTranscript(true);
@@ -504,10 +530,12 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
             const payload = signal.payload as { text?: unknown } | null;
             const text = payload && typeof payload.text === "string" ? payload.text : "";
             if (text) {
-              setChatMessages((prev) => [
-                ...prev,
-                { id: signal.id, role: signal.fromRole, text, at: signal.createdAt },
-              ]);
+              adicionarMensagemChat({
+                id: signal.id,
+                role: signal.fromRole,
+                text,
+                at: signal.createdAt,
+              });
             }
           }
         }

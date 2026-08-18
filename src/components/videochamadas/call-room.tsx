@@ -376,11 +376,22 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
       )}
       <div className="grid gap-3 md:grid-cols-2">
         <Card className="p-0 overflow-hidden">
-          <video ref={localVideoRef} autoPlay muted playsInline className="w-full bg-slate-900" />
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className="aspect-video w-full bg-slate-900 object-cover"
+          />
           <div className="p-2 text-xs text-slate-500">Você</div>
         </Card>
         <Card className="p-0 overflow-hidden">
-          <video ref={remoteVideoRef} autoPlay playsInline className="w-full bg-slate-900" />
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="aspect-video w-full bg-slate-900 object-cover"
+          />
           <div className="p-2 text-xs text-slate-500">
             {phase === "in-call" ? "Outro participante" : "Conectando..."}
           </div>

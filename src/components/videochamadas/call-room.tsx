@@ -11,8 +11,10 @@ import {
   Square,
   Send,
   FileText,
+  Captions,
 } from "lucide-react";
-import { Button, Card, Badge, Input, toast } from "@/components/ui";
+import { Button, Card, Badge, Input, Textarea, toast } from "@/components/ui";
+import { transcreverAudioLocal } from "@/lib/videocalls/local-transcription";
 
 type Role = "PROFISSIONAL" | "PACIENTE";
 
@@ -57,10 +59,24 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 type RecordingKind = "video" | "audio";
 
+/** Dispara o download do blob direto no computador — nada sobe ao servidor. */
+function baixarBlob(blob: Blob, nomeArquivo: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 /**
  * Grava vídeo (composição via canvas dos dois lados + áudio misturado) ou
  * só o áudio misturado (local+remoto), dependendo de `kind`. As duas
- * gravações são independentes — cada uma vira um VideoCallRecording próprio.
+ * gravações são independentes. Nada é enviado ao servidor — o arquivo é
+ * baixado direto na máquina de quem grava, pra não ocupar espaço no
+ * storage da clínica.
  */
 function useCallRecorder(
   kind: RecordingKind,
@@ -74,6 +90,7 @@ function useCallRecorder(
   },
 ) {
   const [recording, setRecording] = React.useState(false);
+  const [lastBlob, setLastBlob] = React.useState<Blob | null>(null);
   const recorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
   const audioCtxRef = React.useRef<AudioContext | null>(null);
@@ -99,20 +116,17 @@ function useCallRecorder(
     chunksRef.current = [];
     setRecording(false);
 
-    if (blob.size === 0) return;
-
-    try {
-      await fetch(`/api/videochamadas/${ctx.roomId}/recording`, {
-        method: "POST",
-        headers: { "Content-Type": mimeType },
-        body: blob,
-      });
-      toast.success(
-        kind === "video" ? "Gravação de vídeo enviada." : "Gravação de áudio enviada.",
-      );
-    } catch {
-      toast.error("Falha ao enviar a gravação.");
+    if (blob.size === 0) {
+      setLastBlob(null);
+      return;
     }
+
+    setLastBlob(blob);
+    const carimbo = new Date().toISOString().replace(/[:.]/g, "-");
+    baixarBlob(blob, `${kind === "video" ? "gravacao-video" : "gravacao-audio"}-${ctx.roomId}-${carimbo}.webm`);
+    toast.success(
+      kind === "video" ? "Gravação de vídeo baixada." : "Gravação de áudio baixada.",
+    );
   }, [kind, ctx.roomId]);
 
   const start = React.useCallback(() => {
@@ -189,7 +203,7 @@ function useCallRecorder(
     };
   }, []);
 
-  return { recording, start, stop };
+  return { recording, lastBlob, start, stop };
 }
 
 export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
@@ -203,6 +217,9 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = React.useState("");
   const [savingTranscript, setSavingTranscript] = React.useState(false);
+  const [transcrevendoAudio, setTranscrevendoAudio] = React.useState(false);
+  const [progressoAudio, setProgressoAudio] = React.useState<string | null>(null);
+  const [audioTranscrito, setAudioTranscrito] = React.useState<string | null>(null);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
   const localVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -317,6 +334,36 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
+
+  const transcreverUltimoAudio = React.useCallback(async () => {
+    const blob = audioRecorder.lastBlob;
+    if (!blob) return;
+    setTranscrevendoAudio(true);
+    setAudioTranscrito(null);
+    setProgressoAudio("Carregando modelo local (só na primeira vez, pode demorar)...");
+    try {
+      const texto = await transcreverAudioLocal(blob, (info) => {
+        if (info.status === "progress" && typeof info.progress === "number") {
+          setProgressoAudio(`Baixando modelo... ${Math.round(info.progress)}%`);
+        } else if (info.status === "ready" || info.status === "done") {
+          setProgressoAudio("Transcrevendo áudio no seu navegador...");
+        }
+      });
+      setAudioTranscrito(texto || "Nenhuma fala reconhecida no áudio.");
+      toast.success("Transcrição concluída (processada localmente).");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao transcrever o áudio");
+    } finally {
+      setTranscrevendoAudio(false);
+      setProgressoAudio(null);
+    }
+  }, [audioRecorder.lastBlob]);
+
+  const baixarTranscricaoAudio = React.useCallback(() => {
+    if (!audioTranscrito) return;
+    const blob = new Blob([audioTranscrito], { type: "text/plain;charset=utf-8" });
+    baixarBlob(blob, `transcricao-audio-${roomId}-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`);
+  }, [audioTranscrito, roomId]);
 
   // Setup de mídia + WebRTC assim que os dois lados consentirem.
   React.useEffect(() => {
@@ -577,13 +624,43 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
             disabled={chatMessages.length === 0}
             carregando={savingTranscript}
           >
-            <FileText className="h-4 w-4" /> Transcrição
+            <FileText className="h-4 w-4" /> Transcrição do chat
+          </Button>
+        )}
+        {role === "PROFISSIONAL" && (
+          <Button
+            variante="secundario"
+            onClick={transcreverUltimoAudio}
+            disabled={!audioRecorder.lastBlob || audioRecorder.recording}
+            carregando={transcrevendoAudio}
+          >
+            <Captions className="h-4 w-4" /> Transcrever áudio gravado
           </Button>
         )}
         <Button variante="perigo" onClick={endCall} className="ml-auto">
           <PhoneOff className="h-4 w-4" /> Encerrar chamada
         </Button>
       </Card>
+
+      {(progressoAudio || audioTranscrito) && (
+        <Card className="flex flex-col gap-2 p-3">
+          <p className="text-sm font-semibold text-slate-700">Transcrição do áudio (local)</p>
+          {progressoAudio && <p className="text-sm text-slate-500">{progressoAudio}</p>}
+          {audioTranscrito && (
+            <>
+              <Textarea readOnly value={audioTranscrito} className="min-h-32" />
+              <Button
+                variante="secundario"
+                tamanho="sm"
+                onClick={baixarTranscricaoAudio}
+                className="self-start"
+              >
+                Baixar transcrição (.txt)
+              </Button>
+            </>
+          )}
+        </Card>
+      )}
 
       <Card className="flex flex-col gap-2 p-3">
         <p className="text-sm font-semibold text-slate-700">Chat</p>

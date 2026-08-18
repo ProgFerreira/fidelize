@@ -365,6 +365,45 @@ export function CallRoom({ roomId, role }: { roomId: string; role: Role }) {
     baixarBlob(blob, `transcricao-audio-${roomId}-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`);
   }, [audioTranscrito, roomId]);
 
+  // Evita sair da página por engano durante a chamada (ex.: clicar no menu) e
+  // perder a chamada/gravação em andamento. Cobre navegação interna (cliques
+  // em <Link>, como os itens do menu) e fechar/recarregar a aba.
+  React.useEffect(() => {
+    if (phase !== "connecting" && phase !== "in-call") return;
+
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+
+    function onClickCapture(e: MouseEvent) {
+      const anchor = (e.target as HTMLElement | null)?.closest("a[href]") as
+        | HTMLAnchorElement
+        | null;
+      if (!anchor) return;
+      if (anchor.target && anchor.target !== "_self") return;
+
+      const destino = new URL(anchor.href, window.location.href);
+      if (destino.origin !== window.location.origin) return;
+      if (destino.pathname === window.location.pathname) return;
+
+      const confirmou = window.confirm(
+        "Você está em uma chamada ativa. Sair agora encerra a chamada (e qualquer gravação em andamento). Deseja continuar?",
+      );
+      if (!confirmou) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onClickCapture, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClickCapture, true);
+    };
+  }, [phase]);
+
   // Setup de mídia + WebRTC assim que os dois lados consentirem.
   React.useEffect(() => {
     if (phase !== "connecting") return;

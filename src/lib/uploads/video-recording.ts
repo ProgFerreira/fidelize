@@ -5,6 +5,7 @@ import path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import type { ReadableStream as NodeWebReadableStream } from "stream/web";
+import { persistentStorageRoot } from "@/lib/persistent-storage-root";
 
 const ALLOWED_MIME = new Set(["video/webm"]);
 const DEFAULT_MAX_MB = 500;
@@ -15,7 +16,7 @@ function maxBytes() {
 }
 
 function storageRoot() {
-  return path.join(process.cwd(), "storage", "recordings");
+  return path.join(persistentStorageRoot(), "storage", "recordings");
 }
 
 function safeSegment(value: string) {

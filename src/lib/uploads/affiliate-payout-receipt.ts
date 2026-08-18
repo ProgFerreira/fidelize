@@ -6,6 +6,7 @@ import {
   extensaoDeTipo,
   type TipoArquivoDetectado,
 } from "@/lib/uploads/sniff";
+import { persistentStorageRoot } from "@/lib/persistent-storage-root";
 
 const PERMITIDOS = new Set<TipoArquivoDetectado>([
   "image/jpeg",
@@ -16,7 +17,7 @@ const PERMITIDOS = new Set<TipoArquivoDetectado>([
 const MAX_BYTES = 3 * 1024 * 1024;
 
 export function affiliatePayoutStorageRoot() {
-  return path.join(process.cwd(), "storage", "affiliate-payouts");
+  return path.join(persistentStorageRoot(), "storage", "affiliate-payouts");
 }
 
 export function absoluteAffiliatePayoutPath(relative: string) {
